@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -23,14 +24,14 @@ type BCARequest struct {
 
 var _ interfaces.Request = &BCARequest{}
 
-func NewBCARequest(security interfaces.Security) *BCARequest {
+func NewBCARequest(security interfaces.Security, validator *validator.Validate) *BCARequest {
 	return &BCARequest{
-		Security: security,
+		Security:  security,
+		Validator: validator,
 	}
 }
 
-func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http.Request) error {
-	cfg := config.GetConfig()
+func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig) error {
 
 	// Checks for problematic configurations
 	if err := s.Validator.Struct(cfg.BCAConfig); err != nil {
@@ -39,6 +40,7 @@ func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http
 
 	timeStamp := time.Now().Format(time.RFC3339)
 
+	slog.Debug("Creating asymetric signature")
 	// Create the signature
 	signature, err := s.Security.CreateAsymetricSignature(ctx, timeStamp)
 	if err != nil {
@@ -64,12 +66,10 @@ func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http
 	return nil
 }
 
-func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, body any, relativeURL, accessToken string) error {
-
-	cfg := config.GetConfig()
-
+func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig, body any, relativeURL, accessToken string) error {
 	timeStamp := time.Now().Format(time.RFC3339)
 
+	slog.Debug("Creating symetric signature")
 	// Create the signature
 	signature, err := s.Security.CreateSymetricSignature(ctx, &models.SymetricSignatureRequirement{
 		HTTPMethod:  request.Method,
@@ -115,6 +115,7 @@ func (s *BCARequest) RequestHandler(ctx context.Context, request *http.Request) 
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
+		slog.Debug("Non-200 status code", "status", response.StatusCode)
 		var obj models.BCAResponse
 
 		if err := json.Unmarshal(body, &obj); err != nil {

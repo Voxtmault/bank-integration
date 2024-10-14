@@ -4,15 +4,16 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/voxtmault/bank-integration/config"
 	models "github.com/voxtmault/bank-integration/models"
 )
 
 type Request interface {
 	// AccessTokenRequestHeader is ONLY used to set the headers for the request to get the access token.
-	AccessTokenRequestHeader(ctx context.Context, request *http.Request) error
+	AccessTokenRequestHeader(ctx context.Context, request *http.Request, config *config.BankingConfig) error
 
 	// RequestHeader is used to set the headers for all other requests.
-	RequestHeader(ctx context.Context, request *http.Request, body any, relativeURL, accessToken string) error
+	RequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig, body any, relativeURL, accessToken string) error
 
 	RequestHandler(ctx context.Context, request *http.Request) (string, error)
 }

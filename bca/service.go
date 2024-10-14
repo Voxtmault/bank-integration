@@ -49,18 +49,20 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 		return eris.Wrap(err, "marshalling body")
 	}
 
-	slog.Info("Getting Access Token from BCA", "URL", baseUrl)
+	slog.Debug("Getting Access Token from BCA", "URL", baseUrl)
 
 	req, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return eris.Wrap(err, "creating request")
 	}
 
+	slog.Debug("Building Request Header")
 	// Before sending the request, customize the header
-	if err = s.Request.AccessTokenRequestHeader(ctx, req); err != nil {
+	if err = s.Request.AccessTokenRequestHeader(ctx, req, s.Config); err != nil {
 		return eris.Wrap(err, "access token request header")
 	}
 
+	slog.Debug("Sending Request")
 	// Send the request
 	response, err := s.Request.RequestHandler(ctx, req)
 	if err != nil {
@@ -71,7 +73,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 		}
 	}
 
-	slog.Info("Response from BCA", "Response: ", response)
+	slog.Debug("Response from BCA", "Response: ", response)
 
 	var atObj models.AccessTokenResponse
 	if err = json.Unmarshal([]byte(response), &atObj); err != nil {
@@ -81,7 +83,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	s.AccessToken = atObj.AccessToken
 
 	// Create internal counter for when the access token expires
-	s.AccessTokenExpiresAt = time.Now().Add(time.Minute * 900).Unix()
+	s.AccessTokenExpiresAt = time.Now().Add(time.Second * 900).Unix()
 
 	return nil
 }
@@ -105,7 +107,7 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *models.BCABala
 		return nil, eris.Wrap(err, "creating request")
 	}
 
-	if err = s.Request.RequestHeader(ctx, request, payload, s.Config.BCAURLEndpoints.BalanceInquiryURL, s.AccessToken); err != nil {
+	if err = s.Request.RequestHeader(ctx, request, s.Config, payload, s.Config.BCAURLEndpoints.BalanceInquiryURL, s.AccessToken); err != nil {
 		return nil, eris.Wrap(err, "constructing request header")
 	}
 

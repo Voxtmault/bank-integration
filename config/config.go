@@ -32,6 +32,7 @@ type BankingConfig struct {
 	BCAConfig
 	BCAURLEndpoints
 	AppHost string
+	Mode    string
 }
 
 var config *BankingConfig
@@ -57,6 +58,7 @@ func New(envPath string) *BankingConfig {
 			BalanceInquiryURL: getEnv("BCA_BALANCE_INQUIRY_URL", ""),
 		},
 		AppHost: getEnv("APP_HOST", ""),
+		Mode:    getEnv("MODE", "prod"),
 	}
 
 	return config

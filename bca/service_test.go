@@ -4,20 +4,32 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/voxtmault/bank-integration/config"
 	"github.com/voxtmault/bank-integration/models"
+	"github.com/voxtmault/bank-integration/utils"
 )
 
 func TestGetAccessToken(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/shifter-project/shifter-wallet/.env")
+	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	utils.InitValidator()
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
 	service := NewBCAService(
 		NewBCARequest(
 			NewBCASecurity(
 				&cfg.BCAConfig,
 				&cfg.Keys,
 			),
+			utils.GetValidator(),
 		),
 		cfg,
 	)
@@ -28,13 +40,14 @@ func TestGetAccessToken(t *testing.T) {
 }
 
 func TestBalanceInquiry(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/shifter-project/shifter-wallet/.env")
+	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	service := NewBCAService(
 		NewBCARequest(
 			NewBCASecurity(
 				&cfg.BCAConfig,
 				&cfg.Keys,
 			),
+			utils.GetValidator(),
 		),
 		cfg,
 	)
