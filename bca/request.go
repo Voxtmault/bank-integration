@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -53,9 +52,9 @@ func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http
 		request.Header.Set("Content-Type", "application/json")
 	}
 
-	log.Println("Timestamp: ", timeStamp)
-	log.Println("Client ID: ", cfg.BCAConfig.ClientID)
-	log.Println("Signature: ", signature)
+	slog.Debug("Request Header Debug", "Timestamp: ", timeStamp)
+	slog.Debug("Request Header Debug", "Client ID: ", cfg.BCAConfig.ClientID)
+	slog.Debug("Request Header Debug", "Signature: ", signature)
 
 	// Add custom headers required by BCA
 	request.Header.Set("X-TIMESTAMP", timeStamp)
