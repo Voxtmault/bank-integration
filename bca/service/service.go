@@ -1,4 +1,4 @@
-package bca
+package bca_service
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/config"
 	"github.com/voxtmault/bank-integration/interfaces"
@@ -15,8 +16,9 @@ import (
 )
 
 type BCAService struct {
-	Request interfaces.Request
-	Config  *config.BankingConfig
+	Request   interfaces.Request
+	Config    *config.BankingConfig
+	Validator *validator.Validate
 
 	AccessToken          string
 	AccessTokenExpiresAt int64
@@ -86,6 +88,51 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	s.AccessTokenExpiresAt = time.Now().Add(time.Second * 900).Unix()
 
 	return nil
+}
+
+func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error) {
+	// Logic
+	// 1. Parse the request body
+	// 2. Parse the request header
+	// 3. Verify Asymmetric Signature
+	// 4. Generate Access Token
+	// 5. Save the Access Token along with client secret to redis
+
+	// Parse the request body
+	var body models.GrantType
+	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+		return nil, eris.Wrap(err, "decoding request body")
+	}
+
+	if err := s.Validator.StructCtx(ctx, body); err != nil {
+		return nil, eris.Wrap(err, "validating request body")
+	}
+
+	// Parse the request header
+	timeStamp := request.Header.Get("X-TIMESTAMP")
+	clientKey := request.Header.Get("X-CLIENT-KEY")
+	// signature := request.Header.Get("X-SIGNATURE")
+
+	// Validate parsed header
+	if clientKey == "" {
+		return &models.AccessTokenResponse{
+			BCAResponse: models.BCAResponse{
+				HTTPStatusCode:  http.StatusBadRequest,
+				ResponseCode:    "4007301",
+				ResponseMessage: "Invalid field format [clientId/clientSecret/grantType]",
+			},
+		}, nil
+	} else if timeStamp == "" {
+		return &models.AccessTokenResponse{
+			BCAResponse: models.BCAResponse{
+				HTTPStatusCode:  http.StatusBadRequest,
+				ResponseCode:    "4007301",
+				ResponseMessage: "Invalid field format [X-TIMESTAMP]",
+			},
+		}, nil
+	}
+
+	return nil, nil
 }
 
 func (s *BCAService) BalanceInquiry(ctx context.Context, payload *models.BCABalanceInquiry) (*models.BCAAccountBalance, error) {

@@ -1,7 +1,19 @@
 package models
 
+type BCARequestHeader struct {
+	Timestamp     string `validate:"required,timezone"`
+	ContentType   string `validate:"required"`
+	Signature     string `validate:"required"`
+	ClientKey     string `validate:"required_without=Authorization"`
+	Authorization string `validate:"required_without=ClientKey"`
+	Origin        string `validate:"omitempty"`
+	ExternalID    string `validate:"required_without=ClientKey,numeric,max=36"`
+	ChannelID     string `validate:"required_with=PartnerID,max=5"`
+	PartnerID     string `validate:"required_with=ChannelID,max=32"` // Company Code / ID
+}
+
 type GrantType struct {
-	GrantType string `json:"grantType"`
+	GrantType string `json:"grantType" validate:"required"`
 }
 
 type SymetricSignatureRequirement struct {
@@ -50,9 +62,9 @@ type BCAResponse struct {
 
 type AccessTokenResponse struct {
 	BCAResponse
-	AccessToken string `json:"accessToken"`
-	TokenType   string `json:"tokenType"`
-	ExpiresIn   string `json:"expiresIn"`
+	AccessToken string `json:"accessToken,omitempty"`
+	TokenType   string `json:"tokenType,omitempty"`
+	ExpiresIn   string `json:"expiresIn,omitempty"`
 }
 
 type BCABalance struct {
