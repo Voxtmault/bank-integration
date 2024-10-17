@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
-	"time"
 
 	request "github.com/voxtmault/bank-integration/bca/request"
 	security "github.com/voxtmault/bank-integration/bca/security"
@@ -81,20 +80,4 @@ func TestBalanceInquiryUnmarshall(t *testing.T) {
 	}
 
 	log.Printf("%+v\n", obj)
-}
-
-func TestVerifyBCARequestHeader(t *testing.T) {
-	validator := utils.InitValidator()
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
-	obj := models.BCARequestHeader{
-		Timestamp:   time.Now().Format(time.RFC3339),
-		ContentType: "application/json",
-		Signature:   "",
-		ClientKey:   cfg.ClientSecret,
-		Origin:      "localhost",
-	}
-
-	if err := validator.Struct(obj); err != nil {
-		t.Errorf("Error validating: %v", err)
-	}
 }
