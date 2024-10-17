@@ -1,4 +1,4 @@
-package bca
+package bca_service
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	request "github.com/voxtmault/bank-integration/bca/request"
+	security "github.com/voxtmault/bank-integration/bca/security"
 	"github.com/voxtmault/bank-integration/config"
 	"github.com/voxtmault/bank-integration/models"
 	"github.com/voxtmault/bank-integration/utils"
@@ -24,8 +26,8 @@ func TestGetAccessToken(t *testing.T) {
 	}
 
 	service := NewBCAService(
-		NewBCARequest(
-			NewBCASecurity(
+		request.NewBCARequest(
+			security.NewBCASecurity(
 				&cfg.BCAConfig,
 				&cfg.Keys,
 			),
@@ -42,8 +44,8 @@ func TestGetAccessToken(t *testing.T) {
 func TestBalanceInquiry(t *testing.T) {
 	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	service := NewBCAService(
-		NewBCARequest(
-			NewBCASecurity(
+		request.NewBCARequest(
+			security.NewBCASecurity(
 				&cfg.BCAConfig,
 				&cfg.Keys,
 			),

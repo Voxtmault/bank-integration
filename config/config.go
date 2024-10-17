@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -27,10 +26,34 @@ type BCAURLEndpoints struct {
 	BalanceInquiryURL string
 }
 
+// Credential DB Config
+type MariaConfig struct {
+	DBDriver             string
+	DBHost               string
+	DBPort               string
+	DBUser               string
+	DBName               string
+	DBPassword           string
+	TSLConfig            string
+	AllowNativePasswords bool
+	MultiStatements      bool
+	MaxOpenConns         uint
+	MaxIdleConns         uint
+	ConnMaxLifetime      uint
+}
+type RedisConfig struct {
+	RedisHost     string
+	RedisPort     string
+	RedisPassword string
+	RedisDBNum    uint8
+}
+
 type BankingConfig struct {
 	Keys
 	BCAConfig
 	BCAURLEndpoints
+	MariaConfig
+	RedisConfig
 	AppHost string
 	Mode    string
 }
@@ -56,6 +79,26 @@ func New(envPath string) *BankingConfig {
 		BCAURLEndpoints: BCAURLEndpoints{
 			AccessTokenURL:    getEnv("BCA_ACCESS_TOKEN_URL", ""),
 			BalanceInquiryURL: getEnv("BCA_BALANCE_INQUIRY_URL", ""),
+		},
+		MariaConfig: MariaConfig{
+			DBDriver:             getEnv("DB_DRIVER", "mysql"),
+			DBHost:               getEnv("DB_HOST", ""),
+			DBPort:               getEnv("DB_PORT", "3306"),
+			DBUser:               getEnv("DB_USER", ""),
+			DBPassword:           getEnv("DB_PASSWORD", ""),
+			DBName:               getEnv("DB_NAME", ""),
+			TSLConfig:            getEnv("DB_TLS_CONFIG", "true"),
+			AllowNativePasswords: getEnvAsBool("DB_ALLOW_NATIVE_PASSWORDS", true),
+			MultiStatements:      getEnvAsBool("DB_MULTI_STATEMENTS", false),
+			MaxOpenConns:         uint(getEnvAsInt("DB_MAX_OPEN_CONNS", 20)),
+			MaxIdleConns:         uint(getEnvAsInt("DB_MAX_IDLE_CONNS", 5)),
+			ConnMaxLifetime:      uint(getEnvAsInt("DB_CONN_MAX_LIFETIME", 5)),
+		},
+		RedisConfig: RedisConfig{
+			RedisHost:     getEnv("REDIS_HOST", ""),
+			RedisPort:     getEnv("REDIS_PORT", "6378"),
+			RedisPassword: getEnv("REDIS_PASSWORD", ""),
+			RedisDBNum:    uint8(getEnvAsInt("REDIS_DB_NUM", 0)),
 		},
 		AppHost: getEnv("APP_HOST", ""),
 		Mode:    getEnv("MODE", "prod"),
@@ -102,30 +145,30 @@ func getEnvAsBool(name string, defaultVal bool) bool {
 }
 
 // Helper to read an environment variable into a slice of a specific type or return default value.
-func getEnvAsSlice[T any](name string, defaultVal []T, sep string) []T {
-	valStr := getEnv(name, "")
+// func getEnvAsSlice[T any](name string, defaultVal []T, sep string) []T {
+// 	valStr := getEnv(name, "")
 
-	if valStr == "" {
-		return defaultVal
-	}
+// 	if valStr == "" {
+// 		return defaultVal
+// 	}
 
-	vals := strings.Split(valStr, sep)
-	result := make([]T, len(vals))
+// 	vals := strings.Split(valStr, sep)
+// 	result := make([]T, len(vals))
 
-	for i, v := range vals {
-		switch any(result).(type) {
-		case []string:
-			result[i] = any(v).(T)
-		case []int:
-			intVal, _ := strconv.Atoi(v)
-			result[i] = any(intVal).(T)
-		case []bool:
-			boolVal, _ := strconv.ParseBool(v)
-			result[i] = any(boolVal).(T)
-		default:
-			return defaultVal
-		}
-	}
+// 	for i, v := range vals {
+// 		switch any(result).(type) {
+// 		case []string:
+// 			result[i] = any(v).(T)
+// 		case []int:
+// 			intVal, _ := strconv.Atoi(v)
+// 			result[i] = any(intVal).(T)
+// 		case []bool:
+// 			boolVal, _ := strconv.ParseBool(v)
+// 			result[i] = any(boolVal).(T)
+// 		default:
+// 			return defaultVal
+// 		}
+// 	}
 
-	return result
-}
+// 	return result
+// }

@@ -1,4 +1,4 @@
-package bca
+package bca_request
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http
 
 	slog.Debug("Creating asymetric signature")
 	// Create the signature
-	signature, err := s.Security.CreateAsymetricSignature(ctx, timeStamp)
+	signature, err := s.Security.CreateAsymmetricSignature(ctx, timeStamp)
 	if err != nil {
 		return eris.Wrap(err, "creating signature")
 	}
@@ -70,7 +70,7 @@ func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, c
 
 	slog.Debug("Creating symetric signature")
 	// Create the signature
-	signature, err := s.Security.CreateSymetricSignature(ctx, &models.SymetricSignatureRequirement{
+	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymetricSignatureRequirement{
 		HTTPMethod:  request.Method,
 		AccessToken: accessToken,
 		Timestamp:   timeStamp,

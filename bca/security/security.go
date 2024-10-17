@@ -1,4 +1,4 @@
-package bca
+package bca_security
 
 import (
 	"bytes"
@@ -31,9 +31,11 @@ import (
 
 type BCASecurity struct {
 	PrivateKeyPath string
-	ClientID       string
-	ClientSecret   string
+	PublicKeyPath  string
+	ClientID       string // Given by BCA
+	ClientSecret   string // Given by BCA
 	privateKey     *rsa.PrivateKey
+	publicKey      *rsa.PublicKey
 }
 
 var _ interfaces.Security = &BCASecurity{}
@@ -41,12 +43,13 @@ var _ interfaces.Security = &BCASecurity{}
 func NewBCASecurity(bcaConfig *config.BCAConfig, keys *config.Keys) *BCASecurity {
 	return &BCASecurity{
 		PrivateKeyPath: keys.PrivateKeyPath,
+		PublicKeyPath:  keys.PublicKeyPath,
 		ClientID:       bcaConfig.ClientID,
 		ClientSecret:   bcaConfig.ClientSecret,
 	}
 }
 
-func (s *BCASecurity) CreateAsymetricSignature(ctx context.Context, timeStamp string) (string, error) {
+func (s *BCASecurity) CreateAsymmetricSignature(ctx context.Context, timeStamp string) (string, error) {
 	var err error
 
 	// Checks if the private key is already loaded
@@ -71,7 +74,35 @@ func (s *BCASecurity) CreateAsymetricSignature(ctx context.Context, timeStamp st
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-func (s *BCASecurity) CreateSymetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement) (string, error) {
+func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error) {
+
+	if s.publicKey == nil {
+		var err error
+		s.publicKey, err = loadPublicKey(s.PublicKeyPath)
+		if err != nil {
+			return false, eris.Wrap(err, "loading public key")
+		}
+	}
+
+	// Decode the received signature
+	decodedSignature, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		return false, eris.Wrap(err, "decoding signature")
+	}
+
+	hash := sha256.New()
+	hash.Write([]byte(fmt.Sprintf("%s|%s", clientKey, timeStamp)))
+	hashed := hash.Sum(nil)
+
+	// Verify the signature
+	if err = rsa.VerifyPKCS1v15(s.publicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
+		return false, eris.Wrap(err, "verifying signature")
+	} else {
+		return true, nil
+	}
+}
+
+func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement) (string, error) {
 
 	// Encode the Relative URL
 	relativeURL, err := processRelativeURL(obj.RelativeURL)
@@ -92,6 +123,28 @@ func (s *BCASecurity) CreateSymetricSignature(ctx context.Context, obj *models.S
 	signature := h.Sum(nil)
 
 	return base64.StdEncoding.EncodeToString(signature), nil
+}
+
+func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error) {
+	// Encode the Relative URL
+	relativeURL, err := processRelativeURL(obj.RelativeURL)
+	if err != nil {
+		return false, eris.Wrap(err, "processing relative url")
+	}
+
+	// Generate the hash value of Request Body
+	requestBody, err := processRequestBody(obj.RequestBody)
+	if err != nil {
+		return false, eris.Wrap(err, "processing request body")
+	}
+	stringToSign := obj.HTTPMethod + ":" + relativeURL + ":" + obj.AccessToken + ":" + requestBody + ":" + obj.Timestamp
+
+	h := hmac.New(sha512.New, []byte(clientSecret))
+	h.Write([]byte(stringToSign))
+
+	calculatedSignature := base64.StdEncoding.EncodeToString(h.Sum(nil))
+
+	return hmac.Equal([]byte(signature), []byte(calculatedSignature)), nil
 }
 
 // Helper Functions
@@ -134,6 +187,30 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	}
 
 	return privateKey, nil
+}
+
+func loadPublicKey(path string) (*rsa.PublicKey, error) {
+	keyData, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(keyData)
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("failed to decode PEM block containing public key")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		return pub, nil
+	default:
+		return nil, fmt.Errorf("unexpected type of public key")
+	}
 }
 
 // processRequestBody is a helper function that returns a lowercase hex encoded SHA256 hash of the minified request body
