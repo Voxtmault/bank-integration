@@ -150,3 +150,7 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 
 	return nil
 }
+
+func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) {
+
+}
