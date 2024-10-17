@@ -3,6 +3,7 @@ package bca_service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -22,14 +23,17 @@ type BCAService struct {
 
 	AccessToken          string
 	AccessTokenExpiresAt int64
+
+	DB *sql.DB
 }
 
 var _ interfaces.SNAP = &BCAService{}
 
-func NewBCAService(request interfaces.Request, config *config.BankingConfig) *BCAService {
+func NewBCAService(request interfaces.Request, config *config.BankingConfig, db *sql.DB) *BCAService {
 	return &BCAService{
 		Request: request,
 		Config:  config,
+		DB:      db,
 	}
 }
 
@@ -198,6 +202,14 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) {
+func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (any, error) {
+	statement := `SELECT * FROM va_table`
 
+	res, err := s.DB.QueryContext(ctx, statement)
+	if err != nil {
+		return nil, eris.Wrap(err, "querying va_table")
+	}
+	defer res.Close()
+
+	return nil, nil
 }

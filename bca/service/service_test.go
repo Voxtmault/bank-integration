@@ -12,12 +12,14 @@ import (
 	security "github.com/voxtmault/bank-integration/bca/security"
 	"github.com/voxtmault/bank-integration/config"
 	"github.com/voxtmault/bank-integration/models"
+	"github.com/voxtmault/bank-integration/storage"
 	"github.com/voxtmault/bank-integration/utils"
 )
 
 func TestGetAccessToken(t *testing.T) {
 	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	utils.InitValidator()
+	storage.InitMariaDB(&cfg.MariaConfig)
 
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -34,6 +36,7 @@ func TestGetAccessToken(t *testing.T) {
 			utils.GetValidator(),
 		),
 		cfg,
+		storage.GetDBConnection(),
 	)
 
 	if err := service.GetAccessToken(context.Background()); err != nil {
@@ -43,6 +46,7 @@ func TestGetAccessToken(t *testing.T) {
 
 func TestBalanceInquiry(t *testing.T) {
 	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	storage.InitMariaDB(&cfg.MariaConfig)
 	service := NewBCAService(
 		request.NewBCARequest(
 			security.NewBCASecurity(
@@ -52,6 +56,7 @@ func TestBalanceInquiry(t *testing.T) {
 			utils.GetValidator(),
 		),
 		cfg,
+		storage.GetDBConnection(),
 	)
 
 	data, err := service.BalanceInquiry(context.Background(), &models.BCABalanceInquiry{})
