@@ -5,35 +5,51 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/config"
 	"github.com/voxtmault/bank-integration/interfaces"
 	"github.com/voxtmault/bank-integration/models"
+	"github.com/voxtmault/bank-integration/storage"
+	"github.com/voxtmault/bank-integration/utils"
 )
 
 type BCAService struct {
-	Request   interfaces.Request
-	Config    *config.BankingConfig
+
+	// Dependency Injection
+	Request         interfaces.Request
+	GeneralSecurity utils.GeneralSecurity
+
+	// Validator
 	Validator *validator.Validate
 
+	// Configs
+	Config *config.BankingConfig
+
+	// Runtime Access Tokens
 	AccessToken          string
 	AccessTokenExpiresAt int64
 
-	DB *sql.DB
+	// DB Connections
+	DB  *sql.DB
+	RDB *storage.RedisInstance
 }
 
 var _ interfaces.SNAP = &BCAService{}
 
-func NewBCAService(request interfaces.Request, config *config.BankingConfig, db *sql.DB) *BCAService {
+func NewBCAService(request interfaces.Request, config *config.BankingConfig, db *sql.DB, rdb *storage.RedisInstance, validator *validator.Validate) *BCAService {
 	return &BCAService{
-		Request: request,
-		Config:  config,
-		DB:      db,
+		Request:   request,
+		Config:    config,
+		DB:        db,
+		RDB:       rdb,
+		Validator: validator,
 	}
 }
 
@@ -98,9 +114,12 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// Logic
 	// 1. Parse the request body
 	// 2. Parse the request header
-	// 3. Verify Asymmetric Signature
-	// 4. Generate Access Token
-	// 5. Save the Access Token along with client secret to redis
+	// 3. Validate body and header
+	// 4. Retrieve the client secret from redis
+	// 5. Verify Asymmetric Signature
+	// 6. Generate Access Token
+	// 7. Save the Access Token along with client secret to redis
+	// 8. Return to caller
 
 	// Parse the request body
 	var body models.GrantType
@@ -108,6 +127,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		return nil, eris.Wrap(err, "decoding request body")
 	}
 
+	// Validate the received struct
 	if err := s.Validator.StructCtx(ctx, body); err != nil {
 		return nil, eris.Wrap(err, "validating request body")
 	}
@@ -115,10 +135,11 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// Parse the request header
 	timeStamp := request.Header.Get("X-TIMESTAMP")
 	clientKey := request.Header.Get("X-CLIENT-KEY")
-	// signature := request.Header.Get("X-SIGNATURE")
+	signature := request.Header.Get("X-SIGNATURE")
 
 	// Validate parsed header
 	if clientKey == "" {
+		slog.Debug("clientKey is empty")
 		return &models.AccessTokenResponse{
 			BCAResponse: models.BCAResponse{
 				HTTPStatusCode:  http.StatusBadRequest,
@@ -127,6 +148,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 			},
 		}, nil
 	} else if timeStamp == "" {
+		slog.Debug("timeStamp is empty")
 		return &models.AccessTokenResponse{
 			BCAResponse: models.BCAResponse{
 				HTTPStatusCode:  http.StatusBadRequest,
@@ -136,7 +158,97 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		}, nil
 	}
 
-	return nil, nil
+	// Validate the timestamp format
+	if _, err := time.Parse(time.RFC3339, timeStamp); err != nil {
+		slog.Debug("invalid timestamp format")
+		return &models.AccessTokenResponse{
+			BCAResponse: models.BCAResponse{
+				HTTPStatusCode:  http.StatusBadRequest,
+				ResponseCode:    "4007301",
+				ResponseMessage: "Invalid field format [X-TIMESTAMP]",
+			},
+		}, nil
+	}
+
+	// Retrieve the client secret from redis
+	clientSecret, err := s.RDB.GetIndividualValueRedisHash(ctx, utils.ClientCredentialsRedis, clientKey)
+	if err != nil {
+		return nil, eris.Wrap(err, "getting client secret")
+	}
+
+	if clientSecret == "" {
+		slog.Debug("clientId is not registered")
+		return &models.AccessTokenResponse{
+			BCAResponse: models.BCAResponse{
+				HTTPStatusCode:  http.StatusUnauthorized,
+				ResponseCode:    "4007301",
+				ResponseMessage: "Unauthorized. [Unknown client]",
+			},
+		}, nil
+	}
+
+	// Verify Asymmetric Signature
+	result, err := s.Request.VerifyAsymmetricSignature(ctx, timeStamp, clientKey, signature)
+	if err != nil {
+		return nil, eris.Wrap(err, "verifying asymmetric signature")
+	}
+
+	if !result {
+		return &models.AccessTokenResponse{
+			BCAResponse: models.BCAResponse{
+				HTTPStatusCode:  http.StatusUnauthorized,
+				ResponseCode:    "4017300",
+				ResponseMessage: "Unauthorized. [Signature]",
+			},
+		}, nil
+	}
+
+	// Generate the access token
+	token, err := s.GeneralSecurity.GenerateAccessToken(ctx)
+	if err != nil {
+		slog.Debug("error generating access token", "error", err)
+		return nil, eris.Wrap(err, "generating access token")
+	}
+	slog.Debug("generated token", "token", token)
+
+	// Save the access token to redis along with the configured client secret & expiration time
+	key := fmt.Sprintf("%s:%s", utils.AccessTokenRedis, token)
+	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*900).Err(); err != nil {
+		return nil, eris.Wrap(err, "saving access token to redis")
+	}
+
+	return &models.AccessTokenResponse{
+		AccessToken: token,
+		TokenType:   "bearer",
+		ExpiresIn:   "900",
+		BCAResponse: models.BCAResponse{
+			HTTPStatusCode:  http.StatusOK,
+			ResponseCode:    "2007300",
+			ResponseMessage: "Successful",
+		},
+	}, nil
+}
+
+func (s *BCAService) ValidateAccessToken(ctx context.Context, accessToken string) (bool, error) {
+	// Logic
+	// 1. Get the access token from Redis
+	// 2. If redis return nil then return false to the caller
+	// 3. if redis returns a value then return true to the caller
+
+	data, err := s.RDB.RDB.Get(ctx, fmt.Sprintf("%s:%s", utils.AccessTokenRedis, accessToken)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			slog.Debug("token not found in redis, possibly expired or nonexistent")
+			return false, nil
+		} else {
+			slog.Debug("error getting data from redis", "error", err)
+			return false, eris.Wrap(err, "getting data from redis")
+		}
+	}
+
+	slog.Debug("token found in redis", "client secret", data)
+
+	return true, nil
 }
 
 func (s *BCAService) BalanceInquiry(ctx context.Context, payload *models.BCABalanceInquiry) (*models.BCAAccountBalance, error) {

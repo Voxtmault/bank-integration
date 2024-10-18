@@ -14,11 +14,15 @@ func InitBankAPI(envPath string) error {
 	if err := storage.InitMariaDB(&cfg.MariaConfig); err != nil {
 		return eris.Wrap(err, "init mariadb connection")
 	}
-	if err := storage.InitRedis(&cfg.RedisConfig); err != nil {
+	obj, err := storage.InitRedis(&cfg.RedisConfig)
+	if err != nil {
 		return eris.Wrap(err, "init redis connection")
 	}
 
 	// Load Authenticated Banks to Redis
+	if err := LoadAuthenticatedBanks(storage.GetDBConnection(), obj); err != nil {
+		return eris.Wrap(err, "load authenticated banks")
+	}
 
 	// Load Services
 
