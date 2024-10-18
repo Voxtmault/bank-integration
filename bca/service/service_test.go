@@ -3,6 +3,7 @@ package bca_service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"log/slog"
 	"strings"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestGetAccessToken(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New("../../.env")
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 
@@ -85,4 +86,80 @@ func TestBalanceInquiryUnmarshall(t *testing.T) {
 	}
 
 	log.Printf("%+v\n", obj)
+}
+
+func TestBillPresement(t *testing.T) {
+	cfg := config.New("../../.env")
+	utils.InitValidator()
+	storage.InitMariaDB(&cfg.MariaConfig)
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	s := BCAService{DB: storage.GetDBConnection()}
+	bodyReq := `{
+ "partnerServiceId": " 11223",
+ "customerNo": "1234567890123456",
+ "virtualAccountNo": " 112231234567890123456",
+ "inquiryRequestId": "202410180000000000001"
+}`
+	var obj models.BCAVARequestPayload
+	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
+		t.Errorf("Error unmarshalling: %v", err)
+	}
+	log.Printf("%+v\n", obj)
+	res, err := s.BillPresentment(context.Background(), obj)
+	if err != nil {
+		t.Errorf("Error From cuntion Bill: %v", err)
+	}
+	result, err := json.Marshal(res)
+	if err != nil {
+		t.Errorf("Error From Marshal: %v", err)
+	}
+	fmt.Println(string(result))
+}
+
+func TestInquiryVA(t *testing.T) {
+	cfg := config.New("../../.env")
+	utils.InitValidator()
+	storage.InitMariaDB(&cfg.MariaConfig)
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	s := BCAService{DB: storage.GetDBConnection()}
+	bodyReq := `{
+ "partnerServiceId": " 11223",
+ "customerNo": "1234567890123456",
+ "virtualAccountNo": " 112231234567890123456",
+ "virtualAccountName": "Test Va",
+ "paymentRequestId": "202410180000000000001",
+ "paidAmount": {
+ "value": "100000.00",
+ "currency": "IDR"
+ },
+ "totalAmount": {
+ "value": "100000.00",
+ "currency": "IDR"
+ }
+}`
+	var obj models.BCAInquiryRequest
+	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
+		t.Errorf("Error unmarshalling: %v", err)
+	}
+	log.Printf("%+v\n", obj)
+	res, err := s.InquiryVA(context.Background(), obj)
+	if err != nil {
+		t.Errorf("Error From cuntion Bill: %v", err)
+	}
+	result, err := json.Marshal(res)
+	if err != nil {
+		t.Errorf("Error From Marshal: %v", err)
+	}
+	fmt.Println(string(result))
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -202,14 +203,117 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (any, error) {
-	statement := `SELECT * FROM va_table`
-
-	res, err := s.DB.QueryContext(ctx, statement)
+func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARequestPayload) (any, error) {
+	var obj models.VAResponsePayload
+	// log.Println(payload)
+	statement := `SELECT 
+    partnerServiceId,
+    customerNo,
+    virtualAccountNo,
+    virtualAccountName,
+    totalAmountValue,
+    totalAmountCurrency,
+    feeAmountValue,
+    feeAmountCurrency
+	FROM va_request WHERE virtualAccountNo='` + payload.VirtualAccountNo + `' AND paidAmountValue = '0';
+`
+	// log.Println(statement)
+	err := s.DB.QueryRowContext(ctx, statement).Scan(&obj.VirtualAccountData.PartnerServiceID,
+		&obj.VirtualAccountData.CustomerNo,
+		&obj.VirtualAccountData.VirtualAccountNo,
+		&obj.VirtualAccountData.VirtualAccountName,
+		&obj.VirtualAccountData.TotalAmount.Value,
+		&obj.VirtualAccountData.TotalAmount.Currency,
+		&obj.VirtualAccountData.FeeAmount.Value,
+		&obj.VirtualAccountData.FeeAmount.Currency)
 	if err != nil {
 		return nil, eris.Wrap(err, "querying va_table")
 	}
-	defer res.Close()
 
-	return nil, nil
+	updateQuery := "UPDATE va_request SET inqueryRequestId = '" + payload.InquiryRequestID + "'  WHERE virtualAccountNo='" + payload.VirtualAccountNo + "' AND paidAmountValue = '0' "
+	_, err = s.DB.QueryContext(ctx, updateQuery)
+	if err != nil {
+		return nil, eris.Wrap(err, "querying update va_table")
+	}
+	obj.ResponseCode = "2002400"
+	obj.ResponseMessage = "Success"
+	obj.VirtualAccountData.InquiryRequestID = payload.InquiryRequestID
+	return obj, nil
+}
+
+// func (s *BCAService) CreateVA(ctx context.Context, payload models.CreateVAReq) (any, error) {
+// 	query := "INSERT INTO va_request (totalAmountValue,virtualAccountNo,virtualAccountName)"
+// 	err := s.DB.QueryRowContext(ctx, query).Scan(&amount.Value, &amount.Currency)
+// 	if err != nil {
+// 		return amount, eris.Wrap(err, "querying va_table")
+// 	}
+// 	return nil, nil
+// }
+
+func (s *BCAService) GetVirtualAccountByInqueryRequestId(ctx context.Context, inqueryRequestId string) (models.Amount, error) {
+	var amount models.Amount
+	query := "SELECT totalAmountValue,totalAmountCurrency FROM va_request"
+	err := s.DB.QueryRowContext(ctx, query).Scan(&amount.Value, &amount.Currency)
+	if err != nil {
+		return amount, eris.Wrap(err, "querying va_table")
+	}
+	return amount, nil
+}
+
+func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryRequest) (any, error) {
+	var obj models.BCAInquiryVAResponse
+	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.PaymentRequestID)
+	if err != nil {
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, eris.Wrap(err, "querying va_table")
+	}
+	if amount.Value > payload.PaidAmount.Value {
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, nil
+	}
+	updateQuery := "UPDATE va_request SET paidAmountValue = '" + payload.PaidAmount.Value + "', paidAmountCurrency = '" + payload.PaidAmount.Currency + "', id_va_status = 2   WHERE inqueryRequestId = '" + payload.PaymentRequestID + "'"
+	_, err = s.DB.QueryContext(ctx, updateQuery)
+	if err != nil {
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, eris.Wrap(err, "querying va_table")
+	}
+
+	statement := `SELECT 
+    partnerServiceId,
+    customerNo,
+    virtualAccountNo,
+    virtualAccountName,
+    totalAmountValue,
+    totalAmountCurrency
+	FROM va_request WHERE inqueryRequestId='` + payload.PaymentRequestID + `';
+`
+	log.Println(statement)
+	rows, err := s.DB.QueryContext(ctx, statement)
+	if err != nil {
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, eris.Wrap(err, "querying va_table")
+	}
+	for rows.Next() {
+		err = rows.Scan(&obj.VirtualAccountData.PartnerServiceID,
+			&obj.VirtualAccountData.CustomerNo,
+			&obj.VirtualAccountData.VirtualAccountNo,
+			&obj.VirtualAccountData.VirtualAccountName,
+			&obj.VirtualAccountData.TotalAmount.Value,
+			&obj.VirtualAccountData.TotalAmount.Currency)
+		if err != nil {
+			obj.ResponseCode = "5002400"
+			obj.ResponseMessage = "General Error"
+			return obj, eris.Wrap(err, "querying va_table")
+		}
+	}
+	obj.ResponseCode = "2002400"
+	obj.ResponseMessage = "Success"
+	obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
+	obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
+	obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
+	return obj, nil
 }
