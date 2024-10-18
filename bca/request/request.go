@@ -133,3 +133,11 @@ func (s *BCARequest) RequestHandler(ctx context.Context, request *http.Request) 
 
 	return string(body), nil
 }
+
+func (s *BCARequest) VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error) {
+	return s.Security.VerifyAsymmetricSignature(ctx, timeStamp, clientKey, signature)
+}
+
+func (s *BCARequest) VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error) {
+	return s.Security.VerifySymmetricSignature(ctx, obj, clientSecret, signature)
+}

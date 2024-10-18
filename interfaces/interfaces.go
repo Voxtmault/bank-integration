@@ -16,6 +16,9 @@ type Request interface {
 	RequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig, body any, relativeURL, accessToken string) error
 
 	RequestHandler(ctx context.Context, request *http.Request) (string, error)
+
+	VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error)
+	VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error)
 }
 
 type Security interface {
@@ -41,6 +44,9 @@ type Security interface {
 type SNAP interface {
 	// Generally used to get access token from banks, but can also be used to renew existing tokens.
 	GetAccessToken(ctx context.Context) error
+
+	// GenerateAccessToken is used to generate the access token as a response form banks trying to authenticate
+	// with our wallet API
 	GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error)
 
 	// Used to get the information regarding the account balance and other informations.

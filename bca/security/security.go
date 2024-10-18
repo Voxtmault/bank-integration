@@ -152,10 +152,11 @@ func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.
 func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	// Read the private key file
 
-	slog.Info("Loading Private Key", "Path: ", path)
+	slog.Debug("Loading Private Key", "Path: ", path)
 
 	keyData, err := os.ReadFile(path)
 	if err != nil {
+		slog.Debug("error reading file", "error: ", err)
 		return nil, eris.Wrap(err, "reading file")
 	}
 
