@@ -30,22 +30,25 @@ import (
 )
 
 type BCASecurity struct {
-	PrivateKeyPath string
-	PublicKeyPath  string
-	ClientID       string // Given by BCA
-	ClientSecret   string // Given by BCA
-	privateKey     *rsa.PrivateKey
-	publicKey      *rsa.PublicKey
+	PrivateKeyPath   string
+	PublicKeyPath    string
+	BCAPublicKeyPath string
+	ClientID         string // Given by BCA
+	ClientSecret     string // Given by BCA
+	privateKey       *rsa.PrivateKey
+	publicKey        *rsa.PublicKey
+	bcaPublicKey     *rsa.PublicKey
 }
 
 var _ interfaces.Security = &BCASecurity{}
 
 func NewBCASecurity(bcaConfig *config.BCAConfig, keys *config.Keys) *BCASecurity {
 	return &BCASecurity{
-		PrivateKeyPath: keys.PrivateKeyPath,
-		PublicKeyPath:  keys.PublicKeyPath,
-		ClientID:       bcaConfig.ClientID,
-		ClientSecret:   bcaConfig.ClientSecret,
+		PrivateKeyPath:   keys.PrivateKeyPath,
+		PublicKeyPath:    keys.PublicKeyPath,
+		ClientID:         bcaConfig.ClientID,
+		ClientSecret:     bcaConfig.ClientSecret,
+		BCAPublicKeyPath: "/home/andy/ssl/shifter-wallet/mock_public.pub",
 	}
 }
 
@@ -76,9 +79,9 @@ func (s *BCASecurity) CreateAsymmetricSignature(ctx context.Context, timeStamp s
 
 func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error) {
 
-	if s.publicKey == nil {
+	if s.bcaPublicKey == nil {
 		var err error
-		s.publicKey, err = loadPublicKey(s.PublicKeyPath)
+		s.bcaPublicKey, err = loadPublicKey(s.BCAPublicKeyPath)
 		if err != nil {
 			return false, eris.Wrap(err, "loading public key")
 		}
@@ -95,7 +98,7 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 	hashed := hash.Sum(nil)
 
 	// Verify the signature
-	if err = rsa.VerifyPKCS1v15(s.publicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
+	if err = rsa.VerifyPKCS1v15(s.bcaPublicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
 		return false, eris.Wrap(err, "verifying signature")
 	} else {
 		return true, nil

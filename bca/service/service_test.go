@@ -214,6 +214,8 @@ func TestGenerateAccessToken(t *testing.T) {
 	mockSecurity := security.NewBCASecurity(
 		&cfg.BCAConfig, &cfg.Keys,
 	)
+	mockSecurity.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
+	mockSecurity.PublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pub"
 	mockSecurity.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	mockSecurity.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
@@ -281,7 +283,7 @@ func TestValidateAccessToken(t *testing.T) {
 		utils.GetValidator(),
 	)
 
-	result, err := service.ValidateAccessToken(context.Background(), "LHbfo2wp6iPrVwvvcZgKhkeXmyEOKA1rMBY2-VfNfmDUQ0fsvZTxI8Aeh0RmYLNc")
+	result, err := service.ValidateAccessToken(context.Background(), "3akCQSc2x4MV3M0GMXkzuMPQRghMHFATkpRoma7UgIx5M4l38cDezpE6KTaG5ukE")
 	if err != nil {
 		t.Errorf("Error validating access token: %v", err)
 	}
