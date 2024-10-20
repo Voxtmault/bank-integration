@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/config"
@@ -28,9 +27,6 @@ type BCAService struct {
 	Request         interfaces.Request
 	GeneralSecurity utils.GeneralSecurity
 
-	// Validator
-	Validator *validator.Validate
-
 	// Configs
 	Config *config.BankingConfig
 
@@ -45,13 +41,12 @@ type BCAService struct {
 
 var _ interfaces.SNAP = &BCAService{}
 
-func NewBCAService(request interfaces.Request, config *config.BankingConfig, db *sql.DB, rdb *storage.RedisInstance, validator *validator.Validate) *BCAService {
+func NewBCAService(request interfaces.Request, config *config.BankingConfig, db *sql.DB, rdb *storage.RedisInstance) *BCAService {
 	return &BCAService{
-		Request:   request,
-		Config:    config,
-		DB:        db,
-		RDB:       rdb,
-		Validator: validator,
+		Request: request,
+		Config:  config,
+		DB:      db,
+		RDB:     rdb,
 	}
 }
 
@@ -130,7 +125,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	}
 
 	// Validate the received struct
-	if err := s.Validator.StructCtx(ctx, body); err != nil {
+	if err := utils.ValidateStruct(ctx, body); err != nil {
 		return nil, eris.Wrap(err, "validating request body")
 	}
 
@@ -316,7 +311,7 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARequestPayload) (any, error) {
+func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (*models.VAResponsePayload, error) {
 	var obj models.VAResponsePayload
 	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.InquiryRequestID)
 	if err != nil && err != sql.ErrNoRows {
@@ -336,6 +331,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARe
 	// 	return obj, eris.Wrap(err, "VA has been expired")
 	// }
 
+	obj.VirtualAccountData = &models.VABCAResponseData{}
 	// log.Println(payload)
 	statement := `SELECT 
     partnerServiceId,
@@ -377,7 +373,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARe
 	obj.ResponseCode = "2002400"
 	obj.ResponseMessage = "Success"
 	obj.VirtualAccountData.InquiryRequestID = payload.InquiryRequestID
-	return obj, nil
+	return &obj, nil
 }
 
 // func (s *BCAService) randomNumberString(length int) string {}
@@ -415,8 +411,9 @@ func (s *BCAService) GetVirtualAccountByInqueryRequestId(ctx context.Context, in
 	return amount, nil
 }
 
-func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryRequest) (any, error) {
+func (s *BCAService) InquiryVA(ctx context.Context, payload *models.BCAInquiryRequest) (*models.BCAInquiryVAResponse, error) {
 	var obj models.BCAInquiryVAResponse
+	obj.VirtualAccountData = &models.VirtualAccountDataInqury{}
 	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.PaymentRequestID)
 
 	if err == sql.ErrNoRows {
@@ -426,7 +423,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryReq
 	} else if err != nil {
 		obj.ResponseCode = "5002400"
 		obj.ResponseMessage = "General Error"
-		return obj, eris.Wrap(err, "querying va_table")
+		return &obj, eris.Wrap(err, "querying va_table")
 	}
 	if amount.Value > payload.PaidAmount.Value {
 		obj.ResponseCode = "4042514"
@@ -450,7 +447,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryReq
 	if err != nil {
 		obj.ResponseCode = "5002400"
 		obj.ResponseMessage = "General Error"
-		return obj, eris.Wrap(err, "querying va_table")
+		return &obj, eris.Wrap(err, "querying va_table")
 	}
 	statement := `SELECT 
     partnerServiceId,
@@ -483,5 +480,5 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryReq
 	obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
 	obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
 	obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
-	return obj, nil
+	return &obj, nil
 }

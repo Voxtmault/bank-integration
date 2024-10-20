@@ -30,25 +30,31 @@ import (
 )
 
 type BCASecurity struct {
-	PrivateKeyPath   string
-	PublicKeyPath    string
+	// Partner Keys
+	PrivateKeyPath string
+
+	// Client keys given by BCA
+	ClientID     string
+	ClientSecret string
+
+	// BCA's submitted public key, used to verify the signature sent by BCA API
 	BCAPublicKeyPath string
-	ClientID         string // Given by BCA
-	ClientSecret     string // Given by BCA
-	privateKey       *rsa.PrivateKey
-	publicKey        *rsa.PublicKey
-	bcaPublicKey     *rsa.PublicKey
+
+	// Variables loaded on runtime
+
+	privateKey   *rsa.PrivateKey // privateKey is used to generate and sign signatures that is to be verified by BCA API
+	bcaPublicKey *rsa.PublicKey  // bcaPublicKey is used to verify the signature sent by BCA API
 }
 
+// BCA Security implements the Security interface
 var _ interfaces.Security = &BCASecurity{}
 
-func NewBCASecurity(bcaConfig *config.BCAConfig, keys *config.Keys) *BCASecurity {
+func NewBCASecurity(cfg *config.BankingConfig) *BCASecurity {
 	return &BCASecurity{
-		PrivateKeyPath:   keys.PrivateKeyPath,
-		PublicKeyPath:    keys.PublicKeyPath,
-		ClientID:         bcaConfig.ClientID,
-		ClientSecret:     bcaConfig.ClientSecret,
-		BCAPublicKeyPath: "/home/andy/ssl/shifter-wallet/mock_public.pub",
+		PrivateKeyPath:   cfg.Keys.PrivateKeyPath,
+		ClientID:         cfg.BCAConfig.ClientID,
+		ClientSecret:     cfg.BCAConfig.ClientSecret,
+		BCAPublicKeyPath: cfg.Keys.BCAPublicKeyPath,
 	}
 }
 

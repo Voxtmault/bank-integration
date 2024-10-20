@@ -14,8 +14,7 @@ import (
 func TestCreateAsymmetricSignature(t *testing.T) {
 	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	security := NewBCASecurity(
-		&cfg.BCAConfig,
-		&cfg.Keys,
+		cfg,
 	)
 
 	timestamp := time.Now().Format(time.RFC3339)
@@ -31,8 +30,7 @@ func TestCreateAsymmetricSignature(t *testing.T) {
 func TestCreateSymmetricSignature(t *testing.T) {
 	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	security := NewBCASecurity(
-		&cfg.BCAConfig,
-		&cfg.Keys,
+		cfg,
 	)
 
 	timestamp := time.Now().Format(time.RFC3339)
@@ -54,8 +52,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 func TestVerifyAsymmetricSignature(t *testing.T) {
 	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	security := NewBCASecurity(
-		&cfg.BCAConfig,
-		&cfg.Keys,
+		cfg,
 	)
 
 	timeStamp := "2024-10-15T12:41:00+07:00"

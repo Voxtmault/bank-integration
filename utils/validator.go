@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/go-playground/validator/v10"
+import (
+	"context"
+
+	"github.com/go-playground/validator/v10"
+)
 
 var validate *validator.Validate
 
@@ -16,4 +20,8 @@ func GetValidator() *validator.Validate {
 	} else {
 		return validate
 	}
+}
+
+func ValidateStruct(ctx context.Context, s interface{}) error {
+	return validate.Struct(s)
 }

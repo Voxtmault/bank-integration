@@ -8,32 +8,30 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/config"
 	"github.com/voxtmault/bank-integration/interfaces"
 	"github.com/voxtmault/bank-integration/models"
+	"github.com/voxtmault/bank-integration/utils"
 )
 
 type BCARequest struct {
 	// Security is mainly used to generate signatures for request headers
-	Security  interfaces.Security
-	Validator *validator.Validate
+	Security interfaces.Security
 }
 
 var _ interfaces.Request = &BCARequest{}
 
-func NewBCARequest(security interfaces.Security, validator *validator.Validate) *BCARequest {
+func NewBCARequest(security interfaces.Security) *BCARequest {
 	return &BCARequest{
-		Security:  security,
-		Validator: validator,
+		Security: security,
 	}
 }
 
 func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig) error {
 
 	// Checks for problematic configurations
-	if err := s.Validator.Struct(cfg.BCAConfig); err != nil {
+	if err := utils.ValidateStruct(ctx, cfg.BCAConfig); err != nil {
 		return eris.Wrap(err, "invalid BCA configuration")
 	}
 

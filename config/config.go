@@ -9,8 +9,8 @@ import (
 )
 
 type Keys struct {
-	PrivateKeyPath string
-	PublicKeyPath  string
+	PrivateKeyPath   string
+	BCAPublicKeyPath string
 }
 
 // Banking Config
@@ -73,8 +73,8 @@ func New(envPath string) *BankingConfig {
 
 	config = &BankingConfig{
 		Keys: Keys{
-			PrivateKeyPath: getEnv("PRIVATE_KEY_PATH", ""),
-			PublicKeyPath:  getEnv("PUBLIC_KEY_PATH", ""),
+			PrivateKeyPath:   getEnv("PRIVATE_KEY_PATH", ""),
+			BCAPublicKeyPath: getEnv("BCA_PUBLIC_KEY_PATH", ""),
 		},
 		BCAConfig: BCAConfig{
 			BaseURL:      getEnv("BCA_BASE_URL", ""),
