@@ -65,7 +65,7 @@ func (r BCAResponse) Data() (int, string, string) {
 }
 
 type AccessTokenResponse struct {
-	BCAResponse
+	*BCAResponse
 	AccessToken string `json:"accessToken,omitempty"`
 	TokenType   string `json:"tokenType,omitempty"`
 	ExpiresIn   string `json:"expiresIn,omitempty"`

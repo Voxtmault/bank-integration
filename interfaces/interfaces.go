@@ -6,6 +6,7 @@ import (
 
 	"github.com/voxtmault/bank-integration/config"
 	models "github.com/voxtmault/bank-integration/models"
+	"github.com/voxtmault/bank-integration/storage"
 )
 
 // Deprecated: Use RequestEgress and RequestIngress instead.
@@ -34,10 +35,10 @@ type RequestEgress interface {
 // RequestIngress is an interface that defines the methods that are used to receive requests from banks.
 type RequestIngress interface {
 	// VerifyAsymmetricSignature verifies the request headers ONLY for access-token related http requests.
-	VerifyAsymmetricSignature(ctx context.Context, request *http.Request, clientSecret string) (bool, error)
+	VerifyAsymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance) (bool, *models.BCAResponse, string)
 
 	// VerifySymmetricSignature verifies the request headers for non access-token related http requests.
-	VerifySymmetricSignature(ctx context.Context, request *http.Request) (bool, error)
+	VerifySymmetricSignature(ctx context.Context, request *http.Request) (bool, *models.BCAResponse)
 }
 
 type Security interface {

@@ -133,74 +133,17 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		return nil, eris.Wrap(err, "validating request body")
 	}
 
-	// Parse the request header
-	timeStamp := request.Header.Get("X-TIMESTAMP")
-	clientKey := request.Header.Get("X-CLIENT-KEY")
-	// signature := request.Header.Get("X-SIGNATURE")
-
-	// Validate parsed header
-	if clientKey == "" {
-		slog.Debug("clientKey is empty")
-		return &models.AccessTokenResponse{
-			BCAResponse: models.BCAResponse{
-				HTTPStatusCode:  http.StatusBadRequest,
-				ResponseCode:    "4007301",
-				ResponseMessage: "Invalid field format [clientId/clientSecret/grantType]",
-			},
-		}, nil
-	} else if timeStamp == "" {
-		slog.Debug("timeStamp is empty")
-		return &models.AccessTokenResponse{
-			BCAResponse: models.BCAResponse{
-				HTTPStatusCode:  http.StatusBadRequest,
-				ResponseCode:    "4007301",
-				ResponseMessage: "Invalid field format [X-TIMESTAMP]",
-			},
-		}, nil
-	}
-
-	// Validate the timestamp format
-	if _, err := time.Parse(time.RFC3339, timeStamp); err != nil {
-		slog.Debug("invalid timestamp format")
-		return &models.AccessTokenResponse{
-			BCAResponse: models.BCAResponse{
-				HTTPStatusCode:  http.StatusBadRequest,
-				ResponseCode:    "4007301",
-				ResponseMessage: "Invalid field format [X-TIMESTAMP]",
-			},
-		}, nil
-	}
-
-	// Retrieve the client secret from redis
-	clientSecret, err := s.RDB.GetIndividualValueRedisHash(ctx, utils.ClientCredentialsRedis, clientKey)
-	if err != nil {
-		return nil, eris.Wrap(err, "getting client secret")
-	}
-
-	if clientSecret == "" {
-		slog.Debug("clientId is not registered")
-		return &models.AccessTokenResponse{
-			BCAResponse: models.BCAResponse{
-				HTTPStatusCode:  http.StatusUnauthorized,
-				ResponseCode:    "4007301",
-				ResponseMessage: "Unauthorized. [Unknown client]",
-			},
-		}, nil
-	}
-
 	// Verify Asymmetric Signature
-	result, err := s.Ingress.VerifyAsymmetricSignature(ctx, request, clientSecret)
-	if err != nil {
-		return nil, eris.Wrap(err, "verifying asymmetric signature")
+	result, response, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
+	if response != nil {
+		return &models.AccessTokenResponse{
+			BCAResponse: response,
+		}, nil
 	}
 
 	if !result {
 		return &models.AccessTokenResponse{
-			BCAResponse: models.BCAResponse{
-				HTTPStatusCode:  http.StatusUnauthorized,
-				ResponseCode:    "4017300",
-				ResponseMessage: "Unauthorized. [Signature]",
-			},
+			BCAResponse: &bca.BCAAuthUnauthorizedSignature,
 		}, nil
 	}
 
@@ -218,15 +161,12 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		return nil, eris.Wrap(err, "saving access token to redis")
 	}
 
+	// TODO Load the expires in using config
 	return &models.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
 		ExpiresIn:   "900",
-		BCAResponse: models.BCAResponse{
-			HTTPStatusCode:  http.StatusOK,
-			ResponseCode:    "2007300",
-			ResponseMessage: "Successful",
-		},
+		BCAResponse: &bca.BCAAuthResponseSuccess,
 	}, nil
 }
 
