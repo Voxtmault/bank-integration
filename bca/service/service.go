@@ -318,7 +318,7 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 
 func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARequestPayload) (any, error) {
 	var obj models.VAResponsePayload
-	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.InquiryRequestID)
+	amount, err := s.GetVirtualAccountPaidAmoutnByInqueryRequestId(ctx, payload.InquiryRequestID)
 	if err != nil && err != sql.ErrNoRows {
 		obj.ResponseCode = "5002400"
 		obj.ResponseMessage = "General Error"
@@ -336,7 +336,6 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARe
 	// 	return obj, eris.Wrap(err, "VA has been expired")
 	// }
 
-	// log.Println(payload)
 	statement := `SELECT 
     partnerServiceId,
     customerNo,
@@ -346,7 +345,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARe
     totalAmountCurrency,
     feeAmountValue,
     feeAmountCurrency
-	FROM va_request WHERE virtualAccountNo=? AND paidAmountValue = '0';
+	FROM va_request WHERE virtualAccountNo = ? AND paidAmountValue = '0';
 `
 	// log.Println(statement)
 	err = s.DB.QueryRowContext(ctx, statement, payload.VirtualAccountNo).Scan(&obj.VirtualAccountData.PartnerServiceID,
@@ -415,10 +414,19 @@ func (s *BCAService) GetVirtualAccountByInqueryRequestId(ctx context.Context, in
 	return amount, nil
 }
 
+func (s *BCAService) GetVirtualAccountPaidAmoutnByInqueryRequestId(ctx context.Context, inqueryRequestId string) (models.Amount, error) {
+	var amount models.Amount
+	query := "SELECT paidAmountValue, paidAmountCurrency FROM va_request WHERE inqueryRequestID = ?"
+	err := s.DB.QueryRowContext(ctx, query, inqueryRequestId).Scan(&amount.Value, &amount.Currency)
+	if err != nil {
+		return amount, eris.Wrap(err, "querying va_table")
+	}
+	return amount, nil
+}
+
 func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryRequest) (any, error) {
 	var obj models.BCAInquiryVAResponse
 	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.PaymentRequestID)
-
 	if err == sql.ErrNoRows {
 		obj.ResponseCode = "4042512"
 		obj.ResponseMessage = "Invalid Bill/Virtual Account [Not Found]"
