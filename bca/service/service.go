@@ -364,12 +364,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVAR
 			&obj.VirtualAccountData.FeeAmount.Value,
 			&obj.VirtualAccountData.FeeAmount.Currency)
 		if err == sql.ErrNoRows {
-			obj.ResponseCode = "4042412"
-			obj.ResponseMessage = "Invalid Bill/Virtual Account [Bill Not Exist]"
+			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVANotFound.Data()
 			return &obj, eris.Wrap(err, "VA Not Found")
 		} else if err != nil {
-			obj.ResponseCode = "5002400"
-			obj.ResponseMessage = "General Error"
+			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
 			return &obj, eris.Wrap(err, "querying va_table")
 		}
 
