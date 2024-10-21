@@ -35,13 +35,11 @@ func InitBankAPI(envPath string) error {
 
 func InitBCAService() interfaces.SNAP {
 
+	security := bcaSecurity.NewBCASecurity(config.GetConfig())
+
 	service := bcaService.NewBCAService(
-		bcaRequest.NewBCARequest(
-			bcaSecurity.NewBCASecurity(
-				&config.GetConfig().BCAConfig,
-				&config.GetConfig().Keys,
-			),
-		),
+		bcaRequest.NewBCAEgress(security),
+		bcaRequest.NewBCAIngress(security),
 		config.GetConfig(),
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),

@@ -326,76 +326,90 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVAR
 		return &obj, eris.Wrap(err, "Error Find VA")
 	}
 
-	if amount == nil {
-		slog.Debug("payment request ID not found in database")
+	if amount.Value != "0" {
+		slog.Debug("va has been paid")
+
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVAPaid.Data()
+		return &obj, eris.Wrap(err, "va has been paid")
+	}
+
+	// if time.Now().After(expired) {
+	// 	obj.ResponseCode = "4042419"
+	// 	obj.ResponseMessage = "Invalid Bill/Virtual Account"
+	// 	return obj, eris.Wrap(err, "VA has been expired")
+	// }
+
+	obj.VirtualAccountData = &models.VABCAResponseData{}
+	slog.Debug("received data", "payload", payload)
+
+	// Start of logic
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Debug("error beginning transaction", "error", err)
+		tx.Rollback()
 
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVANotFound.Data()
-		return &obj, nil
-	} else {
-		if amount.Value != "0" {
-			slog.Debug("va has been paid")
-
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVAPaid.Data()
-			return &obj, eris.Wrap(err, "va has been paid")
-		}
-
-		// if time.Now().After(expired) {
-		// 	obj.ResponseCode = "4042419"
-		// 	obj.ResponseMessage = "Invalid Bill/Virtual Account"
-		// 	return obj, eris.Wrap(err, "VA has been expired")
-		// }
-
-		obj.VirtualAccountData = &models.VABCAResponseData{}
-		slog.Debug("received data", "payload", payload)
-
-		statement := `
-		SELECT partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
-			   totalAmountCurrency, feeAmountValue, feeAmountCurrency
-		FROM va_request 
-		WHERE virtualAccountNo = ? AND paidAmountValue = '0'
-		`
-		if err := s.DB.QueryRowContext(ctx, statement, payload.VirtualAccountNo).Scan(
-			&obj.VirtualAccountData.PartnerServiceID,
-			&obj.VirtualAccountData.CustomerNo,
-			&obj.VirtualAccountData.VirtualAccountNo,
-			&obj.VirtualAccountData.VirtualAccountName,
-			&obj.VirtualAccountData.TotalAmount.Value,
-			&obj.VirtualAccountData.TotalAmount.Currency,
-			&obj.VirtualAccountData.FeeAmount.Value,
-			&obj.VirtualAccountData.FeeAmount.Currency,
-		); err == sql.ErrNoRows {
-			slog.Debug("va not found")
-
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVANotFound.Data()
-			return &obj, eris.Wrap(err, "va Not Found")
-		} else if err != nil {
-			slog.Debug("error querying va_request", "error", err)
-
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
-			return &obj, eris.Wrap(err, "querying va_request")
-		}
-
-		statement = `
-		UPDATE va_request SET inqueryRequestId = ? 
-		WHERE virtualAccountNo = ? AND paidAmountValue = '0'
-		`
-		_, err := s.DB.QueryContext(ctx, statement, payload.InquiryRequestID, payload.VirtualAccountNo)
-		if err != nil {
-			slog.Debug("error updating va_request", "error", err)
-
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
-			return &obj, eris.Wrap(err, "updating va_request")
-		}
-
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseSuccess.Data()
-		obj.VirtualAccountData.InquiryRequestID = payload.InquiryRequestID
-
-		return &obj, nil
+		return &obj, eris.Wrap(err, "begin tx")
 	}
+
+	statement := `
+	SELECT partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
+		   totalAmountCurrency, feeAmountValue, feeAmountCurrency
+	FROM va_request 
+	WHERE virtualAccountNo = ? AND paidAmountValue = '0'
+	`
+	if err := tx.QueryRowContext(ctx, statement, payload.VirtualAccountNo).Scan(
+		&obj.VirtualAccountData.PartnerServiceID,
+		&obj.VirtualAccountData.CustomerNo,
+		&obj.VirtualAccountData.VirtualAccountNo,
+		&obj.VirtualAccountData.VirtualAccountName,
+		&obj.VirtualAccountData.TotalAmount.Value,
+		&obj.VirtualAccountData.TotalAmount.Currency,
+		&obj.VirtualAccountData.FeeAmount.Value,
+		&obj.VirtualAccountData.FeeAmount.Currency,
+	); err == sql.ErrNoRows {
+		slog.Debug("va not found")
+		tx.Rollback()
+
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVANotFound.Data()
+		return &obj, eris.Wrap(err, "va Not Found")
+	} else if err != nil {
+		slog.Debug("error querying va_request", "error", err)
+		tx.Rollback()
+
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
+		return &obj, eris.Wrap(err, "querying va_request")
+	}
+
+	statement = `
+	UPDATE va_request SET inqueryRequestId = ? 
+	WHERE virtualAccountNo = ? AND paidAmountValue = '0'
+	`
+	_, err = tx.QueryContext(ctx, statement, payload.InquiryRequestID, payload.VirtualAccountNo)
+	if err != nil {
+		slog.Debug("error updating va_request", "error", err)
+		tx.Rollback()
+
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
+		return &obj, eris.Wrap(err, "updating va_request")
+	}
+
+	obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseSuccess.Data()
+	obj.VirtualAccountData.InquiryRequestID = payload.InquiryRequestID
+
+	if err = tx.Commit(); err != nil {
+		slog.Debug("error committing transaction", "error", err)
+		tx.Rollback()
+
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
+		return &obj, eris.Wrap(err, "commit tx")
+	}
+
+	return &obj, nil
 }
 
 // func (s *BCAService) randomNumberString(length int) string {}
-func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, string) {
+func (s *BCAService) BuildNumVA(ctx context.Context, idUser, idJenis int, partnerId string) (string, string) {
 
 	partnerId += "0" + strconv.Itoa(idJenis)
 	nIdU := strconv.Itoa(idUser)
@@ -407,19 +421,32 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 	return partnerId + customerNo, customerNo
 }
 
-func (s *BCAService) CreateVA(ctx context.Context, payload models.CreateVAReq) (any, error) {
-	partnerId := s.Config.BCAPartnerId.BCAPartnerId
+func (s *BCAService) CreateVA(ctx context.Context, payload *models.CreateVAReq) error {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		tx.Rollback()
+		return eris.Wrap(err, "begin tx")
+	}
+
+	partnerId := s.Config.BCAPartnerInformation.BCAPartnerId
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
 				   			virtualAccountName, id_user, owner_table)
 	VALUES(?,?,?,?,?,?,?)
 	`
-	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
-	_, err := s.DB.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
-	if err != nil {
-		return nil, eris.Wrap(err, "querying va_table")
+	numVA, customerNo := s.BuildNumVA(ctx, payload.IdUser, payload.IdJenisUser, partnerId)
+	if _, err = tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran,
+		payload.NamaUser, payload.IdUser, payload.IdJenisUser); err != nil {
+		tx.Rollback()
+		return eris.Wrap(err, "inserting new va into va_table")
 	}
-	return nil, nil
+
+	if err = tx.Commit(); err != nil {
+		tx.Rollback()
+		return eris.Wrap(err, "commit tx")
+	}
+
+	return nil
 }
 
 func (s *BCAService) GetVirtualAccountByInqueryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
@@ -434,7 +461,7 @@ func (s *BCAService) GetVirtualAccountByInqueryRequestId(ctx context.Context, in
 	); err != nil {
 		slog.Debug("error querying va_request", "error", err)
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return &amount, nil
 		} else {
 			return nil, eris.Wrap(err, "querying va_request")
 		}
