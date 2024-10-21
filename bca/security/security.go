@@ -30,22 +30,31 @@ import (
 )
 
 type BCASecurity struct {
+	// Partner Keys
 	PrivateKeyPath string
-	PublicKeyPath  string
-	ClientID       string // Given by BCA
-	ClientSecret   string // Given by BCA
-	privateKey     *rsa.PrivateKey
-	publicKey      *rsa.PublicKey
+
+	// Client keys given by BCA
+	ClientID     string
+	ClientSecret string
+
+	// BCA's submitted public key, used to verify the signature sent by BCA API
+	BCAPublicKeyPath string
+
+	// Variables loaded on runtime
+
+	privateKey   *rsa.PrivateKey // privateKey is used to generate and sign signatures that is to be verified by BCA API
+	bcaPublicKey *rsa.PublicKey  // bcaPublicKey is used to verify the signature sent by BCA API
 }
 
+// BCA Security implements the Security interface
 var _ interfaces.Security = &BCASecurity{}
 
-func NewBCASecurity(bcaConfig *config.BCAConfig, keys *config.Keys) *BCASecurity {
+func NewBCASecurity(cfg *config.BankingConfig) *BCASecurity {
 	return &BCASecurity{
-		PrivateKeyPath: keys.PrivateKeyPath,
-		PublicKeyPath:  keys.PublicKeyPath,
-		ClientID:       bcaConfig.ClientID,
-		ClientSecret:   bcaConfig.ClientSecret,
+		PrivateKeyPath:   cfg.Keys.PrivateKeyPath,
+		ClientID:         cfg.BCAConfig.ClientID,
+		ClientSecret:     cfg.BCAConfig.ClientSecret,
+		BCAPublicKeyPath: cfg.Keys.BCAPublicKeyPath,
 	}
 }
 
@@ -76,9 +85,9 @@ func (s *BCASecurity) CreateAsymmetricSignature(ctx context.Context, timeStamp s
 
 func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error) {
 
-	if s.publicKey == nil {
+	if s.bcaPublicKey == nil {
 		var err error
-		s.publicKey, err = loadPublicKey(s.PublicKeyPath)
+		s.bcaPublicKey, err = loadPublicKey(s.BCAPublicKeyPath)
 		if err != nil {
 			return false, eris.Wrap(err, "loading public key")
 		}
@@ -95,7 +104,7 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 	hashed := hash.Sum(nil)
 
 	// Verify the signature
-	if err = rsa.VerifyPKCS1v15(s.publicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
+	if err = rsa.VerifyPKCS1v15(s.bcaPublicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
 		return false, eris.Wrap(err, "verifying signature")
 	} else {
 		return true, nil

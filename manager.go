@@ -2,13 +2,19 @@ package bank_integration
 
 import (
 	"github.com/rotisserie/eris"
+	bcaRequest "github.com/voxtmault/bank-integration/bca/request"
+	bcaSecurity "github.com/voxtmault/bank-integration/bca/security"
+	bcaService "github.com/voxtmault/bank-integration/bca/service"
 	"github.com/voxtmault/bank-integration/config"
+	"github.com/voxtmault/bank-integration/interfaces"
 	"github.com/voxtmault/bank-integration/storage"
+	"github.com/voxtmault/bank-integration/utils"
 )
 
 func InitBankAPI(envPath string) error {
 	// Load Configs
 	cfg := config.New(envPath)
+	utils.InitValidator()
 
 	// Init storage connections
 	if err := storage.InitMariaDB(&cfg.MariaConfig); err != nil {
@@ -24,7 +30,22 @@ func InitBankAPI(envPath string) error {
 		return eris.Wrap(err, "load authenticated banks")
 	}
 
-	// Load Services
-
 	return nil
+}
+
+func InitBCAService() interfaces.SNAP {
+
+	service := bcaService.NewBCAService(
+		bcaRequest.NewBCARequest(
+			bcaSecurity.NewBCASecurity(
+				&config.GetConfig().BCAConfig,
+				&config.GetConfig().Keys,
+			),
+		),
+		config.GetConfig(),
+		storage.GetDBConnection(),
+		storage.GetRedisInstance(),
+	)
+
+	return service
 }

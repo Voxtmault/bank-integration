@@ -20,8 +20,10 @@ import (
 	"github.com/voxtmault/bank-integration/utils"
 )
 
+var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+
 func TestGetAccessToken(t *testing.T) {
-	cfg := config.New("../../.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
@@ -32,18 +34,14 @@ func TestGetAccessToken(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
+	security := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				&cfg.BCAConfig,
-				&cfg.Keys,
-			),
-			utils.GetValidator(),
-		),
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
-		utils.GetValidator(),
 	)
 
 	if err := service.GetAccessToken(context.Background()); err != nil {
@@ -52,23 +50,19 @@ func TestGetAccessToken(t *testing.T) {
 }
 
 func TestBalanceInquiry(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
 
+	security := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				&cfg.BCAConfig,
-				&cfg.Keys,
-			),
-			utils.GetValidator(),
-		),
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
-		utils.GetValidator(),
 	)
 
 	data, err := service.BalanceInquiry(context.Background(), &models.BCABalanceInquiry{})
@@ -100,7 +94,7 @@ func TestBalanceInquiryUnmarshall(t *testing.T) {
 }
 
 func TestBillPresement(t *testing.T) {
-	cfg := config.New("../../.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 
@@ -112,17 +106,17 @@ func TestBillPresement(t *testing.T) {
 
 	s := BCAService{DB: storage.GetDBConnection()}
 	bodyReq := `{
- "partnerServiceId": " 11223",
- "customerNo": "1234567890123456",
- "virtualAccountNo": " 112231234567890123456",
- "inquiryRequestId": "202410180000000000001"
-}`
+	"partnerServiceId": " 11223",
+	"customerNo": "1234567890123456",
+	"virtualAccountNo": " 112231234567890123457",
+	"inquiryRequestId": "202410180000000000001"
+	}`
 	var obj models.BCAVARequestPayload
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
 	log.Printf("%+v\n", obj)
-	res, err := s.BillPresentment(context.Background(), obj)
+	res, err := s.BillPresentment(context.Background(), &obj)
 	if err != nil {
 		t.Errorf("Error From cuntion Bill: %v", err)
 	}
@@ -130,11 +124,11 @@ func TestBillPresement(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error From Marshal: %v", err)
 	}
-	fmt.Println(string(result))
+	slog.Debug(string(result))
 }
 
 func TestInquiryVA(t *testing.T) {
-	cfg := config.New("../../.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
@@ -145,26 +139,26 @@ func TestInquiryVA(t *testing.T) {
 
 	s := BCAService{DB: storage.GetDBConnection()}
 	bodyReq := `{
- "partnerServiceId": " 11223",
- "customerNo": "1234567890123456",
- "virtualAccountNo": " 112231234567890123456",
- "virtualAccountName": "Test Va",
- "paymentRequestId": "202410180000000000001",
- "paidAmount": {
- "value": "100000.00",
- "currency": "IDR"
- },
- "totalAmount": {
- "value": "100000.00",
- "currency": "IDR"
- }
-}`
+	"partnerServiceId": " 11223",
+	"customerNo": "1234567890123456",
+	"virtualAccountNo": " 112231234567890123456",
+	"virtualAccountName": "Test Va",
+	"paymentRequestId": "202410180000000000001",
+	"paidAmount": {
+	"value": "150000.00",
+	"currency": "IDR"
+	},
+	"totalAmount": {
+	"value": "100000.00",
+	"currency": "IDR"
+	}
+	}`
 	var obj models.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
 	log.Printf("%+v\n", obj)
-	res, err := s.InquiryVA(context.Background(), obj)
+	res, err := s.InquiryVA(context.Background(), &obj)
 	if err != nil {
 		t.Errorf("Error From cuntion Bill: %v", err)
 	}
@@ -184,7 +178,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	// 5. Generate a mock http request using the data received from (4)
 	// 6. Call the Generate Access Token function
 
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
@@ -197,23 +191,20 @@ func TestGenerateAccessToken(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
+	bcaSec := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				&cfg.BCAConfig,
-				&cfg.Keys,
-			),
-			utils.GetValidator(),
-		),
+		request.NewBCAEgress(bcaSec),
+		request.NewBCAIngress(bcaSec),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
-		utils.GetValidator(),
 	)
 
 	mockSecurity := security.NewBCASecurity(
-		&cfg.BCAConfig, &cfg.Keys,
+		cfg,
 	)
+	mockSecurity.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
 	mockSecurity.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	mockSecurity.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
@@ -250,11 +241,10 @@ func TestGenerateAccessToken(t *testing.T) {
 	}
 
 	slog.Debug("response", "data", data)
-
 }
 
 func TestValidateAccessToken(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
@@ -267,21 +257,17 @@ func TestValidateAccessToken(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
+	security := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				&cfg.BCAConfig,
-				&cfg.Keys,
-			),
-			utils.GetValidator(),
-		),
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
-		utils.GetValidator(),
 	)
 
-	result, err := service.ValidateAccessToken(context.Background(), "LHbfo2wp6iPrVwvvcZgKhkeXmyEOKA1rMBY2-VfNfmDUQ0fsvZTxI8Aeh0RmYLNc")
+	result, err := service.ValidateAccessToken(context.Background(), "3akCQSc2x4MV3M0GMXkzuMPQRghMHFATkpRoma7UgIx5M4l38cDezpE6KTaG5ukE")
 	if err != nil {
 		t.Errorf("Error validating access token: %v", err)
 	}
