@@ -475,21 +475,15 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload *models.BCAInquiryRe
 	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.PaymentRequestID)
 
 	if err == sql.ErrNoRows {
-		obj.ResponseCode = "4042512"
-		obj.ResponseMessage = bca.BcaErrorCodes[obj.ResponseCode]
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
 		return &obj, eris.Wrap(err, "querying va_table")
 	} else if err != nil {
-		obj.ResponseCode = "5002400"
-		obj.ResponseMessage = bca.BcaErrorCodes[obj.ResponseCode]
-
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
 		return &obj, eris.Wrap(err, "querying va_table")
 	}
 
 	if amount.Value > payload.PaidAmount.Value {
-		obj.HTTPStatusCode = http.StatusInternalServerError
-		obj.ResponseCode = "5002400"
-		obj.ResponseMessage = bca.BcaErrorCodes[obj.ResponseCode]
-
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
 		return &obj, nil
 	}
 
