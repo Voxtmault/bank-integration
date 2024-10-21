@@ -1,6 +1,10 @@
 package bank_integration
 
 import (
+	"context"
+	"log/slog"
+	"time"
+
 	"github.com/rotisserie/eris"
 	bcaRequest "github.com/voxtmault/bank-integration/bca/request"
 	bcaSecurity "github.com/voxtmault/bank-integration/bca/security"
@@ -30,6 +34,21 @@ func InitBankAPI(envPath string) error {
 		return eris.Wrap(err, "load authenticated banks")
 	}
 
+	// Run background job to clear unique external id every day after midnight
+	go func() {
+		for {
+			now := time.Now()
+			next := now.AddDate(0, 0, 1).Truncate(24 * time.Hour)
+			time.Sleep(time.Until(next))
+
+			if err := clearList(context.Background(), obj, "unique_external_id:*"); err != nil {
+				slog.Info("failed to clear unique external id", "reason", err)
+			} else {
+				slog.Info("unique external id cleared")
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -46,4 +65,26 @@ func InitBCAService() interfaces.SNAP {
 	)
 
 	return service
+}
+
+func clearList(ctx context.Context, rdb *storage.RedisInstance, pattern string) error {
+	var cursor uint64
+	for {
+		keys, nextCursor, err := rdb.RDB.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+
+		if len(keys) > 0 {
+			if err := rdb.RDB.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	return nil
 }

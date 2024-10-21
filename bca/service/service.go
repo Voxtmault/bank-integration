@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/bca"
 	"github.com/voxtmault/bank-integration/config"
@@ -53,6 +52,7 @@ func NewBCAService(egress interfaces.RequestEgress, ingress interfaces.RequestIn
 	}
 }
 
+// Egress
 func (s *BCAService) GetAccessToken(ctx context.Context) error {
 
 	// Logic
@@ -109,87 +109,6 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	s.AccessTokenExpiresAt = time.Now().Add(time.Second * 900).Unix()
 
 	return nil
-}
-
-func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error) {
-	// Logic
-	// 1. Parse the request body
-	// 2. Parse the request header
-	// 3. Validate body and header
-	// 4. Retrieve the client secret from redis
-	// 5. Verify Asymmetric Signature
-	// 6. Generate Access Token
-	// 7. Save the Access Token along with client secret to redis
-	// 8. Return to caller
-
-	// Parse the request body
-	var body models.GrantType
-	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
-		return nil, eris.Wrap(err, "decoding request body")
-	}
-
-	// Validate the received struct
-	if err := utils.ValidateStruct(ctx, body); err != nil {
-		return nil, eris.Wrap(err, "validating request body")
-	}
-
-	// Verify Asymmetric Signature
-	result, response, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
-	if response != nil {
-		return &models.AccessTokenResponse{
-			BCAResponse: response,
-		}, nil
-	}
-
-	if !result {
-		return &models.AccessTokenResponse{
-			BCAResponse: &bca.BCAAuthUnauthorizedSignature,
-		}, nil
-	}
-
-	// Generate the access token
-	token, err := s.GeneralSecurity.GenerateAccessToken(ctx)
-	if err != nil {
-		slog.Debug("error generating access token", "error", err)
-		return nil, eris.Wrap(err, "generating access token")
-	}
-	slog.Debug("generated token", "token", token)
-
-	// Save the access token to redis along with the configured client secret & expiration time
-	key := fmt.Sprintf("%s:%s", utils.AccessTokenRedis, token)
-	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*900).Err(); err != nil {
-		return nil, eris.Wrap(err, "saving access token to redis")
-	}
-
-	// TODO Load the expires in using config
-	return &models.AccessTokenResponse{
-		AccessToken: token,
-		TokenType:   "bearer",
-		ExpiresIn:   "900",
-		BCAResponse: &bca.BCAAuthResponseSuccess,
-	}, nil
-}
-
-func (s *BCAService) ValidateAccessToken(ctx context.Context, accessToken string) (bool, error) {
-	// Logic
-	// 1. Get the access token from Redis
-	// 2. If redis return nil then return false to the caller
-	// 3. if redis returns a value then return true to the caller
-
-	data, err := s.RDB.RDB.Get(ctx, fmt.Sprintf("%s:%s", utils.AccessTokenRedis, accessToken)).Result()
-	if err != nil {
-		if err == redis.Nil {
-			slog.Debug("token not found in redis, possibly expired or nonexistent")
-			return false, nil
-		} else {
-			slog.Debug("error getting data from redis", "error", err)
-			return false, eris.Wrap(err, "getting data from redis")
-		}
-	}
-
-	slog.Debug("token found in redis", "client secret", data)
-
-	return true, nil
 }
 
 func (s *BCAService) BalanceInquiry(ctx context.Context, payload *models.BCABalanceInquiry) (*models.BCAAccountBalance, error) {
@@ -253,6 +172,72 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Ingress
+func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error) {
+	// Logic
+	// 1. Parse the request body
+	// 2. Parse the request header
+	// 3. Validate body and header
+	// 4. Retrieve the client secret from redis
+	// 5. Verify Asymmetric Signature
+	// 6. Generate Access Token
+	// 7. Save the Access Token along with client secret to redis
+	// 8. Return to caller
+
+	// Parse the request body
+	var body models.GrantType
+	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+		return &models.AccessTokenResponse{
+			BCAResponse: &bca.BCAAuthGeneralError,
+		}, eris.Wrap(err, "decoding request body")
+	}
+
+	// Validate the received struct
+	if err := utils.ValidateStruct(ctx, body); err != nil {
+		return &models.AccessTokenResponse{
+			BCAResponse: &bca.BCAAuthInvalidFieldFormatClient,
+		}, eris.Wrap(err, "validating request body")
+	}
+
+	// Verify Asymmetric Signature
+	result, response, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
+	if response != nil {
+		return &models.AccessTokenResponse{
+			BCAResponse: response,
+		}, nil
+	}
+
+	if !result {
+		return &models.AccessTokenResponse{
+			BCAResponse: &bca.BCAAuthUnauthorizedSignature,
+		}, nil
+	}
+
+	// Generate the access token
+	token, err := s.GeneralSecurity.GenerateAccessToken(ctx)
+	if err != nil {
+		slog.Debug("error generating access token", "error", err)
+		return nil, eris.Wrap(err, "generating access token")
+	}
+	slog.Debug("generated token", "token", token)
+
+	// Save the access token to redis along with the configured client secret & expiration time
+	key := fmt.Sprintf("%s:%s", utils.AccessTokenRedis, token)
+	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*900).Err(); err != nil {
+		return &models.AccessTokenResponse{
+			BCAResponse: &bca.BCAAuthGeneralError,
+		}, eris.Wrap(err, "saving access token to redis")
+	}
+
+	// TODO Load the expires in using config
+	return &models.AccessTokenResponse{
+		AccessToken: token,
+		TokenType:   "bearer",
+		ExpiresIn:   "900",
+		BCAResponse: &bca.BCAAuthResponseSuccess,
+	}, nil
 }
 
 func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (*models.VAResponsePayload, error) {

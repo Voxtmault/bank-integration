@@ -205,6 +205,7 @@ func TestGenerateAccessToken(t *testing.T) {
 		cfg,
 	)
 	mockSecurity.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
+	mockSecurity.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pem"
 	mockSecurity.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	mockSecurity.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
@@ -240,7 +241,9 @@ func TestGenerateAccessToken(t *testing.T) {
 		t.Errorf("Error generating access token: %v", err)
 	}
 
-	slog.Debug("response", "data", data)
+	slog.Debug("timestamp", "data", timeStamp)
+	marshalled, _ := json.Marshal(data)
+	slog.Debug("response", "data", marshalled)
 }
 
 func TestValidateAccessToken(t *testing.T) {
@@ -267,10 +270,92 @@ func TestValidateAccessToken(t *testing.T) {
 		storage.GetRedisInstance(),
 	)
 
-	result, err := service.ValidateAccessToken(context.Background(), "3akCQSc2x4MV3M0GMXkzuMPQRghMHFATkpRoma7UgIx5M4l38cDezpE6KTaG5ukE")
+	result, err := service.Ingress.ValidateAccessToken(context.Background(), storage.GetRedisInstance(), "QyAuKj2Ph0dYkwZ-zozRTg85FC86nfd43qFPqj_dwAKnCIrKg1I4TxSxOeFiZt1F")
 	if err != nil {
 		t.Errorf("Error validating access token: %v", err)
 	}
 
-	slog.Debug("response", "data", result)
+	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
+}
+
+func TestMockRequest(t *testing.T) {
+	cfg := config.New(envPath)
+	utils.InitValidator()
+	storage.InitMariaDB(&cfg.MariaConfig)
+	storage.InitRedis(&cfg.RedisConfig)
+
+	// Load Registered Banks
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		storage.GetDBConnection(),
+		storage.GetRedisInstance(),
+	)
+
+	mockSecurity := security
+	mockSecurity.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
+	mockSecurity.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pem"
+	mockSecurity.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
+	mockSecurity.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
+
+	// Generate the mock signature
+	timeStamp := time.Now().Format(time.RFC3339)
+	mockSignature, err := mockSecurity.CreateSymmetricSignature(context.Background(), &models.SymetricSignatureRequirement{
+		HTTPMethod:  http.MethodPost,
+		AccessToken: "mAClHNe62u6L6jUuHjzkQ37YTzP49YRGaikd9d0A_hc2uunz44x6554H1ZkZOeAs",
+		Timestamp:   "2024-10-21T15:38:03+07:00",
+		RelativeURL: "/payment-api/v1.0/transfer-va/inquiry",
+		RequestBody: models.BCAVARequestPayload{
+			PartnerServiceID: "11223",
+			CustomerNo:       "1234567890123456",
+			VirtualAccountNo: "112231234567890123456",
+			InquiryRequestID: "202410180000000000001",
+		},
+	})
+	if err != nil {
+		t.Errorf("Error generating mock signature: %v", err)
+	}
+
+	// Generate the mock http request
+	body := `{
+	"partnerServiceId": " 11223",
+	"customerNo": "1234567890123456",
+	"virtualAccountNo": " 112231234567890123457",
+	"inquiryRequestId": "202410180000000000001"
+	}`
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		t.Errorf("Error marshalling body: %v", err)
+	}
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCAURLEndpoints.BalanceInquiryURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		t.Errorf("Error creating mock request: %v", err)
+	}
+
+	mockRequest.Header.Set("Content-Type", "application/json")
+	mockRequest.Header.Set("X-TIMESTAMP", timeStamp)
+	mockRequest.Header.Set("Authorization", "mAClHNe62u6L6jUuHjzkQ37YTzP49YRGaikd9d0A_hc2uunz44x6554H1ZkZOeAs")
+	mockRequest.Header.Set("X-SIGNATURE", mockSignature)
+	mockRequest.Header.Set("X-EXTERNAL-ID", "12312321312")
+
+	// Call the validate symetric signature function
+	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, storage.GetRedisInstance())
+
+	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
+	slog.Debug("response", "data", fmt.Sprintf("%+v", response))
+
+	if response != nil && response.HTTPStatusCode != http.StatusOK {
+		t.Errorf("Error validating symetric signature: %v", response)
+	}
 }

@@ -249,4 +249,9 @@ var (
 		ResponseCode:    "5007300",
 		ResponseMessage: BCACommonResponseMessageGeneralError.ToString(),
 	}
+	BCAAuthConflict = models.BCAResponse{
+		HTTPStatusCode:  http.StatusConflict,
+		ResponseCode:    "4097300",
+		ResponseMessage: BCACommonResponseMessageDuplicateExternalID.ToString(),
+	}
 )
