@@ -172,6 +172,9 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 		return false, &bca.BCAAuthUnauthorizedUnknownClient
 	}
 
+	obj.HTTPMethod = request.Method
+	obj.RelativeURL = request.URL.Path
+
 	result, err := s.Security.VerifySymmetricSignature(ctx, &obj, clientSecret, signature)
 	if err != nil {
 		slog.Debug("error verifying signature", "error", err)
