@@ -8,6 +8,7 @@ import (
 	models "github.com/voxtmault/bank-integration/models"
 )
 
+// Deprecated: Use RequestEgress and RequestIngress instead.
 type Request interface {
 	// AccessTokenRequestHeader is ONLY used to set the headers for the request to get the access token.
 	AccessTokenRequestHeader(ctx context.Context, request *http.Request, config *config.BankingConfig) error
@@ -19,6 +20,24 @@ type Request interface {
 
 	VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error)
 	VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error)
+}
+
+// RequestEgress is an interface that defines the methods that are used to send requests to banks.
+type RequestEgress interface {
+	// GenerateAccessRequestHeader is ONLY used to generate the headers for the request to get the access token.
+	GenerateAccessRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig) error
+
+	// GenerateGeneralRequestHeader is used to generate the headers for all other requests.
+	GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig, body any, relativeURL, accessToken string) error
+}
+
+// RequestIngress is an interface that defines the methods that are used to receive requests from banks.
+type RequestIngress interface {
+	// VerifyAsymmetricSignature verifies the request headers ONLY for access-token related http requests.
+	VerifyAsymmetricSignature(ctx context.Context, request *http.Request, clientSecret string) (bool, error)
+
+	// VerifySymmetricSignature verifies the request headers for non access-token related http requests.
+	VerifySymmetricSignature(ctx context.Context, request *http.Request) (bool, error)
 }
 
 type Security interface {

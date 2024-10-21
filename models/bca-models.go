@@ -60,6 +60,10 @@ type BCAResponse struct {
 	ResponseMessage string `json:"responseMessage"` // BCA Message regarding the request
 }
 
+func (r BCAResponse) Data() (int, string, string) {
+	return r.HTTPStatusCode, r.ResponseCode, r.ResponseMessage
+}
+
 type AccessTokenResponse struct {
 	BCAResponse
 	AccessToken string `json:"accessToken,omitempty"`
@@ -166,8 +170,7 @@ type Amount struct {
 }
 
 type VAResponsePayload struct {
-	ResponseCode       string             `json:"responseCode" validate:"required"`       // Response code from partner
-	ResponseMessage    string             `json:"responseMessage" validate:"required"`    // Response message
+	BCAResponse
 	VirtualAccountData *VABCAResponseData `json:"virtualAccountData" validate:"required"` // Virtual account data object
 }
 
@@ -286,10 +289,9 @@ type Reason struct {
 }
 
 type BCAInquiryVAResponse struct {
-	ResponseCode       string                    `json:"responseCode" validate:"required"`       // Response code from partner
-	ResponseMessage    string                    `json:"responseMessage" validate:"required"`    // Response message from partner
-	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData" validate:"required"` // Data related to virtual account
-	AdditionalInfo     map[string]interface{}    `json:"additionalInfo,omitempty"`               // Additional information (optional)
+	BCAResponse
+	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData,omitmepty"` // Data related to virtual account
+	AdditionalInfo     map[string]interface{}    `json:"additionalInfo,omitempty"`     // Additional information (optional)
 }
 
 type VirtualAccountDataInqury struct {

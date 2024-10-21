@@ -20,8 +20,10 @@ import (
 	"github.com/voxtmault/bank-integration/utils"
 )
 
+var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+
 func TestGetAccessToken(t *testing.T) {
-	cfg := config.New("../../.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
@@ -32,12 +34,11 @@ func TestGetAccessToken(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
+	security := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				cfg,
-			),
-		),
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
@@ -49,17 +50,16 @@ func TestGetAccessToken(t *testing.T) {
 }
 
 func TestBalanceInquiry(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
 
+	security := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				cfg,
-			),
-		),
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
@@ -94,7 +94,7 @@ func TestBalanceInquiryUnmarshall(t *testing.T) {
 }
 
 func TestBillPresement(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 
@@ -128,7 +128,7 @@ func TestBillPresement(t *testing.T) {
 }
 
 func TestInquiryVA(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
@@ -178,7 +178,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	// 5. Generate a mock http request using the data received from (4)
 	// 6. Call the Generate Access Token function
 
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
@@ -191,12 +191,11 @@ func TestGenerateAccessToken(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
+	bcaSec := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				cfg,
-			),
-		),
+		request.NewBCAEgress(bcaSec),
+		request.NewBCAIngress(bcaSec),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
@@ -245,7 +244,7 @@ func TestGenerateAccessToken(t *testing.T) {
 }
 
 func TestValidateAccessToken(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := config.New(envPath)
 	utils.InitValidator()
 	storage.InitMariaDB(&cfg.MariaConfig)
 	storage.InitRedis(&cfg.RedisConfig)
@@ -258,12 +257,11 @@ func TestValidateAccessToken(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
+	security := security.NewBCASecurity(cfg)
+
 	service := NewBCAService(
-		request.NewBCARequest(
-			security.NewBCASecurity(
-				cfg,
-			),
-		),
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
 		cfg,
 		storage.GetDBConnection(),
 		storage.GetRedisInstance(),
