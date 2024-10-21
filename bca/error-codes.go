@@ -35,6 +35,7 @@ var (
 	BCACommonResponseMessageUnauthorizedSignature                  = BCACommonResponseMessage("Unauthorized [Signature]")
 	BCACommonResponseMessageUnauthorizedStringToSign               = BCACommonResponseMessage("Unauthorized [Signature]")
 	BCACommonResponseMessageUnauthorizedUnknownClient              = BCACommonResponseMessage("Unauthorized [Unknown client]")
+	BCACommonResponseMessageUnauthorizedConnectionNotAllowed       = BCACommonResponseMessage("Unauthorized [Connection not allowed]")
 	BCACommonResponseMessageMissingMandatoryField                  = BCACommonResponseMessage("Invalid Mandatory Field")
 	BCACommonResponseMessageInvalidFieldFormat                     = BCACommonResponseMessage("Invalid Field Format")
 	BCACommonResponseMessageDuplicateExternalID                    = BCACommonResponseMessage("Conflict")
@@ -45,6 +46,7 @@ var (
 	BCACommonResponseMessageResponseParseError                     = BCACommonResponseMessage("Bad Request")
 	BCACommonResponseMessageDuplicateExternalIDAndPaymentRequestID = BCACommonResponseMessage("Inconsistent Request")
 	BCACommonResponseMessageGeneralError                           = BCACommonResponseMessage("General Error")
+	BCACommonResponseMessageTimeout                                = BCACommonResponseMessage("Timeout")
 )
 
 // Payment Flag Expected Partner Responses
@@ -196,6 +198,55 @@ var (
 	BCABillInquiryResponseGeneralError = models.BCAResponse{
 		HTTPStatusCode:  http.StatusInternalServerError,
 		ResponseCode:    "5002400",
+		ResponseMessage: BCACommonResponseMessageGeneralError.ToString(),
+	}
+)
+
+// Auhentication Expected Partner Responses
+var (
+	BCAAuthResponseSuccess = models.BCAResponse{
+		HTTPStatusCode:  http.StatusOK,
+		ResponseCode:    "2007300",
+		ResponseMessage: BCACommonResponseMessageSuccess.ToString(),
+	}
+	BCAAuthInvalidFieldFormatClient = models.BCAResponse{
+		HTTPStatusCode:  http.StatusBadRequest,
+		ResponseCode:    "4007301",
+		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + "[clientId/clientSecret/grantType]",
+	}
+	BCAAuthInvalidFieldFormatTimestamp = models.BCAResponse{
+		HTTPStatusCode:  http.StatusBadRequest,
+		ResponseCode:    "4007301",
+		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + "[X-TIMESTAMP]",
+	}
+	BCAAUthInvalidMandatoryField = models.BCAResponse{
+		HTTPStatusCode:  http.StatusBadRequest,
+		ResponseCode:    "4007302",
+		ResponseMessage: BCACommonResponseMessageMissingMandatoryField.ToString(),
+	}
+	BCAAuthUnauthorizedSignature = models.BCAResponse{
+		HTTPStatusCode:  http.StatusUnauthorized,
+		ResponseCode:    "4017300",
+		ResponseMessage: BCACommonResponseMessageUnauthorizedSignature.ToString(),
+	}
+	BCAAuthUnauthorizedUnknownClient = models.BCAResponse{
+		HTTPStatusCode:  http.StatusUnauthorized,
+		ResponseCode:    "4017300",
+		ResponseMessage: BCACommonResponseMessageUnauthorizedUnknownClient.ToString(),
+	}
+	BCAAuthUnauthorizedConnectionNotAllowed = models.BCAResponse{
+		HTTPStatusCode:  http.StatusUnauthorized,
+		ResponseCode:    "4017300",
+		ResponseMessage: BCACommonResponseMessageUnauthorizedConnectionNotAllowed.ToString(),
+	}
+	BCAAuthTimeout = models.BCAResponse{
+		HTTPStatusCode:  http.StatusRequestTimeout,
+		ResponseCode:    "5047300",
+		ResponseMessage: BCACommonResponseMessageTimeout.ToString(),
+	}
+	BCAAuthGeneralError = models.BCAResponse{
+		HTTPStatusCode:  http.StatusInternalServerError,
+		ResponseCode:    "5007300",
 		ResponseMessage: BCACommonResponseMessageGeneralError.ToString(),
 	}
 )
