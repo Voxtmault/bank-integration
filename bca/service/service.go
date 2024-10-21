@@ -317,6 +317,24 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 
 func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARequestPayload) (any, error) {
 	var obj models.VAResponsePayload
+	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.InquiryRequestID)
+	if err != nil && err != sql.ErrNoRows {
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, eris.Wrap(err, "Error Find VA")
+	}
+	if amount.Value != "0" {
+		obj.ResponseCode = "4042414"
+		obj.ResponseMessage = "Paid Bill"
+		return obj, eris.Wrap(err, "VA has been paid")
+	}
+
+	// if time.Now().After(expired) {
+	// 	obj.ResponseCode = "4042419"
+	// 	obj.ResponseMessage = "Invalid Bill/Virtual Account"
+	// 	return obj, eris.Wrap(err, "VA has been expired")
+	// }
+
 	// log.Println(payload)
 	statement := `SELECT 
     partnerServiceId,
@@ -330,7 +348,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARe
 	FROM va_request WHERE virtualAccountNo='` + payload.VirtualAccountNo + `' AND paidAmountValue = '0';
 `
 	// log.Println(statement)
-	err := s.DB.QueryRowContext(ctx, statement).Scan(&obj.VirtualAccountData.PartnerServiceID,
+	err = s.DB.QueryRowContext(ctx, statement).Scan(&obj.VirtualAccountData.PartnerServiceID,
 		&obj.VirtualAccountData.CustomerNo,
 		&obj.VirtualAccountData.VirtualAccountNo,
 		&obj.VirtualAccountData.VirtualAccountName,
@@ -338,14 +356,22 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload models.BCAVARe
 		&obj.VirtualAccountData.TotalAmount.Currency,
 		&obj.VirtualAccountData.FeeAmount.Value,
 		&obj.VirtualAccountData.FeeAmount.Currency)
-	if err != nil {
-		return nil, eris.Wrap(err, "querying va_table")
+	if err == sql.ErrNoRows {
+		obj.ResponseCode = "4042412"
+		obj.ResponseMessage = "Invalid Bill/Virtual Account [Bill Not Exist]"
+		return obj, eris.Wrap(err, "VA Not Found")
+	} else if err != nil {
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, eris.Wrap(err, "querying va_table")
 	}
 
 	updateQuery := "UPDATE va_request SET inqueryRequestId = '" + payload.InquiryRequestID + "'  WHERE virtualAccountNo='" + payload.VirtualAccountNo + "' AND paidAmountValue = '0' "
 	_, err = s.DB.QueryContext(ctx, updateQuery)
 	if err != nil {
-		return nil, eris.Wrap(err, "querying update va_table")
+		obj.ResponseCode = "5002400"
+		obj.ResponseMessage = "General Error"
+		return obj, eris.Wrap(err, "querying update va_table")
 	}
 	obj.ResponseCode = "2002400"
 	obj.ResponseMessage = "Success"
@@ -375,16 +401,26 @@ func (s *BCAService) GetVirtualAccountByInqueryRequestId(ctx context.Context, in
 func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryRequest) (any, error) {
 	var obj models.BCAInquiryVAResponse
 	amount, err := s.GetVirtualAccountByInqueryRequestId(ctx, payload.PaymentRequestID)
-	if err != nil {
+
+	if err == sql.ErrNoRows {
+		obj.ResponseCode = "4042512"
+		obj.ResponseMessage = "Invalid Bill/Virtual Account [Not Found]"
+		return obj, eris.Wrap(err, "querying va_table")
+	} else if err != nil {
 		obj.ResponseCode = "5002400"
 		obj.ResponseMessage = "General Error"
 		return obj, eris.Wrap(err, "querying va_table")
 	}
 	if amount.Value > payload.PaidAmount.Value {
-		obj.ResponseCode = "5002400"
-		obj.ResponseMessage = "General Error"
+		obj.ResponseCode = "4042514"
+		obj.ResponseMessage = "Paid Bill"
 		return obj, nil
 	}
+	// if time.Now().After(expired) {
+	// 	obj.ResponseCode = "4042419"
+	// 	obj.ResponseMessage = "Invalid Bill/Virtual Account"
+	// 	return obj, eris.Wrap(err, "VA has been expired")
+	// }
 	updateQuery := "UPDATE va_request SET paidAmountValue = '" + payload.PaidAmount.Value + "', paidAmountCurrency = '" + payload.PaidAmount.Currency + "', id_va_status = 2   WHERE inqueryRequestId = '" + payload.PaymentRequestID + "'"
 	_, err = s.DB.QueryContext(ctx, updateQuery)
 	if err != nil {
@@ -403,25 +439,22 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload models.BCAInquiryReq
 	FROM va_request WHERE inqueryRequestId='` + payload.PaymentRequestID + `';
 `
 	log.Println(statement)
-	rows, err := s.DB.QueryContext(ctx, statement)
-	if err != nil {
+	err = s.DB.QueryRowContext(ctx, statement).Scan(&obj.VirtualAccountData.PartnerServiceID,
+		&obj.VirtualAccountData.CustomerNo,
+		&obj.VirtualAccountData.VirtualAccountNo,
+		&obj.VirtualAccountData.VirtualAccountName,
+		&obj.VirtualAccountData.TotalAmount.Value,
+		&obj.VirtualAccountData.TotalAmount.Currency)
+	if err == sql.ErrNoRows {
+		obj.ResponseCode = "4042512"
+		obj.ResponseMessage = "Invalid Bill/Virtual Account [Not Found]"
+		return obj, eris.Wrap(err, "querying va_table")
+	} else if err != nil {
 		obj.ResponseCode = "5002400"
 		obj.ResponseMessage = "General Error"
 		return obj, eris.Wrap(err, "querying va_table")
 	}
-	for rows.Next() {
-		err = rows.Scan(&obj.VirtualAccountData.PartnerServiceID,
-			&obj.VirtualAccountData.CustomerNo,
-			&obj.VirtualAccountData.VirtualAccountNo,
-			&obj.VirtualAccountData.VirtualAccountName,
-			&obj.VirtualAccountData.TotalAmount.Value,
-			&obj.VirtualAccountData.TotalAmount.Currency)
-		if err != nil {
-			obj.ResponseCode = "5002400"
-			obj.ResponseMessage = "General Error"
-			return obj, eris.Wrap(err, "querying va_table")
-		}
-	}
+
 	obj.ResponseCode = "2002400"
 	obj.ResponseMessage = "Success"
 	obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
