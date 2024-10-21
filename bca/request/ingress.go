@@ -93,7 +93,7 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	return result, nil, clientSecret
 }
 
-func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance) (bool, *models.BCAResponse) {
+func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance, body any) (bool, *models.BCAResponse) {
 
 	var obj models.SymmetricSignatureRequirement
 
@@ -176,14 +176,7 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 	obj.HTTPMethod = request.Method
 	obj.RelativeURL = request.URL.Path
 
-	var payload models.BCAVARequestPayload
-
-	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
-		slog.Debug("error decoding request body", "error", err)
-
-		return false, &bca.BCABillInquiryResponseRequestParseError
-	}
-	obj.RequestBody, _ = json.Marshal(payload)
+	obj.RequestBody, _ = json.Marshal(body)
 
 	result, err := s.Security.VerifySymmetricSignature(ctx, &obj, clientSecret, signature)
 	if err != nil {

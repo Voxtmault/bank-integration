@@ -348,14 +348,14 @@ func TestMockRequest(t *testing.T) {
 	mockRequest.Header.Set("X-SIGNATURE", mockSignature)
 	mockRequest.Header.Set("X-EXTERNAL-ID", "12312321312")
 
-	// Call the validate symetric signature function
-	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, storage.GetRedisInstance())
+	// Call the validate symmetric signature function
+	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, storage.GetRedisInstance(), nil)
 
 	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
 	slog.Debug("response", "data", fmt.Sprintf("%+v", response))
 
 	if response != nil && response.HTTPStatusCode != http.StatusOK {
-		t.Errorf("Error validating symetric signature: %v", response)
+		t.Errorf("Error validating symmetric signature: %v", response)
 	}
 }
 

@@ -38,7 +38,7 @@ type RequestIngress interface {
 	VerifyAsymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance) (bool, *models.BCAResponse, string)
 
 	// VerifySymmetricSignature verifies the request headers for non access-token related http requests.
-	VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance) (bool, *models.BCAResponse)
+	VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance, payload any) (bool, *models.BCAResponse)
 
 	ValidateAccessToken(ctx context.Context, redis *storage.RedisInstance, accessToken string) (string, error)
 }
