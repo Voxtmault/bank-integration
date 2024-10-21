@@ -170,8 +170,8 @@ type Amount struct {
 }
 
 type VAResponsePayload struct {
-	BCAResponse
-	VirtualAccountData *VABCAResponseData `json:"virtualAccountData" validate:"required"` // Virtual account data object
+	*BCAResponse
+	VirtualAccountData *VABCAResponseData `json:"virtualAccountData,omitempty"` // Virtual account data object
 }
 
 type VABCAResponseData struct {

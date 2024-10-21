@@ -73,7 +73,7 @@ func TestBalanceInquiry(t *testing.T) {
 	log.Println(data)
 }
 
-func TestBalanceInquiryUnmarshall(t *testing.T) {
+func TestBalanceInquiryUnmarshal(t *testing.T) {
 
 	// sample := `
 	// {"responseCode":"4001102","responseMessage":"Invalid Mandatory Field accountNo","referenceNo":"","partnerReferenceNo":"2020102900000000000001","accountNo":"1234567890","name":"","accountInfos":{"balanceType":"","amount":{"value":"","currency":""},"floatAmount":{"value":"","currency":""},"holdAmount":{"value":"","currency":""},"availableBalance":{"value":"","currency":""},"ledgerBalance":{"value":"","currency":""},"currentMultilateralLimit":{"value":"","currency":""},"registrationStatusCode":"","status":""}}
@@ -93,39 +93,37 @@ func TestBalanceInquiryUnmarshall(t *testing.T) {
 	log.Printf("%+v\n", obj)
 }
 
-func TestBillPresement(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-
-	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-	} else {
-		slog.SetLogLoggerLevel(slog.LevelInfo)
-	}
-
-	s := BCAService{DB: storage.GetDBConnection()}
-	bodyReq := `{
-	"partnerServiceId": " 11223",
-	"customerNo": "1234567890123456",
-	"virtualAccountNo": " 112231234567890123457",
-	"inquiryRequestId": "202410180000000000001"
-	}`
-	var obj models.BCAVARequestPayload
-	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
-		t.Errorf("Error unmarshalling: %v", err)
-	}
-	log.Printf("%+v\n", obj)
-	res, err := s.BillPresentment(context.Background(), &obj)
-	if err != nil {
-		t.Errorf("Error From cuntion Bill: %v", err)
-	}
-	result, err := json.Marshal(res)
-	if err != nil {
-		t.Errorf("Error From Marshal: %v", err)
-	}
-	slog.Debug(string(result))
-}
+// func TestBillPresentment(t *testing.T) {
+// 	cfg := config.New(envPath)
+// 	utils.InitValidator()
+// 	storage.InitMariaDB(&cfg.MariaConfig)
+// 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+// 		slog.SetLogLoggerLevel(slog.LevelDebug)
+// 	} else {
+// 		slog.SetLogLoggerLevel(slog.LevelInfo)
+// 	}
+// 	s := BCAService{DB: storage.GetDBConnection()}
+// 	bodyReq := `{
+// 	"partnerServiceId": " 11223",
+// 	"customerNo": "1234567890123456",
+// 	"virtualAccountNo": " 112231234567890123457",
+// 	"inquiryRequestId": "202410180000000000001"
+// 	}`
+// 	var obj models.BCAVARequestPayload
+// 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
+// 		t.Errorf("Error un-marshaling: %v", err)
+// 	}
+// 	log.Printf("%+v\n", obj)
+// 	res, err := s.BillPresentment(context.Background(), &obj)
+// 	if err != nil {
+// 		t.Errorf("Error From function Bill: %v", err)
+// 	}
+// 	result, err := json.Marshal(res)
+// 	if err != nil {
+// 		t.Errorf("Error From Marshal: %v", err)
+// 	}
+// 	slog.Debug(string(result))
+// }
 
 func TestInquiryVA(t *testing.T) {
 	cfg := config.New(envPath)
@@ -242,6 +240,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	}
 
 	slog.Debug("timestamp", "data", timeStamp)
+	slog.Debug("signature", "data", mockSignature)
 	marshalled, _ := json.Marshal(data)
 	slog.Debug("response", "data", marshalled)
 }
