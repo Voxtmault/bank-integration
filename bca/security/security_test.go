@@ -34,7 +34,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	)
 
 	timestamp := time.Now().Format(time.RFC3339)
-	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymetricSignatureRequirement{
+	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodGet,
 		AccessToken: "",
 		Timestamp:   timestamp,

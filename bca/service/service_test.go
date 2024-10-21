@@ -309,7 +309,7 @@ func TestMockRequest(t *testing.T) {
 
 	// Generate the mock signature
 	timeStamp := time.Now().Format(time.RFC3339)
-	mockSignature, err := mockSecurity.CreateSymmetricSignature(context.Background(), &models.SymetricSignatureRequirement{
+	mockSignature, err := mockSecurity.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "mAClHNe62u6L6jUuHjzkQ37YTzP49YRGaikd9d0A_hc2uunz44x6554H1ZkZOeAs",
 		Timestamp:   "2024-10-21T15:38:03+07:00",

@@ -65,7 +65,7 @@ func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *h
 	timeStamp := time.Now().Format(time.RFC3339)
 
 	slog.Debug("Creating symetric signature")
-	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymetricSignatureRequirement{
+	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymmetricSignatureRequirement{
 		HTTPMethod:  request.Method,
 		AccessToken: accessToken,
 		Timestamp:   timeStamp,

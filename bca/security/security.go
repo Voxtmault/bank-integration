@@ -111,7 +111,7 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 	}
 }
 
-func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement) (string, error) {
+func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement) (string, error) {
 
 	// Encode the Relative URL
 	relativeURL, err := processRelativeURL(obj.RelativeURL)
@@ -134,7 +134,7 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error) {
+func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
 	// Encode the Relative URL
 	relativeURL, err := processRelativeURL(obj.RelativeURL)
 	if err != nil {

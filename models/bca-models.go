@@ -16,7 +16,7 @@ type GrantType struct {
 	GrantType string `json:"grantType" validate:"required"`
 }
 
-type SymetricSignatureRequirement struct {
+type SymmetricSignatureRequirement struct {
 	HTTPMethod  string // GET, POST, PUT, PATCH, DELETE. Only accepts uppercase values
 	AccessToken string // Access Token from BCA API
 	Timestamp   string // Timestamp in RFC3339 format

@@ -255,6 +255,8 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB)
 	if response != nil {
 		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
+		response.ResponseCode = response.ResponseCode[:3] + "24" + response.ResponseCode[5:]
+
 		return &models.VAResponsePayload{
 			BCAResponse: response,
 		}, nil

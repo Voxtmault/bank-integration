@@ -20,7 +20,7 @@ type Request interface {
 	RequestHandler(ctx context.Context, request *http.Request) (string, error)
 
 	VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error)
-	VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error)
+	VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error)
 }
 
 // RequestEgress is an interface that defines the methods that are used to send requests to banks.
@@ -54,13 +54,13 @@ type Security interface {
 	VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error)
 
 	// CreateSymmetricSignature returns a base64 encoded signature. Based on SHA512-HMAC algorithm.
-	CreateSymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement) (string, error)
+	CreateSymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement) (string, error)
 
 	// VerifySymmetricSignature verifies the request headers for non access-token related http requests.
 	// It will compares the received HMAC with the calculated HMAC based on the received public key from banks.
 	//
 	// This function will return a boolean value signifying the results of comparison and an error regarding the internal process
-	VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error)
+	VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error)
 }
 
 type SNAP interface {

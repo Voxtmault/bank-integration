@@ -90,12 +90,29 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 
 func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance) (bool, *models.BCAResponse) {
 
-	var obj models.SymetricSignatureRequirement
+	var obj models.SymmetricSignatureRequirement
 
 	// Validate External ID
+	if request.Header.Get("X-EXTERNAL-ID") == "" {
+		slog.Debug("externalId is empty")
+
+		response := bca.BCAAUthInvalidMandatoryField
+		response.ResponseMessage = response.ResponseMessage + "[X-EXTERNAL-ID]"
+
+		return false, &response
+	}
+
 	externalUnique, err := s.ValidateUniqueExternalID(ctx, redis, request.Header.Get("X-EXTERNAL-ID"))
 	if err != nil {
 		slog.Debug("error validating externalId", "error", err)
+
+		if eris.Cause(err).Error() == "invalid field format" {
+			response := bca.BCAAuthInvalidFieldFormatClient
+
+			response.ResponseMessage = "Invalid Field Format [X-EXTERNAL-ID]"
+			return false, &response
+		}
+
 		return false, &bca.BCAAuthGeneralError
 	}
 
@@ -192,7 +209,7 @@ func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *storage.
 	// Checks if the external ID is numeric
 	if _, err := strconv.Atoi(externalId); err != nil {
 		slog.Debug("externalId is not numeric", "externalId", externalId)
-		return false, eris.New("externalId is not numeric")
+		return false, eris.New("invalid field format")
 	}
 
 	data, err := rdb.RDB.SMembers(ctx, fmt.Sprintf("%s:%s", utils.UniqueExternalIDRedis, utils.BankCodeBCA)).Result()

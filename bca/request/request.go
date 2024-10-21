@@ -68,7 +68,7 @@ func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, c
 
 	slog.Debug("Creating symetric signature")
 	// Create the signature
-	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymetricSignatureRequirement{
+	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymmetricSignatureRequirement{
 		HTTPMethod:  request.Method,
 		AccessToken: accessToken,
 		Timestamp:   timeStamp,
@@ -136,6 +136,6 @@ func (s *BCARequest) VerifyAsymmetricSignature(ctx context.Context, timeStamp, c
 	return s.Security.VerifyAsymmetricSignature(ctx, timeStamp, clientKey, signature)
 }
 
-func (s *BCARequest) VerifySymmetricSignature(ctx context.Context, obj *models.SymetricSignatureRequirement, clientSecret, signature string) (bool, error) {
+func (s *BCARequest) VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
 	return s.Security.VerifySymmetricSignature(ctx, obj, clientSecret, signature)
 }
