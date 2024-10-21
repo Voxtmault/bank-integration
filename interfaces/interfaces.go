@@ -74,6 +74,8 @@ type SNAP interface {
 	// Used to get the information regarding the account balance and other informations.
 	BalanceInquiry(ctx context.Context, payload *models.BCABalanceInquiry) (*models.BCAAccountBalance, error)
 
+	BillPresentment(ctx context.Context, request *http.Request) (*models.VAResponsePayload, error)
+
 	// CreateVA is used in tandem with order creation when VA Payment is chosen as the payment method.
 	CreateVA(ctx context.Context, payload *models.CreateVAReq) error
 }
