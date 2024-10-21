@@ -126,6 +126,8 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.
 	}
 	stringToSign := obj.HTTPMethod + ":" + relativeURL + ":" + obj.AccessToken + ":" + requestBody + ":" + obj.Timestamp
 
+	slog.Debug("string to sign", "data", stringToSign)
+
 	// Generate Signature using SHA512-HMAC Algorithm
 	h := hmac.New(sha512.New, []byte(s.ClientSecret))
 	h.Write([]byte(stringToSign))

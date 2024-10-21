@@ -5,6 +5,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,12 @@ func TestCreateSymmetricSignature(t *testing.T) {
 		cfg,
 	)
 
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
 	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
 	security.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pub"
 	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
@@ -45,7 +52,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "ZdkbYq6W36CgM2SO3b3J6WvvCrtn8mM53tlpA6v4W5ELcXmtcYrtHK1WmDuH68Es",
+		AccessToken: "mnC56Gqr5CquF6vLNJuX4waBlg_yAItts6ytPMtytAPqnNsymitxRkw3fwlBhFLj",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		RequestBody: `{
     "partnerServiceId": " 11223",
@@ -86,13 +93,19 @@ func TestVerifySymmetricSignature(t *testing.T) {
 		cfg,
 	)
 
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
 	clientSecret := "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
-	signature := "a+A7dYt5iy2NchxnjsLKQ3PYJQgq8gaTqC04Ah3b082F7REDyq+85YOhDMScAQ8IY7jQ8Ji+1zzHHLIOrgzWXA=="
+	signature := "3SQ6tjbXGHnycGiaufUT8AwivHY9OrsEOuZ3ZMk7qWkezPiT1T3h4NrhH4Ak7BvbHteM+uOzkdneojZoR9Te2w=="
 
 	result, err := security.VerifySymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "ZdkbYq6W36CgM2SO3b3J6WvvCrtn8mM53tlpA6v4W5ELcXmtcYrtHK1WmDuH68Es",
-		Timestamp:   "2024-10-21T23:10:49+07:00",
+		AccessToken: "mnC56Gqr5CquF6vLNJuX4waBlg_yAItts6ytPMtytAPqnNsymitxRkw3fwlBhFLj",
+		Timestamp:   "2024-10-21T23:26:36+07:00",
 		RequestBody: `{
     "partnerServiceId": " 11223",
     "customerNo": "1234567890123456",
