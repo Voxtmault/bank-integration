@@ -21,6 +21,10 @@ type BCAConfig struct {
 	AccessToken  string `validate:"omitempty"`
 }
 
+type BCAPartnerId struct {
+	BCAPartnerId string `validate:"required"`
+}
+
 type BCAURLEndpoints struct {
 	AccessTokenURL    string
 	BalanceInquiryURL string
@@ -54,6 +58,7 @@ type BankingConfig struct {
 	BCAURLEndpoints
 	MariaConfig
 	RedisConfig
+	BCAPartnerId
 	AppHost string
 	Mode    string
 }
@@ -79,6 +84,9 @@ func New(envPath string) *BankingConfig {
 		BCAURLEndpoints: BCAURLEndpoints{
 			AccessTokenURL:    getEnv("BCA_ACCESS_TOKEN_URL", ""),
 			BalanceInquiryURL: getEnv("BCA_BALANCE_INQUIRY_URL", ""),
+		},
+		BCAPartnerId: BCAPartnerId{
+			BCAPartnerId: getEnv("BCA_PARTNER_ID", ""),
 		},
 		MariaConfig: MariaConfig{
 			DBDriver:             getEnv("DB_DRIVER", "mysql"),

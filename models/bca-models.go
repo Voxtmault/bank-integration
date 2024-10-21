@@ -318,6 +318,8 @@ type VirtualAccountDataInqury struct {
 type CreateVAReq struct {
 	IdUser           int    `json:"id_user"`
 	NamaUser         string `json:"nama_user"`
-	JenisPembelian   int    `json:"jenis_pembelian"`
+	IdJenisPembelian int    `json:"id_jenis_pembelian"`
+	IdJenisUser      int    `json:"id_jenis_user"`
 	JumlahPembayaran int    `json:"jumlah_pembayaran"`
+	// TotalAmount      Amount `json:"total_amaount"`
 }
