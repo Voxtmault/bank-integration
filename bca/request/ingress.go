@@ -82,6 +82,10 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	if err != nil {
 		slog.Debug("error verifying signature", "error", err)
 
+		if eris.Cause(err).Error() == "verification error" {
+			return false, &bca.BCAAuthUnauthorizedSignature, ""
+		}
+
 		return false, &bca.BCAAuthGeneralError, ""
 	}
 
@@ -171,6 +175,10 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 	result, err := s.Security.VerifySymmetricSignature(ctx, &obj, clientSecret, signature)
 	if err != nil {
 		slog.Debug("error verifying signature", "error", err)
+
+		if eris.Cause(err).Error() == "verification error" {
+			return false, &bca.BCAAuthUnauthorizedSignature
+		}
 
 		return false, &bca.BCAAuthGeneralError
 	}

@@ -358,3 +358,20 @@ func TestMockRequest(t *testing.T) {
 		t.Errorf("Error validating symetric signature: %v", response)
 	}
 }
+
+// func TestBillPresentmentIntegration(t *testing.T) {
+// 	cfg := config.New(envPath)
+// 	utils.InitValidator()
+// 	storage.InitMariaDB(&cfg.MariaConfig)
+// 	storage.InitRedis(&cfg.RedisConfig)
+
+// 	// Load Registered Banks
+
+// 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+// 		slog.SetLogLoggerLevel(slog.LevelDebug)
+// 	} else {
+// 		slog.SetLogLoggerLevel(slog.LevelInfo)
+// 	}
+
+// 	security := security.NewBCASecurity(cfg)
+// }

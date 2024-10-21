@@ -148,6 +148,8 @@ func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.
 	}
 	stringToSign := obj.HTTPMethod + ":" + relativeURL + ":" + obj.AccessToken + ":" + requestBody + ":" + obj.Timestamp
 
+	slog.Debug("string to sign", "data", stringToSign)
+
 	h := hmac.New(sha512.New, []byte(clientSecret))
 	h.Write([]byte(stringToSign))
 
