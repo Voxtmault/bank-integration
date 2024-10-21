@@ -422,8 +422,8 @@ func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string) 
 	return false, nil
 }
 
-func (s *BCAService) CreateVA(ctx context.Context, payload models.CreateVAReq) (any, error) {
-	partnerId := s.Config.BCAPartnerId.BCAPartnerId
+func (s *BCAService) CreateVA(ctx context.Context, payload *models.CreateVAReq) error {
+	partnerId := s.Config.BCAPartnerInformation.BCAPartnerId
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
 				   			virtualAccountName, id_user, owner_table)
@@ -433,17 +433,17 @@ func (s *BCAService) CreateVA(ctx context.Context, payload models.CreateVAReq) (
 
 	cekpaid, err := s.CheckVAPaid(ctx, numVA)
 	if err != nil {
-		return nil, eris.Wrap(err, "querying va_table")
+		return eris.Wrap(err, "querying va_table")
 	}
 	if cekpaid {
 		_, err = s.DB.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
 		if err != nil {
-			return nil, eris.Wrap(err, "querying va_table")
+			return eris.Wrap(err, "querying va_table")
 		}
 	} else {
-		return nil, eris.Wrap(err, "Va Not Paid")
+		return eris.Wrap(err, "Va Not Paid")
 	}
-	return nil, nil
+	return nil
 }
 
 func (s *BCAService) GetVirtualAccountTotalAmountByInqueryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
@@ -539,6 +539,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload *models.BCAInquiryRe
 			}
 		}
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseSuccess.Data()
+
 		obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
 		obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
 		obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
