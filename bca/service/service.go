@@ -175,6 +175,24 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 }
 
 // Ingress
+func (s *BCAService) Middleware(ctx context.Context, request *http.Request, payload any) (*models.BCAResponse, error) {
+	slog.Debug("received payload", "data", payload)
+
+	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, payload)
+	if response != nil {
+		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
+		response.ResponseCode = response.ResponseCode[:3] + "24" + response.ResponseCode[5:]
+
+		return response, nil
+	}
+
+	if !result {
+		return &bca.BCABillInquiryResponseUnauthorizedSignature, nil
+	}
+
+	return &bca.BCAAuthResponseSuccess, nil
+}
+
 func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error) {
 	// Logic
 	// 1. Parse the request body
@@ -240,34 +258,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	}, nil
 }
 
-func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request) (*models.VAResponsePayload, error) {
-
-	var payload models.BCAVARequestPayload
-
-	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
-		slog.Debug("error decoding request body", "error", err)
-
-		return &models.VAResponsePayload{
-			BCAResponse: &bca.BCABillInquiryResponseRequestParseError,
-		}, nil
-	}
-	slog.Debug("received payload", "data", payload)
-
-	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, payload)
-	if response != nil {
-		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
-		response.ResponseCode = response.ResponseCode[:3] + "24" + response.ResponseCode[5:]
-
-		return &models.VAResponsePayload{
-			BCAResponse: response,
-		}, nil
-	}
-
-	if !result {
-		return &models.VAResponsePayload{
-			BCAResponse: &bca.BCABillInquiryResponseUnauthorizedSignature,
-		}, nil
-	}
+func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (*models.VAResponsePayload, error) {
 
 	var obj models.VAResponsePayload
 	obj.BCAResponse = &models.BCAResponse{}
@@ -359,94 +350,6 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	return &obj, nil
 }
 
-func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, string) {
-
-	partnerId += "0" + strconv.Itoa(idJenis)
-	nIdU := strconv.Itoa(idUser)
-	customerNo := ""
-	for i := 0; i < 10-len(nIdU); i++ {
-		customerNo += "0"
-	}
-	customerNo += nIdU
-	return partnerId + customerNo, customerNo
-}
-
-func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string) (bool, error) {
-	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
-	query := `
-	SELECT paidAmountValue,paidAmountCurrency FROM va_table WHERE virtualAccountNo = ? AND paidAmountValue = '0'
-	`
-	var amount models.Amount
-	err := s.DB.QueryRowContext(ctx, query, virtualAccountNum).Scan(&amount.Value, &amount.Currency)
-	if err == sql.ErrNoRows {
-		return true, nil
-	}
-	if err != nil {
-		return false, eris.Wrap(err, "querying va_table")
-	}
-
-	return false, nil
-}
-
-func (s *BCAService) CreateVA(ctx context.Context, payload *models.CreateVAReq) error {
-	partnerId := s.Config.BCAPartnerInformation.BCAPartnerId
-	query := `
-	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
-				   			virtualAccountName, id_user, owner_table)
-	VALUES(?,?,?,?,?,?,?)
-	`
-	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
-
-	cekpaid, err := s.CheckVAPaid(ctx, numVA)
-	if err != nil {
-		return eris.Wrap(err, "querying va_table")
-	}
-	if cekpaid {
-		_, err = s.DB.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
-		if err != nil {
-			return eris.Wrap(err, "querying va_table")
-		}
-	} else {
-		return eris.Wrap(err, "Va Not Paid")
-	}
-	return nil
-}
-
-func (s *BCAService) GetVirtualAccountTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
-	var amount models.Amount
-	query := `
-	SELECT totalAmountValue, totalAmountCurrency 
-	FROM va_request
-	WHERE inqueryRequestId = ?
-	`
-	if err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(
-		&amount.Value, &amount.Currency,
-	); err != nil {
-		slog.Debug("error querying va_request", "error", err)
-		if err == sql.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, eris.Wrap(err, "querying va_request")
-		}
-	}
-	return &amount, nil
-}
-
-func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
-	var amount models.Amount
-	query := `
-	SELECT paidAmountValue, paidAmountCurrency 
-	FROM va_request 
-	WHERE inqueryRequestID = ? 
-	LIMIT 1
-	`
-	err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(&amount.Value, &amount.Currency)
-	if err != nil {
-		return &amount, eris.Wrap(err, "querying va_request")
-	}
-	return &amount, nil
-}
-
 func (s *BCAService) InquiryVA(ctx context.Context, payload *models.BCAInquiryRequest) (*models.BCAInquiryVAResponse, error) {
 	var obj models.BCAInquiryVAResponse
 	amount, err := s.GetVirtualAccountTotalAmountByInquiryRequestId(ctx, payload.PaymentRequestID)
@@ -518,6 +421,30 @@ func (s *BCAService) InquiryVA(ctx context.Context, payload *models.BCAInquiryRe
 	}
 }
 
+func (s *BCAService) CreateVA(ctx context.Context, payload *models.CreateVAReq) error {
+	partnerId := s.Config.BCAPartnerInformation.BCAPartnerId
+	query := `
+	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
+				   			virtualAccountName, id_user, owner_table)
+	VALUES(?,?,?,?,?,?,?)
+	`
+	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
+
+	cekpaid, err := s.CheckVAPaid(ctx, numVA)
+	if err != nil {
+		return eris.Wrap(err, "querying va_table")
+	}
+	if cekpaid {
+		_, err = s.DB.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
+		if err != nil {
+			return eris.Wrap(err, "querying va_table")
+		}
+	} else {
+		return eris.Wrap(err, "Va Not Paid")
+	}
+	return nil
+}
+
 // Service Utils
 func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) (string, error) {
 
@@ -553,4 +480,68 @@ func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) 
 	}
 
 	return string(body), nil
+}
+
+func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, string) {
+
+	partnerId += "0" + strconv.Itoa(idJenis)
+	nIdU := strconv.Itoa(idUser)
+	customerNo := ""
+	for i := 0; i < 10-len(nIdU); i++ {
+		customerNo += "0"
+	}
+	customerNo += nIdU
+	return partnerId + customerNo, customerNo
+}
+
+func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string) (bool, error) {
+	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
+	query := `
+	SELECT paidAmountValue,paidAmountCurrency FROM va_table WHERE virtualAccountNo = ? AND paidAmountValue = '0'
+	`
+	var amount models.Amount
+	err := s.DB.QueryRowContext(ctx, query, virtualAccountNum).Scan(&amount.Value, &amount.Currency)
+	if err == sql.ErrNoRows {
+		return true, nil
+	}
+	if err != nil {
+		return false, eris.Wrap(err, "querying va_table")
+	}
+
+	return false, nil
+}
+
+func (s *BCAService) GetVirtualAccountTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
+	var amount models.Amount
+	query := `
+	SELECT totalAmountValue, totalAmountCurrency 
+	FROM va_request
+	WHERE inqueryRequestId = ?
+	`
+	if err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(
+		&amount.Value, &amount.Currency,
+	); err != nil {
+		slog.Debug("error querying va_request", "error", err)
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, eris.Wrap(err, "querying va_request")
+		}
+	}
+	return &amount, nil
+}
+
+func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
+	var amount models.Amount
+	query := `
+	SELECT paidAmountValue, paidAmountCurrency 
+	FROM va_request 
+	WHERE inqueryRequestID = ? 
+	LIMIT 1
+	`
+	err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(&amount.Value, &amount.Currency)
+	if err != nil {
+		return &amount, eris.Wrap(err, "querying va_request")
+	}
+	return &amount, nil
 }

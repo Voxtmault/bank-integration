@@ -390,7 +390,6 @@ func TestBillPresentmentIntegration(t *testing.T) {
 		VirtualAccountNo: "112231234567890123456",
 		InquiryRequestID: "202410180000000000001",
 	}
-
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		t.Errorf("Error marshalling body: %v", err)
@@ -401,17 +400,27 @@ func TestBillPresentmentIntegration(t *testing.T) {
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T09:02:12+07:00")
-	mockRequest.Header.Set("Authorization", "yOqzyjxIm-KXD5pu7tavo0G1FUshMEFdcqdQgJJnFKO_9LwTXhJVRRGbpGrkKEgR")
-	mockRequest.Header.Set("X-SIGNATURE", "cHT/oBdj8dybytV/sbHruO7cc58IHk/KTxcWUKqZ69nF7ckq8omaNG2pDfwCJdUegLwOgXxMx5HGc2EciWZQAQ==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "55555678")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T10:30:41+07:00")
+	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
+	mockRequest.Header.Set("X-SIGNATURE", "R9knlMqDBDssxp9JWHCGpQ7eQBYwXLOVbdWhcNuLRo+FQmATryd0BD8mhAL8VUgJ4maBvCRMRmM9e7CznVg/cQ==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "765")
 
-	result, err := service.BillPresentment(context.Background(), mockRequest)
-	if err != nil {
-		t.Errorf("Error bill presentment: %v", err)
+	authResponse, err := service.Middleware(context.Background(), mockRequest, body)
+	if authResponse.HTTPStatusCode != http.StatusOK {
+		t.Errorf("Error validating symmetric signature: %v", authResponse)
+	} else {
+		if err != nil {
+			t.Errorf("Error validating symmetric signature: %v", err)
+		}
+
+		result, err := service.BillPresentment(context.Background(), &body)
+		if err != nil {
+			t.Errorf("Error bill presentment: %v", err)
+		}
+
+		data, _ := json.Marshal(result)
+
+		slog.Debug("response", "data", string(data))
 	}
 
-	data, _ := json.Marshal(result)
-
-	slog.Debug("response", "data", string(data))
 }

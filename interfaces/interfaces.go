@@ -74,8 +74,11 @@ type SNAP interface {
 	// Used to get the information regarding the account balance and other informations.
 	BalanceInquiry(ctx context.Context, payload *models.BCABalanceInquiry) (*models.BCAAccountBalance, error)
 
-	BillPresentment(ctx context.Context, request *http.Request) (*models.VAResponsePayload, error)
+	BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (*models.VAResponsePayload, error)
 
 	// CreateVA is used in tandem with order creation when VA Payment is chosen as the payment method.
 	CreateVA(ctx context.Context, payload *models.CreateVAReq) error
+
+	// Middleware is used to verify the ingress request from banks. It will return the auth response and any payload inside the request body
+	Middleware(ctx context.Context, request *http.Request, payload any) (*models.BCAResponse, error)
 }
