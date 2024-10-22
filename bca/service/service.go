@@ -281,7 +281,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		return &obj, eris.Wrap(err, "Error Find VA")
 	}
 
-	if amount.Value != "" {
+	if amount.Value != "" && amount.Value != "0" {
 		slog.Debug("va has been paid")
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVAPaid.Data()
 		return &obj, nil

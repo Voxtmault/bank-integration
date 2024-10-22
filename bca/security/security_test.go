@@ -52,7 +52,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "yOqzyjxIm-KXD5pu7tavo0G1FUshMEFdcqdQgJJnFKO_9LwTXhJVRRGbpGrkKEgR",
+		AccessToken: "66XsNgG-NddWt_XbSKMwgrfLGlte0tbQQpnVyTeGrT4zxkQCZM7y4AQV_i3sqG2y",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		RequestBody: models.BCAVARequestPayload{
 			PartnerServiceID: "11223",
