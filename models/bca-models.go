@@ -55,7 +55,7 @@ type SymmetricSignatureRequirement struct {
 }
 
 type BCAResponse struct {
-	HTTPStatusCode  int    `json:"httpStatusCode"`  // HTTP Status Code, Custom for Shifter Wallet
+	HTTPStatusCode  int    `json:"-"`
 	ResponseCode    string `json:"responseCode"`    // BCA Unique Status Code
 	ResponseMessage string `json:"responseMessage"` // BCA Message regarding the request
 }

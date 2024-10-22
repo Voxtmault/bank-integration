@@ -52,7 +52,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "0HDZIbSpVLDJHv-dfmez5QtX87OrBXdlVO2KNYEZitk95LBp8ChPaCPNcabsLoMV",
+		AccessToken: "yOqzyjxIm-KXD5pu7tavo0G1FUshMEFdcqdQgJJnFKO_9LwTXhJVRRGbpGrkKEgR",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		RequestBody: models.BCAVARequestPayload{
 			PartnerServiceID: "11223",
@@ -60,7 +60,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 			VirtualAccountNo: "112231234567890123456",
 			InquiryRequestID: "202410180000000000001",
 		},
-		RelativeURL: "/payment-api/v1.0/transfer-va/inquiry",
+		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
 	})
 	if err != nil {
 		t.Error(err)

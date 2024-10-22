@@ -359,19 +359,59 @@ func TestMockRequest(t *testing.T) {
 	}
 }
 
-// func TestBillPresentmentIntegration(t *testing.T) {
-// 	cfg := config.New(envPath)
-// 	utils.InitValidator()
-// 	storage.InitMariaDB(&cfg.MariaConfig)
-// 	storage.InitRedis(&cfg.RedisConfig)
+func TestBillPresentmentIntegration(t *testing.T) {
+	cfg := config.New(envPath)
+	utils.InitValidator()
+	storage.InitMariaDB(&cfg.MariaConfig)
+	storage.InitRedis(&cfg.RedisConfig)
 
-// 	// Load Registered Banks
+	// Load Registered Banks
 
-// 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
-// 		slog.SetLogLoggerLevel(slog.LevelDebug)
-// 	} else {
-// 		slog.SetLogLoggerLevel(slog.LevelInfo)
-// 	}
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
 
-// 	security := security.NewBCASecurity(cfg)
-// }
+	security := security.NewBCASecurity(cfg)
+
+	service := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		storage.GetDBConnection(),
+		storage.GetRedisInstance(),
+	)
+
+	// Generate the mock http request
+	body := models.BCAVARequestPayload{
+		PartnerServiceID: "11223",
+		CustomerNo:       "1234567890123456",
+		VirtualAccountNo: "112231234567890123456",
+		InquiryRequestID: "202410180000000000001",
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		t.Errorf("Error marshalling body: %v", err)
+	}
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		t.Errorf("Error creating mock request: %v", err)
+	}
+
+	mockRequest.Header.Set("Content-Type", "application/json")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T09:02:12+07:00")
+	mockRequest.Header.Set("Authorization", "yOqzyjxIm-KXD5pu7tavo0G1FUshMEFdcqdQgJJnFKO_9LwTXhJVRRGbpGrkKEgR")
+	mockRequest.Header.Set("X-SIGNATURE", "cHT/oBdj8dybytV/sbHruO7cc58IHk/KTxcWUKqZ69nF7ckq8omaNG2pDfwCJdUegLwOgXxMx5HGc2EciWZQAQ==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "55555678")
+
+	result, err := service.BillPresentment(context.Background(), mockRequest)
+	if err != nil {
+		t.Errorf("Error bill presentment: %v", err)
+	}
+
+	data, _ := json.Marshal(result)
+
+	slog.Debug("response", "data", string(data))
+}

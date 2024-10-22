@@ -29,6 +29,11 @@ type BCAURLEndpoints struct {
 	AccessTokenURL    string
 	BalanceInquiryURL string
 }
+type BCARequestedEndpoints struct {
+	AuthURL            string
+	BillPresentmentURL string
+	PaymentFlagURL     string
+}
 
 // Credential DB Config
 type MariaConfig struct {
@@ -56,6 +61,7 @@ type BankingConfig struct {
 	Keys
 	BCAConfig
 	BCAURLEndpoints
+	BCARequestedEndpoints
 	MariaConfig
 	RedisConfig
 	BCAPartnerInformation
@@ -84,6 +90,11 @@ func New(envPath string) *BankingConfig {
 		BCAURLEndpoints: BCAURLEndpoints{
 			AccessTokenURL:    getEnv("BCA_ACCESS_TOKEN_URL", ""),
 			BalanceInquiryURL: getEnv("BCA_BALANCE_INQUIRY_URL", ""),
+		},
+		BCARequestedEndpoints: BCARequestedEndpoints{
+			AuthURL:            getEnv("BCA_REQ_OAUTH2_URL", "/payment-api/v1.0/access-token/b2b"),
+			BillPresentmentURL: getEnv("BCA_REQ_BILL_PRESENTMENT_URL", "/payment-api/v1.0/transfer-va/inquiry"),
+			PaymentFlagURL:     getEnv("BCA_REQ_PAYMENT_FLAG_URL", "/payment-api/v1.0/transfer-va/payment"),
 		},
 		BCAPartnerInformation: BCAPartnerInformation{
 			BCAPartnerId: getEnv("BCA_PARTNER_ID", ""),

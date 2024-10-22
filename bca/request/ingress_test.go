@@ -54,16 +54,16 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error marshalling body: %v", err)
 	}
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCAURLEndpoints.BalanceInquiryURL, bytes.NewBuffer(jsonBody))
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		t.Errorf("Error creating mock request: %v", err)
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-21T23:58:32+07:00")
-	mockRequest.Header.Set("Authorization", "0HDZIbSpVLDJHv-dfmez5QtX87OrBXdlVO2KNYEZitk95LBp8ChPaCPNcabsLoMV")
-	mockRequest.Header.Set("X-SIGNATURE", "Nybi/ZID+rPwObe/aZJ3A71gULNldsiuy3G58yccs5UqSdy2YuJJ+T1HG0zGyBoBoz81npZlUX8KYmpJ5TiPww==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "167123456")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T09:02:12+07:00")
+	mockRequest.Header.Set("Authorization", "yOqzyjxIm-KXD5pu7tavo0G1FUshMEFdcqdQgJJnFKO_9LwTXhJVRRGbpGrkKEgR")
+	mockRequest.Header.Set("X-SIGNATURE", "cHT/oBdj8dybytV/sbHruO7cc58IHk/KTxcWUKqZ69nF7ckq8omaNG2pDfwCJdUegLwOgXxMx5HGc2EciWZQAQ==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "141414114567")
 
 	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, storage.GetRedisInstance(), body)
 	if response != nil {

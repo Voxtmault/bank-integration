@@ -225,7 +225,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 	// Save the access token to redis along with the configured client secret & expiration time
 	key := fmt.Sprintf("%s:%s", utils.AccessTokenRedis, token)
-	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*900).Err(); err != nil {
+	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Hour*900).Err(); err != nil {
 		return &models.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}, eris.Wrap(err, "saving access token to redis")
@@ -251,6 +251,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 			BCAResponse: &bca.BCABillInquiryResponseRequestParseError,
 		}, nil
 	}
+	slog.Debug("received payload", "data", payload)
 
 	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, payload)
 	if response != nil {
@@ -269,17 +270,18 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	}
 
 	var obj models.VAResponsePayload
+	obj.BCAResponse = &models.BCAResponse{}
 	obj.VirtualAccountData = &models.VABCAResponseData{}
 
 	amount, err := s.GetVirtualAccountPaidAmountByInquiryRequestId(ctx, payload.InquiryRequestID)
-	if err != nil && err != sql.ErrNoRows {
-		slog.Debug("error querying va_request", "error", err)
+	if err != nil && eris.Cause(err) != sql.ErrNoRows {
+		slog.Debug("error getting virtual account paid amount by inquiry request id", "error", err)
 
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
 		return &obj, eris.Wrap(err, "Error Find VA")
 	}
 
-	if amount.Value != "0" {
+	if amount.Value != "" {
 		slog.Debug("va has been paid")
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseVAPaid.Data()
 		return &obj, nil
