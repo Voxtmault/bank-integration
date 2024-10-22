@@ -9,35 +9,35 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/interfaces"
-	"github.com/voxtmault/bank-integration/models"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	biModels "github.com/voxtmault/bank-integration/models"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 type BCARequest struct {
 	// Security is mainly used to generate signatures for request headers
-	Security interfaces.Security
+	Security biInterfaces.Security
 }
 
-var _ interfaces.Request = &BCARequest{}
+var _ biInterfaces.Request = &BCARequest{}
 
-func NewBCARequest(security interfaces.Security) *BCARequest {
+func NewBCARequest(security biInterfaces.Security) *BCARequest {
 	return &BCARequest{
 		Security: security,
 	}
 }
 
-func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig) error {
+func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig) error {
 
 	// Checks for problematic configurations
-	if err := utils.ValidateStruct(ctx, cfg.BCAConfig); err != nil {
+	if err := biUtil.ValidateStruct(ctx, cfg.BCAConfig); err != nil {
 		return eris.Wrap(err, "invalid BCA configuration")
 	}
 
 	timeStamp := time.Now().Format(time.RFC3339)
 
-	slog.Debug("Creating asymetric signature")
+	slog.Debug("Creating asymmetric signature")
 	// Create the signature
 	signature, err := s.Security.CreateAsymmetricSignature(ctx, timeStamp)
 	if err != nil {
@@ -63,12 +63,12 @@ func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http
 	return nil
 }
 
-func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig, body any, relativeURL, accessToken string) error {
+func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig, body any, relativeURL, accessToken string) error {
 	timeStamp := time.Now().Format(time.RFC3339)
 
 	slog.Debug("Creating symetric signature")
 	// Create the signature
-	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymmetricSignatureRequirement{
+	signature, err := s.Security.CreateSymmetricSignature(ctx, &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  request.Method,
 		AccessToken: accessToken,
 		Timestamp:   timeStamp,
@@ -113,7 +113,7 @@ func (s *BCARequest) RequestHandler(ctx context.Context, request *http.Request) 
 
 	if response.StatusCode != 200 {
 		slog.Debug("Non-200 status code", "status", response.StatusCode)
-		var obj models.BCAResponse
+		var obj biModels.BCAResponse
 
 		if err := json.Unmarshal(body, &obj); err != nil {
 			return "", eris.Wrap(err, "unmarshalling error response")
@@ -136,6 +136,6 @@ func (s *BCARequest) VerifyAsymmetricSignature(ctx context.Context, timeStamp, c
 	return s.Security.VerifyAsymmetricSignature(ctx, timeStamp, clientKey, signature)
 }
 
-func (s *BCARequest) VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
+func (s *BCARequest) VerifySymmetricSignature(ctx context.Context, obj *biModels.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
 	return s.Security.VerifySymmetricSignature(ctx, obj, clientSecret, signature)
 }

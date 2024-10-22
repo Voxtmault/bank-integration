@@ -1,13 +1,13 @@
-package storage
+package bank_integration_storage
 
 import (
 	"testing"
 
-	"github.com/voxtmault/bank-integration/config"
+	biConfig "github.com/voxtmault/bank-integration/config"
 )
 
 func TestInitRedis(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	obj, err := InitRedis(&cfg.RedisConfig)
 	if err != nil {
 		t.Errorf("Error initializing redis: %v", err)

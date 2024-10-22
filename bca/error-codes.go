@@ -3,7 +3,7 @@ package bca
 import (
 	"net/http"
 
-	"github.com/voxtmault/bank-integration/models"
+	biModels "github.com/voxtmault/bank-integration/models"
 )
 
 var BcaErrorCodes = map[string]string{
@@ -51,77 +51,77 @@ var (
 
 // Payment Flag Expected Partner Responses
 var (
-	BCAPaymentFlagResponseSuccess = models.BCAResponse{
+	BCAPaymentFlagResponseSuccess = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusOK,
 		ResponseCode:    "2002500",
 		ResponseMessage: BCACommonResponseMessageSuccess.ToString(),
 	}
-	BCAPaymentFlagInvalidToken = models.BCAResponse{
+	BCAPaymentFlagInvalidToken = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012501",
 		ResponseMessage: BCACommonResponseMessageInvalidToken.ToString(),
 	}
-	BCAPaymentFlagResponseUnauthorizedSignature = models.BCAResponse{
+	BCAPaymentFlagResponseUnauthorizedSignature = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012500",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedSignature.ToString(),
 	}
-	BCAPaymentFlagResponseUnauthorizedStringToSign = models.BCAResponse{
+	BCAPaymentFlagResponseUnauthorizedStringToSign = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012500",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedStringToSign.ToString(),
 	}
-	BCAPaymentFlagResponseUnauthorizedUnknownClient = models.BCAResponse{
+	BCAPaymentFlagResponseUnauthorizedUnknownClient = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012500",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedUnknownClient.ToString(),
 	}
-	BCAPaymentFlagResponseMissingMandatoryField = models.BCAResponse{
+	BCAPaymentFlagResponseMissingMandatoryField = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002502",
 		ResponseMessage: BCACommonResponseMessageMissingMandatoryField.ToString(),
 	}
-	BCAPaymentFlagResponseInvalidFieldFormat = models.BCAResponse{
+	BCAPaymentFlagResponseInvalidFieldFormat = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002501",
 		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString(),
 	}
-	BCAPaymentFlagResponseDuplicateExternalID = models.BCAResponse{
+	BCAPaymentFlagResponseDuplicateExternalID = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusConflict,
 		ResponseCode:    "4092500",
 		ResponseMessage: BCACommonResponseMessageDuplicateExternalID.ToString(),
 	}
-	BCAPaymentFlagResponseVAPaid = models.BCAResponse{
+	BCAPaymentFlagResponseVAPaid = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042514",
 		ResponseMessage: BCACommonResponseMessageVAPaid.ToString(),
 	}
-	BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID = models.BCAResponse{
+	BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusConflict,
 		ResponseCode:    "4042518",
 		ResponseMessage: BCACommonResponseMessageDuplicateExternalIDAndPaymentRequestID.ToString(),
 	}
-	BCAPaymentFlagResponseVAExpired = models.BCAResponse{
+	BCAPaymentFlagResponseVAExpired = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042519",
 		ResponseMessage: BCACommonResponseMessageVAExpired.ToString(),
 	}
-	BCAPaymentFlagResponseVANotFound = models.BCAResponse{
+	BCAPaymentFlagResponseVANotFound = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042512",
 		ResponseMessage: BCACommonResponseMessageVANotFound.ToString(),
 	}
-	BCAPaymentFlagResponseRequestParseError = models.BCAResponse{
+	BCAPaymentFlagResponseRequestParseError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002500",
 		ResponseMessage: BCACommonResponseMessageRequestParseError.ToString(),
 	}
-	BCAPaymentFlagResponseResponseParseError = models.BCAResponse{
+	BCAPaymentFlagResponseResponseParseError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002500",
 		ResponseMessage: BCACommonResponseMessageRequestParseError.ToString(),
 	}
-	BCAPaymentFlagResponseGeneralError = models.BCAResponse{
+	BCAPaymentFlagResponseGeneralError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusInternalServerError,
 		ResponseCode:    "5002500",
 		ResponseMessage: BCACommonResponseMessageGeneralError.ToString(),
@@ -130,72 +130,72 @@ var (
 
 // Bill Inquiry Expected Partner Responses
 var (
-	BCABillInquiryResponseSuccess = models.BCAResponse{
+	BCABillInquiryResponseSuccess = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusOK,
 		ResponseCode:    "2002400",
 		ResponseMessage: BCACommonResponseMessageSuccess.ToString(),
 	}
-	BCABillInquiryInvalidToken = models.BCAResponse{
+	BCABillInquiryInvalidToken = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012401",
 		ResponseMessage: BCACommonResponseMessageInvalidToken.ToString(),
 	}
-	BCABillInquiryResponseUnauthorizedSignature = models.BCAResponse{
+	BCABillInquiryResponseUnauthorizedSignature = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012400",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedSignature.ToString(),
 	}
-	BCABillInquiryResponseUnauthorizedStringToSign = models.BCAResponse{
+	BCABillInquiryResponseUnauthorizedStringToSign = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012400",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedStringToSign.ToString(),
 	}
-	BCABillInquiryResponseUnauthorizedUnknownClient = models.BCAResponse{
+	BCABillInquiryResponseUnauthorizedUnknownClient = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4012400",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedUnknownClient.ToString(),
 	}
-	BCABillInquiryResponseMissingMandatoryField = models.BCAResponse{
+	BCABillInquiryResponseMissingMandatoryField = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002402",
 		ResponseMessage: BCACommonResponseMessageMissingMandatoryField.ToString(),
 	}
-	BCABillInquiryResponseInvalidFieldFormat = models.BCAResponse{
+	BCABillInquiryResponseInvalidFieldFormat = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002401",
 		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString(),
 	}
-	BCABillInquiryResponseDuplicateExternalID = models.BCAResponse{
+	BCABillInquiryResponseDuplicateExternalID = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusConflict,
 		ResponseCode:    "4092400",
 		ResponseMessage: BCACommonResponseMessageDuplicateExternalID.ToString(),
 	}
-	BCABillInquiryResponseVAPaid = models.BCAResponse{
+	BCABillInquiryResponseVAPaid = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042414",
 		ResponseMessage: BCACommonResponseMessageVAPaid.ToString(),
 	}
-	BCABillInquiryResponseVAExpired = models.BCAResponse{
+	BCABillInquiryResponseVAExpired = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042419",
 		ResponseMessage: BCACommonResponseMessageVAExpired.ToString(),
 	}
-	BCABillInquiryResponseVANotFound = models.BCAResponse{
+	BCABillInquiryResponseVANotFound = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042412",
 		ResponseMessage: BCACommonResponseMessageVANotFound.ToString(),
 	}
-	BCABillInquiryResponseRequestParseError = models.BCAResponse{
+	BCABillInquiryResponseRequestParseError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002400",
 		ResponseMessage: BCACommonResponseMessageRequestParseError.ToString(),
 	}
-	BCABillInquiryResponseResponseParseError = models.BCAResponse{
+	BCABillInquiryResponseResponseParseError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4002400",
 		ResponseMessage: BCACommonResponseMessageRequestParseError.ToString(),
 	}
-	BCABillInquiryResponseGeneralError = models.BCAResponse{
+	BCABillInquiryResponseGeneralError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusInternalServerError,
 		ResponseCode:    "5002400",
 		ResponseMessage: BCACommonResponseMessageGeneralError.ToString(),
@@ -204,52 +204,52 @@ var (
 
 // Auhentication Expected Partner Responses
 var (
-	BCAAuthResponseSuccess = models.BCAResponse{
+	BCAAuthResponseSuccess = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusOK,
 		ResponseCode:    "2007300",
 		ResponseMessage: BCACommonResponseMessageSuccess.ToString(),
 	}
-	BCAAuthInvalidFieldFormatClient = models.BCAResponse{
+	BCAAuthInvalidFieldFormatClient = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4007301",
 		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + "[clientId/clientSecret/grantType]",
 	}
-	BCAAuthInvalidFieldFormatTimestamp = models.BCAResponse{
+	BCAAuthInvalidFieldFormatTimestamp = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4007301",
 		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + "[X-TIMESTAMP]",
 	}
-	BCAAUthInvalidMandatoryField = models.BCAResponse{
+	BCAAUthInvalidMandatoryField = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4007302",
 		ResponseMessage: BCACommonResponseMessageMissingMandatoryField.ToString(),
 	}
-	BCAAuthUnauthorizedSignature = models.BCAResponse{
+	BCAAuthUnauthorizedSignature = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4017300",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedSignature.ToString(),
 	}
-	BCAAuthUnauthorizedUnknownClient = models.BCAResponse{
+	BCAAuthUnauthorizedUnknownClient = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4017300",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedUnknownClient.ToString(),
 	}
-	BCAAuthUnauthorizedConnectionNotAllowed = models.BCAResponse{
+	BCAAuthUnauthorizedConnectionNotAllowed = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusUnauthorized,
 		ResponseCode:    "4017300",
 		ResponseMessage: BCACommonResponseMessageUnauthorizedConnectionNotAllowed.ToString(),
 	}
-	BCAAuthTimeout = models.BCAResponse{
+	BCAAuthTimeout = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusRequestTimeout,
 		ResponseCode:    "5047300",
 		ResponseMessage: BCACommonResponseMessageTimeout.ToString(),
 	}
-	BCAAuthGeneralError = models.BCAResponse{
+	BCAAuthGeneralError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusInternalServerError,
 		ResponseCode:    "5007300",
 		ResponseMessage: BCACommonResponseMessageGeneralError.ToString(),
 	}
-	BCAAuthConflict = models.BCAResponse{
+	BCAAuthConflict = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusConflict,
 		ResponseCode:    "4097300",
 		ResponseMessage: BCACommonResponseMessageDuplicateExternalID.ToString(),

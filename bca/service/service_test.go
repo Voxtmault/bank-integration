@@ -14,19 +14,19 @@ import (
 
 	request "github.com/voxtmault/bank-integration/bca/request"
 	security "github.com/voxtmault/bank-integration/bca/security"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/models"
-	"github.com/voxtmault/bank-integration/storage"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biModels "github.com/voxtmault/bank-integration/models"
+	biStorage "github.com/voxtmault/bank-integration/storage"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
 
 func TestGetAccessToken(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -40,8 +40,8 @@ func TestGetAccessToken(t *testing.T) {
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
 	if err := service.GetAccessToken(context.Background()); err != nil {
@@ -50,10 +50,10 @@ func TestGetAccessToken(t *testing.T) {
 }
 
 func TestBalanceInquiry(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	security := security.NewBCASecurity(cfg)
 
@@ -61,11 +61,11 @@ func TestBalanceInquiry(t *testing.T) {
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
-	data, err := service.BalanceInquiry(context.Background(), &models.BCABalanceInquiry{})
+	data, err := service.BalanceInquiry(context.Background(), &biModels.BCABalanceInquiry{})
 	if err != nil {
 		t.Errorf("Error getting access token: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestBalanceInquiryUnmarshal(t *testing.T) {
 	{"responseCode":"2001100","responseMessage":"Successful","referenceNo":"2020102977770000000009","partnerReferenceNo":"2020102900000000000001","accountNo":"1234567890","name":"ANDHIKA","accountInfos":{"balanceType":"Cash","amount":{"value":"100000.00","currency":"IDR"},"floatAmount":{"value":"500000.00","currency":"IDR"},"holdAmount":{"value":"200000.00","currency":"IDR"},"availableBalance":{"value":"200000.00","currency":"IDR"},"ledgerBalance":{"value":"200000.00","currency":"IDR"},"currentMultilateralLimit":{"value":"200000.00","currency":"IDR"},"registrationStatusCode":"0001","status":"0001"}}
 	`
 
-	var obj models.BCAAccountBalance
+	var obj biModels.BCAAccountBalance
 	if err := json.Unmarshal([]byte(sample), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestBalanceInquiryUnmarshal(t *testing.T) {
 
 // func TestBillPresentment(t *testing.T) {
 // 	cfg := config.New(envPath)
-// 	utils.InitValidator()
+// 	biUtil.InitValidator()
 // 	storage.InitMariaDB(&cfg.MariaConfig)
 // 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
 // 		slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -126,16 +126,16 @@ func TestBalanceInquiryUnmarshal(t *testing.T) {
 // }
 
 func TestInquiryVA(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	} else {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
-	s := BCAService{DB: storage.GetDBConnection()}
+	s := BCAService{DB: biStorage.GetDBConnection()}
 	bodyReq := `{
 	"partnerServiceId": " 11223",
 	"customerNo": "1234567890123456",
@@ -151,7 +151,7 @@ func TestInquiryVA(t *testing.T) {
 	"currency": "IDR"
 	}
 	}`
-	var obj models.BCAInquiryRequest
+	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
@@ -176,10 +176,10 @@ func TestGenerateAccessToken(t *testing.T) {
 	// 5. Generate a mock http request using the data received from (4)
 	// 6. Call the Generate Access Token function
 
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	// Load Registered Banks
 
@@ -195,8 +195,8 @@ func TestGenerateAccessToken(t *testing.T) {
 		request.NewBCAEgress(bcaSec),
 		request.NewBCAIngress(bcaSec),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
 	mockSecurity := security.NewBCASecurity(
@@ -215,7 +215,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	}
 
 	// Generate the mock http request
-	body := models.GrantType{
+	body := biModels.GrantType{
 		GrantType: "client_credentials",
 	}
 
@@ -246,10 +246,10 @@ func TestGenerateAccessToken(t *testing.T) {
 }
 
 func TestValidateAccessToken(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	// Load Registered Banks
 
@@ -265,11 +265,11 @@ func TestValidateAccessToken(t *testing.T) {
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
-	result, err := service.Ingress.ValidateAccessToken(context.Background(), storage.GetRedisInstance(), "QyAuKj2Ph0dYkwZ-zozRTg85FC86nfd43qFPqj_dwAKnCIrKg1I4TxSxOeFiZt1F")
+	result, err := service.Ingress.ValidateAccessToken(context.Background(), biStorage.GetRedisInstance(), "QyAuKj2Ph0dYkwZ-zozRTg85FC86nfd43qFPqj_dwAKnCIrKg1I4TxSxOeFiZt1F")
 	if err != nil {
 		t.Errorf("Error validating access token: %v", err)
 	}
@@ -278,10 +278,10 @@ func TestValidateAccessToken(t *testing.T) {
 }
 
 func TestMockRequest(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	// Load Registered Banks
 
@@ -297,8 +297,8 @@ func TestMockRequest(t *testing.T) {
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
 	mockSecurity := security
@@ -309,12 +309,12 @@ func TestMockRequest(t *testing.T) {
 
 	// Generate the mock signature
 	timeStamp := time.Now().Format(time.RFC3339)
-	mockSignature, err := mockSecurity.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
+	mockSignature, err := mockSecurity.CreateSymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "mAClHNe62u6L6jUuHjzkQ37YTzP49YRGaikd9d0A_hc2uunz44x6554H1ZkZOeAs",
 		Timestamp:   "2024-10-21T15:38:03+07:00",
 		RelativeURL: "/payment-api/v1.0/transfer-va/inquiry",
-		RequestBody: models.BCAVARequestPayload{
+		RequestBody: biModels.BCAVARequestPayload{
 			PartnerServiceID: "11223",
 			CustomerNo:       "1234567890123456",
 			VirtualAccountNo: "112231234567890123456",
@@ -349,7 +349,7 @@ func TestMockRequest(t *testing.T) {
 	mockRequest.Header.Set("X-EXTERNAL-ID", "12312321312")
 
 	// Call the validate symmetric signature function
-	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, storage.GetRedisInstance(), nil)
+	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance(), nil)
 
 	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
 	slog.Debug("response", "data", fmt.Sprintf("%+v", response))
@@ -360,10 +360,10 @@ func TestMockRequest(t *testing.T) {
 }
 
 func TestBillPresentmentIntegration(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	// Load Registered Banks
 
@@ -379,8 +379,8 @@ func TestBillPresentmentIntegration(t *testing.T) {
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
 	// Generate the mock http request
@@ -437,10 +437,10 @@ func TestBillPresentmentIntegration(t *testing.T) {
 }
 
 func TestInquiryVAIntegration(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	// Load Registered Banks
 
@@ -456,8 +456,8 @@ func TestInquiryVAIntegration(t *testing.T) {
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
 	// Generate the mock http request

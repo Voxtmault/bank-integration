@@ -1,4 +1,4 @@
-package config
+package bank_integration_config
 
 import (
 	"log"
@@ -15,10 +15,11 @@ type Keys struct {
 
 // Banking Config
 type BCAConfig struct {
-	BaseURL      string `validate:"required"`
-	ClientID     string `validate:"required"`
-	ClientSecret string `validate:"required"`
-	AccessToken  string `validate:"omitempty"`
+	BaseURL                   string `validate:"required"`
+	ClientID                  string `validate:"required"`
+	ClientSecret              string `validate:"required"`
+	AccessToken               string `validate:"omitempty"`
+	AccessTokenExpirationTime uint   `validate:"omitempty"`
 }
 
 type BCAPartnerInformation struct {
@@ -84,9 +85,10 @@ func New(envPath string) *BankingConfig {
 			BCAPublicKeyPath: getEnv("BCA_PUBLIC_KEY_PATH", ""),
 		},
 		BCAConfig: BCAConfig{
-			BaseURL:      getEnv("BCA_BASE_URL", ""),
-			ClientID:     getEnv("BCA_CLIENT_ID", ""),
-			ClientSecret: getEnv("BCA_CLIENT_SECRET", ""),
+			BaseURL:                   getEnv("BCA_BASE_URL", ""),
+			ClientID:                  getEnv("BCA_CLIENT_ID", ""),
+			ClientSecret:              getEnv("BCA_CLIENT_SECRET", ""),
+			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_ACCESS_TOKEN_EXPIRATION_TIME", 0)),
 		},
 		BCAURLEndpoints: BCAURLEndpoints{
 			AccessTokenURL:    getEnv("BCA_ACCESS_TOKEN_URL", ""),

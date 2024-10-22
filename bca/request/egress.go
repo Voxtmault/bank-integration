@@ -7,29 +7,29 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/interfaces"
-	"github.com/voxtmault/bank-integration/models"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	biModels "github.com/voxtmault/bank-integration/models"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 type BCAEgress struct {
 	// Security is mainly used to generate signatures for request headers
-	Security interfaces.Security
+	Security biInterfaces.Security
 }
 
-var _ interfaces.RequestEgress = &BCAEgress{}
+var _ biInterfaces.RequestEgress = &BCAEgress{}
 
-func NewBCAEgress(security interfaces.Security) *BCAEgress {
+func NewBCAEgress(security biInterfaces.Security) *BCAEgress {
 	return &BCAEgress{
 		Security: security,
 	}
 }
 
-func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig) error {
+func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig) error {
 
 	// Checks for problematic configurations
-	if err := utils.ValidateStruct(ctx, cfg.BCAConfig); err != nil {
+	if err := biUtil.ValidateStruct(ctx, cfg.BCAConfig); err != nil {
 		return eris.Wrap(err, "invalid BCA configuration")
 	}
 
@@ -61,11 +61,11 @@ func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *ht
 	return nil
 }
 
-func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, cfg *config.BankingConfig, body any, relativeURL, accessToken string) error {
+func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig, body any, relativeURL, accessToken string) error {
 	timeStamp := time.Now().Format(time.RFC3339)
 
 	slog.Debug("Creating symetric signature")
-	signature, err := s.Security.CreateSymmetricSignature(ctx, &models.SymmetricSignatureRequirement{
+	signature, err := s.Security.CreateSymmetricSignature(ctx, &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  request.Method,
 		AccessToken: accessToken,
 		Timestamp:   timeStamp,

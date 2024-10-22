@@ -11,12 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/models"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biModels "github.com/voxtmault/bank-integration/models"
 )
 
+var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+
 func TestCreateAsymmetricSignature(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New(envPath)
 	security := NewBCASecurity(
 		cfg,
 	)
@@ -35,7 +37,7 @@ func TestCreateAsymmetricSignature(t *testing.T) {
 }
 
 func TestCreateSymmetricSignature(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New(envPath)
 	security := NewBCASecurity(
 		cfg,
 	)
@@ -51,7 +53,58 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
-	inputJSON := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
+	inputJSON := `
+	{
+    "partnerServiceId": "   12345",
+    "customerNo": "123456789012345678",
+    "virtualAccountNo": "   12345123456789012345678",
+    "virtualAccountName": "Jokul Doe",
+    "virtualAccountEmail": "",
+    "virtualAccountPhone": "",
+    "trxId": "",
+    "paymentRequestId": "202202111031031234500001136962",
+    "channelCode": 6011,
+    "hashedSourceAccountNo": "",
+    "sourceBankCode": "014",
+    "paidAmount": {
+        "value": "100000.00",
+        "currency": "IDR"
+    },
+    "cumulativePaymentAmount": null,
+    "paidBills": "",
+    "totalAmount": {
+        "value": "100000.00",
+        "currency": "IDR"
+    },
+    "trxDateTime": "2022-02-12T17:29:57+07:00",
+    "referenceNo": "00113696201",
+    "journalNum": "",
+    "paymentType": "",
+    "flagAdvise": "N",
+    "subCompany": "00000",
+    "billDetails": [
+        {
+            "billCode": "",
+            "billNo": "123456789012345678",
+            "billName": "",
+            "billShortName": "",
+            "billDescription": {
+                "english": "Maintenance",
+                "indonesia": "Pemeliharaan"
+            },
+            "billSubCompany": "00000",
+            "billAmount": {
+                "value": "100000.00",
+                "currency": "IDR"
+            },
+            "additionalInfo": {},
+            "billReferenceNo": "00113696201"
+        }
+    ],
+    "freeTexts": [],
+    "additionalInfo": {}
+}
+	`
 	var parsedJson map[string]interface{}
 	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
 		t.Error(err)
@@ -61,7 +114,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	payload, _ := json.Marshal(parsedJson)
 
 	timestamp := time.Now().Format(time.RFC3339)
-	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
+	signature, err := security.CreateSymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
 		Timestamp:   time.Now().Format(time.RFC3339),
@@ -77,7 +130,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 }
 
 func TestVerifyAsymmetricSignature(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New(envPath)
 	security := NewBCASecurity(
 		cfg,
 	)
@@ -94,7 +147,7 @@ func TestVerifyAsymmetricSignature(t *testing.T) {
 }
 
 func TestVerifySymmetricSignature(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New(envPath)
 	security := NewBCASecurity(
 		cfg,
 	)
@@ -117,7 +170,7 @@ func TestVerifySymmetricSignature(t *testing.T) {
 
 	payload, _ := json.Marshal(parsedJson)
 
-	result, err := security.VerifySymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
+	result, err := security.VerifySymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
 		Timestamp:   "2024-10-22T15:42:48+07:00",
@@ -136,7 +189,7 @@ func TestVerifySymmetricSignature(t *testing.T) {
 }
 
 func TestMinifyJSON(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New(envPath)
 	security := NewBCASecurity(
 		cfg,
 	)
@@ -185,7 +238,7 @@ func TestMinifyJSON(t *testing.T) {
 }
 
 func TestProcessingURL(t *testing.T) {
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	cfg := biConfig.New(envPath)
 	security := NewBCASecurity(
 		cfg,
 	)

@@ -14,22 +14,22 @@ import (
 
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/bca"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/interfaces"
-	"github.com/voxtmault/bank-integration/models"
-	"github.com/voxtmault/bank-integration/storage"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	biModels "github.com/voxtmault/bank-integration/models"
+	biStorage "github.com/voxtmault/bank-integration/storage"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 type BCAService struct {
 
 	// Dependency Injection
-	Egress          interfaces.RequestEgress
-	Ingress         interfaces.RequestIngress
-	GeneralSecurity utils.GeneralSecurity
+	Egress          biInterfaces.RequestEgress
+	Ingress         biInterfaces.RequestIngress
+	GeneralSecurity biUtil.GeneralSecurity
 
 	// Configs
-	Config *config.BankingConfig
+	Config *biConfig.BankingConfig
 
 	// Runtime Access Tokens
 	AccessToken          string
@@ -37,12 +37,12 @@ type BCAService struct {
 
 	// DB Connections
 	DB  *sql.DB
-	RDB *storage.RedisInstance
+	RDB *biStorage.RedisInstance
 }
 
-var _ interfaces.SNAP = &BCAService{}
+var _ biInterfaces.SNAP = &BCAService{}
 
-func NewBCAService(egress interfaces.RequestEgress, ingress interfaces.RequestIngress, config *config.BankingConfig, db *sql.DB, rdb *storage.RedisInstance) *BCAService {
+func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, config *biConfig.BankingConfig, db *sql.DB, rdb *biStorage.RedisInstance) *BCAService {
 	return &BCAService{
 		Egress:  egress,
 		Ingress: ingress,
@@ -62,7 +62,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 
 	baseUrl := s.Config.BCAConfig.BaseURL + s.Config.BCAURLEndpoints.AccessTokenURL
 	method := http.MethodPost
-	body := models.GrantType{
+	body := biModels.GrantType{
 		GrantType: "client_credentials",
 	}
 
@@ -97,7 +97,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	}
 	slog.Debug("Response from BCA", "Response: ", response)
 
-	var atObj models.AccessTokenResponse
+	var atObj biModels.AccessTokenResponse
 	if err = json.Unmarshal([]byte(response), &atObj); err != nil {
 		slog.Debug("error unmarshalling response", "error", err)
 		return eris.Wrap(err, "unmarshalling response")
@@ -111,7 +111,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (s *BCAService) BalanceInquiry(ctx context.Context, payload *models.BCABalanceInquiry) (*models.BCAAccountBalance, error) {
+func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABalanceInquiry) (*biModels.BCAAccountBalance, error) {
 
 	// Checks if the access token is empty, if yes then get a new one
 	if err := s.CheckAccessToken(ctx); err != nil {
@@ -143,7 +143,7 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *models.BCABala
 		}
 	}
 
-	var obj models.BCAAccountBalance
+	var obj biModels.BCAAccountBalance
 	if err = json.Unmarshal([]byte(response), &obj); err != nil {
 		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
 	}
@@ -175,7 +175,7 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 }
 
 // Ingress
-func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*models.BCAResponse, []byte, error) {
+func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*biModels.BCAResponse, []byte, error) {
 
 	bodyBytes, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -208,7 +208,7 @@ func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*mo
 	return &bca.BCAAuthResponseSuccess, bodyBytes, nil
 }
 
-func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error) {
+func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*biModels.AccessTokenResponse, error) {
 	// Logic
 	// 1. Parse the request body
 	// 2. Parse the request header
@@ -220,16 +220,16 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// 8. Return to caller
 
 	// Parse the request body
-	var body models.GrantType
+	var body biModels.GrantType
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
-		return &models.AccessTokenResponse{
+		return &biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}, eris.Wrap(err, "decoding request body")
 	}
 
 	// Validate the received struct
-	if err := utils.ValidateStruct(ctx, body); err != nil {
-		return &models.AccessTokenResponse{
+	if err := biUtil.ValidateStruct(ctx, body); err != nil {
+		return &biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthInvalidFieldFormatClient,
 		}, eris.Wrap(err, "validating request body")
 	}
@@ -237,13 +237,13 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// Verify Asymmetric Signature
 	result, response, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
 	if response != nil {
-		return &models.AccessTokenResponse{
+		return &biModels.AccessTokenResponse{
 			BCAResponse: response,
 		}, nil
 	}
 
 	if !result {
-		return &models.AccessTokenResponse{
+		return &biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthUnauthorizedSignature,
 		}, nil
 	}
@@ -257,29 +257,28 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	slog.Debug("generated token", "token", token)
 
 	// Save the access token to redis along with the configured client secret & expiration time
-	key := fmt.Sprintf("%s:%s", utils.AccessTokenRedis, token)
-	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Hour*900).Err(); err != nil {
-		return &models.AccessTokenResponse{
+	key := fmt.Sprintf("%s:%s", biUtil.AccessTokenRedis, token)
+	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.Config.AccessTokenExpirationTime)).Err(); err != nil {
+		return &biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}, eris.Wrap(err, "saving access token to redis")
 	}
 
-	// TODO Load the expires in using config
-	return &models.AccessTokenResponse{
+	return &biModels.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
-		ExpiresIn:   "900",
+		ExpiresIn:   strconv.Itoa(int(s.Config.AccessTokenExpirationTime)),
 		BCAResponse: &bca.BCAAuthResponseSuccess,
 	}, nil
 }
 
-func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*models.VAResponsePayload, error) {
+func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*biModels.VAResponsePayload, error) {
 
-	var obj models.VAResponsePayload
-	obj.BCAResponse = &models.BCAResponse{}
-	obj.VirtualAccountData = &models.VABCAResponseData{}
+	var obj biModels.VAResponsePayload
+	obj.BCAResponse = &biModels.BCAResponse{}
+	obj.VirtualAccountData = &biModels.VABCAResponseData{}
 
-	var payload models.BCAVARequestPayload
+	var payload biModels.BCAVARequestPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
 		slog.Debug("error un marshaling request body", "error", err)
 
@@ -373,11 +372,11 @@ func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*models.
 	return &obj, nil
 }
 
-func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInquiryVAResponse, error) {
-	var obj models.BCAInquiryVAResponse
-	obj.VirtualAccountData = &models.VirtualAccountDataInqury{}
+func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAInquiryVAResponse, error) {
+	var obj biModels.BCAInquiryVAResponse
+	obj.VirtualAccountData = &biModels.VirtualAccountDataInqury{}
 
-	var payload models.BCAInquiryRequest
+	var payload biModels.BCAInquiryRequest
 	if err := json.Unmarshal(data, &payload); err != nil {
 		slog.Debug("error un-marshaling request body", "error", err)
 
@@ -428,7 +427,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInq
 			return &obj, eris.Wrap(err, "updating va_request")
 		}
 
-		obj.VirtualAccountData = &models.VirtualAccountDataInqury{}
+		obj.VirtualAccountData = &biModels.VirtualAccountDataInqury{}
 		statement = `
 		SELECT  partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
 				totalAmountCurrency
@@ -471,7 +470,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInq
 	}
 }
 
-func (s *BCAService) CreateVA(ctx context.Context, payload *models.CreateVAReq) error {
+func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
 	partnerId := s.Config.BCAPartnerInformation.BCAPartnerId
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
@@ -513,7 +512,7 @@ func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) 
 
 	if response.StatusCode != 200 {
 		slog.Debug("Non-200 status code", "status", response.StatusCode)
-		var obj models.BCAResponse
+		var obj biModels.BCAResponse
 
 		if err := json.Unmarshal(body, &obj); err != nil {
 			return "", eris.Wrap(err, "unmarshalling error response")
@@ -549,7 +548,7 @@ func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string) 
 	query := `
 	SELECT paidAmountValue,paidAmountCurrency FROM va_table WHERE virtualAccountNo = ? AND paidAmountValue = '0'
 	`
-	var amount models.Amount
+	var amount biModels.Amount
 	err := s.DB.QueryRowContext(ctx, query, virtualAccountNum).Scan(&amount.Value, &amount.Currency)
 	if err == sql.ErrNoRows {
 		return true, nil
@@ -561,8 +560,8 @@ func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string) 
 	return false, nil
 }
 
-func (s *BCAService) GetVirtualAccountTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
-	var amount models.Amount
+func (s *BCAService) GetVirtualAccountTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, error) {
+	var amount biModels.Amount
 	query := `
 	SELECT totalAmountValue, totalAmountCurrency 
 	FROM va_request
@@ -581,8 +580,8 @@ func (s *BCAService) GetVirtualAccountTotalAmountByInquiryRequestId(ctx context.
 	return &amount, nil
 }
 
-func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*models.Amount, error) {
-	var amount models.Amount
+func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, error) {
+	var amount biModels.Amount
 	query := `
 	SELECT paidAmountValue, paidAmountCurrency 
 	FROM va_request 

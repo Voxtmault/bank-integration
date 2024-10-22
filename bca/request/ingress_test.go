@@ -10,18 +10,18 @@ import (
 	"testing"
 
 	bcaSecurity "github.com/voxtmault/bank-integration/bca/security"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/storage"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biStorage "github.com/voxtmault/bank-integration/storage"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
 
 func TestVerifySymmetricSignature(t *testing.T) {
-	cfg := config.New(envPath)
-	utils.InitValidator()
-	storage.InitMariaDB(&cfg.MariaConfig)
-	storage.InitRedis(&cfg.RedisConfig)
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
 
 	security := bcaSecurity.NewBCASecurity(
 		cfg,
@@ -75,7 +75,7 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	mockRequest.Header.Set("X-SIGNATURE", "NV54FMmgdpMuwshlUCgIMSXlJpH3s/X3bj3IzHqpHVmaA/PAIIgq5ICIZlwm5nM8/y503+h88Q1pP3NO5nlVLA==")
 	mockRequest.Header.Set("X-EXTERNAL-ID", "32131")
 
-	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, storage.GetRedisInstance(), payload)
+	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance(), payload)
 	if response != nil {
 		t.Errorf("Error verifying symmetric signature: %v", response)
 	}

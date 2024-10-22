@@ -24,9 +24,9 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/tdewolff/minify/v2"
 	mjson "github.com/tdewolff/minify/v2/json"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/interfaces"
-	"github.com/voxtmault/bank-integration/models"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	biModels "github.com/voxtmault/bank-integration/models"
 )
 
 type BCASecurity struct {
@@ -47,9 +47,9 @@ type BCASecurity struct {
 }
 
 // BCA Security implements the Security interface
-var _ interfaces.Security = &BCASecurity{}
+var _ biInterfaces.Security = &BCASecurity{}
 
-func NewBCASecurity(cfg *config.BankingConfig) *BCASecurity {
+func NewBCASecurity(cfg *biConfig.BankingConfig) *BCASecurity {
 	return &BCASecurity{
 		PrivateKeyPath:   cfg.Keys.PrivateKeyPath,
 		ClientID:         cfg.BCAConfig.ClientID,
@@ -111,7 +111,7 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 	}
 }
 
-func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement) (string, error) {
+func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *biModels.SymmetricSignatureRequirement) (string, error) {
 
 	// Encode the Relative URL
 	relativeURL, err := s.processRelativeURL(obj.RelativeURL)
@@ -137,7 +137,7 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
+func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *biModels.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
 	// Encode the Relative URL
 	relativeURL, err := s.processRelativeURL(obj.RelativeURL)
 	if err != nil {

@@ -1,4 +1,4 @@
-package utils
+package bank_integration_utils
 
 // Stored in redis as a hash set with the key being client-id and the value being the client-secret
 var ClientCredentialsRedis = "client-credentials"

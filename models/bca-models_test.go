@@ -1,16 +1,16 @@
-package models
+package bank_integration_models
 
 import (
 	"testing"
 	"time"
 
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 func TestVerifyBCARequestHeader(t *testing.T) {
-	validator := utils.InitValidator()
-	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	validator := biUtil.InitValidator()
+	cfg := biConfig.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
 	obj := BCARequestHeader{
 		Timestamp:   time.Now().Format(time.RFC3339),
 		ContentType: "application/json",

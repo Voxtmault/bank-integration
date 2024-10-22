@@ -5,69 +5,91 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/rotisserie/eris"
 	bcaRequest "github.com/voxtmault/bank-integration/bca/request"
 	bcaSecurity "github.com/voxtmault/bank-integration/bca/security"
 	bcaService "github.com/voxtmault/bank-integration/bca/service"
-	"github.com/voxtmault/bank-integration/config"
-	"github.com/voxtmault/bank-integration/interfaces"
-	"github.com/voxtmault/bank-integration/storage"
-	"github.com/voxtmault/bank-integration/utils"
+	biConfig "github.com/voxtmault/bank-integration/config"
+	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	management "github.com/voxtmault/bank-integration/management"
+	biStorage "github.com/voxtmault/bank-integration/storage"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
-func InitBankAPI(envPath string) error {
+func InitBankAPI(envPath, timezone string) error {
+
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return eris.Wrap(err, "failed to load timezone")
+	}
+
 	// Load Configs
-	cfg := config.New(envPath)
-	utils.InitValidator()
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
 
 	// Init storage connections
-	if err := storage.InitMariaDB(&cfg.MariaConfig); err != nil {
+	if err := biStorage.InitMariaDB(&cfg.MariaConfig); err != nil {
 		return eris.Wrap(err, "init mariadb connection")
 	}
-	obj, err := storage.InitRedis(&cfg.RedisConfig)
+	obj, err := biStorage.InitRedis(&cfg.RedisConfig)
 	if err != nil {
 		return eris.Wrap(err, "init redis connection")
 	}
 
 	// Load Authenticated Banks to Redis
-	if err := LoadAuthenticatedBanks(storage.GetDBConnection(), obj); err != nil {
+	if err := LoadAuthenticatedBanks(biStorage.GetDBConnection(), obj); err != nil {
 		return eris.Wrap(err, "load authenticated banks")
 	}
 
-	// Run background job to clear unique external id every day after midnight
-	go func() {
-		for {
-			now := time.Now()
-			next := now.AddDate(0, 0, 1).Truncate(24 * time.Hour)
-			time.Sleep(time.Until(next))
+	// Create a new cron scheduler
+	c := cron.New(cron.WithLocation(location))
 
-			if err := clearList(context.Background(), obj, "unique_external_id:*"); err != nil {
-				slog.Info("failed to clear unique external id", "reason", err)
-			} else {
-				slog.Info("unique external id cleared")
-			}
+	// Schedule the task to run every day at midnight
+	_, err = c.AddFunc("0 0 * * *", func() {
+		if err := clearList(context.Background(), obj, "unique_external_id:*"); err != nil {
+			slog.Info("failed to clear unique external id", "reason", err)
+		} else {
+			slog.Info("unique external id cleared")
 		}
-	}()
+	})
+	if err != nil {
+		return eris.Wrap(err, "failed to schedule task")
+	}
+
+	// Start the cron scheduler
+	c.Start()
 
 	return nil
 }
 
-func InitBCAService() interfaces.SNAP {
+func InitBCAService() biInterfaces.SNAP {
 
-	security := bcaSecurity.NewBCASecurity(config.GetConfig())
+	security := bcaSecurity.NewBCASecurity(biConfig.GetConfig())
 
 	service := bcaService.NewBCAService(
 		bcaRequest.NewBCAEgress(security),
 		bcaRequest.NewBCAIngress(security),
-		config.GetConfig(),
-		storage.GetDBConnection(),
-		storage.GetRedisInstance(),
+		biConfig.GetConfig(),
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
 	)
 
 	return service
 }
 
-func clearList(ctx context.Context, rdb *storage.RedisInstance, pattern string) error {
+func InitManagementService() biInterfaces.Management {
+
+	service := management.NewBankIntegrationManagement(
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	return service
+}
+
+func clearList(ctx context.Context, rdb *biStorage.RedisInstance, pattern string) error {
+	slog.Debug("clearing redis unique external id list")
 	var cursor uint64
 	for {
 		keys, nextCursor, err := rdb.RDB.Scan(ctx, cursor, pattern, 100).Result()

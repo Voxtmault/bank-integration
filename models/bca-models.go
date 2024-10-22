@@ -1,4 +1,4 @@
-package models
+package bank_integration_models
 
 type BCARequestHeader struct {
 	Timestamp     string `validate:"required,timezone"`
@@ -290,7 +290,7 @@ type Reason struct {
 
 type BCAInquiryVAResponse struct {
 	BCAResponse
-	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData,omitmepty"` // Data related to virtual account
+	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData,omitempty"` // Data related to virtual account
 	AdditionalInfo     map[string]interface{}    `json:"additionalInfo,omitempty"`     // Additional information (optional)
 }
 

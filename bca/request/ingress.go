@@ -11,26 +11,26 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/bca"
-	"github.com/voxtmault/bank-integration/interfaces"
-	"github.com/voxtmault/bank-integration/models"
-	"github.com/voxtmault/bank-integration/storage"
-	"github.com/voxtmault/bank-integration/utils"
+	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	biModels "github.com/voxtmault/bank-integration/models"
+	biStorage "github.com/voxtmault/bank-integration/storage"
+	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 type BCAIngress struct {
 	// Security is mainly used to generate signatures for request headers
-	Security interfaces.Security
+	Security biInterfaces.Security
 }
 
-var _ interfaces.RequestIngress = &BCAIngress{}
+var _ biInterfaces.RequestIngress = &BCAIngress{}
 
-func NewBCAIngress(security interfaces.Security) *BCAIngress {
+func NewBCAIngress(security biInterfaces.Security) *BCAIngress {
 	return &BCAIngress{
 		Security: security,
 	}
 }
 
-func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance) (bool, *models.BCAResponse, string) {
+func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance) (bool, *biModels.BCAResponse, string) {
 
 	// Parse the request header
 	timeStamp := request.Header.Get("X-TIMESTAMP")
@@ -67,7 +67,7 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	}
 
 	// Retrieve the client secret from redis
-	clientSecret, err := redis.GetIndividualValueRedisHash(ctx, utils.ClientCredentialsRedis, clientKey)
+	clientSecret, err := redis.GetIndividualValueRedisHash(ctx, biUtil.ClientCredentialsRedis, clientKey)
 	if err != nil {
 		slog.Debug("error getting client secret", "error", err)
 		return false, &bca.BCAAuthGeneralError, ""
@@ -92,9 +92,9 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	return result, nil, clientSecret
 }
 
-func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *storage.RedisInstance, body any) (bool, *models.BCAResponse) {
+func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance, body any) (bool, *biModels.BCAResponse) {
 
-	var obj models.SymmetricSignatureRequirement
+	var obj biModels.SymmetricSignatureRequirement
 
 	// Validate External ID
 	if request.Header.Get("X-EXTERNAL-ID") == "" {
@@ -191,13 +191,13 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 	return result, nil
 }
 
-func (s *BCAIngress) ValidateAccessToken(ctx context.Context, rdb *storage.RedisInstance, accessToken string) (string, error) {
+func (s *BCAIngress) ValidateAccessToken(ctx context.Context, rdb *biStorage.RedisInstance, accessToken string) (string, error) {
 	// Logic
 	// 1. Get the access token from Redis
 	// 2. If redis return nil then return false to the caller
 	// 3. if redis returns a value then return true to the caller
 
-	data, err := rdb.RDB.Get(ctx, fmt.Sprintf("%s:%s", utils.AccessTokenRedis, accessToken)).Result()
+	data, err := rdb.RDB.Get(ctx, fmt.Sprintf("%s:%s", biUtil.AccessTokenRedis, accessToken)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			slog.Debug("token not found in redis, possibly expired or nonexistent")
@@ -213,7 +213,7 @@ func (s *BCAIngress) ValidateAccessToken(ctx context.Context, rdb *storage.Redis
 	return data, nil
 }
 
-func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *storage.RedisInstance, externalId string) (bool, error) {
+func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *biStorage.RedisInstance, externalId string) (bool, error) {
 	// Get only the first 36 characters of the externalId
 	if len(externalId) > 36 {
 		externalId = externalId[:36]
@@ -225,7 +225,7 @@ func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *storage.
 		return false, eris.New("invalid field format")
 	}
 
-	data, err := rdb.RDB.SMembers(ctx, fmt.Sprintf("%s:%s", utils.UniqueExternalIDRedis, utils.BankCodeBCA)).Result()
+	data, err := rdb.RDB.SMembers(ctx, fmt.Sprintf("%s:%s", biUtil.UniqueExternalIDRedis, biUtil.BankCodeBCA)).Result()
 	if err != nil {
 		slog.Debug("error getting data from redis", "error", err)
 		return false, eris.Wrap(err, "getting data from redis")
@@ -239,7 +239,7 @@ func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *storage.
 	}
 
 	// If it's a new one then add to the hash sets
-	if err = rdb.RDB.SAdd(ctx, fmt.Sprintf("%s:%s", utils.UniqueExternalIDRedis, utils.BankCodeBCA), externalId).Err(); err != nil {
+	if err = rdb.RDB.SAdd(ctx, fmt.Sprintf("%s:%s", biUtil.UniqueExternalIDRedis, biUtil.BankCodeBCA), externalId).Err(); err != nil {
 		slog.Debug("error saving data to redis cache", "error", err)
 		return false, eris.Wrap(err, "saving data to redis cache")
 	}

@@ -1,4 +1,4 @@
-package storage
+package bank_integration_storage
 
 import (
 	"database/sql"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/rotisserie/eris"
-	"github.com/voxtmault/bank-integration/config"
+	biConfig "github.com/voxtmault/bank-integration/config"
 )
 
 var (
@@ -23,7 +23,7 @@ type MariaDatabaseStats struct {
 	TotalWaitTime        time.Duration `json:"total_wait_time"`
 }
 
-func validateMariaDBConfig(config *config.MariaConfig) error {
+func validateMariaDBConfig(config *biConfig.MariaConfig) error {
 	if config.DBUser == "" {
 		return eris.New("db username is empty")
 	}
@@ -41,7 +41,7 @@ func validateMariaDBConfig(config *config.MariaConfig) error {
 }
 
 // InitMaria Establish a connection using the provided credentials with the mariadb service
-func InitMariaDB(config *config.MariaConfig) error {
+func InitMariaDB(config *biConfig.MariaConfig) error {
 	slog.Debug("Opening MariaDB Connection")
 	var err error
 

@@ -1,4 +1,4 @@
-package utils
+package bank_integration_utils
 
 import (
 	"context"

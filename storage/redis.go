@@ -1,4 +1,4 @@
-package storage
+package bank_integration_storage
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"github.com/voxtmault/bank-integration/config"
+	biConfig "github.com/voxtmault/bank-integration/config"
 )
 
 type RedisInstance struct {
@@ -17,7 +17,7 @@ type RedisInstance struct {
 
 var redisInstance RedisInstance
 
-func validateRedisConfig(cfg *config.RedisConfig) error {
+func validateRedisConfig(cfg *biConfig.RedisConfig) error {
 	if cfg.RedisHost == "" {
 		return eris.New("redis host is empty")
 	}
@@ -31,7 +31,7 @@ func validateRedisConfig(cfg *config.RedisConfig) error {
 	return nil
 }
 
-func InitRedis(config *config.RedisConfig) (*RedisInstance, error) {
+func InitRedis(config *biConfig.RedisConfig) (*RedisInstance, error) {
 
 	slog.Debug("Validating Redis Config")
 	if err := validateRedisConfig(config); err != nil {
