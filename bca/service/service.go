@@ -347,7 +347,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*models.
 	}
 
 	statement = `
-	UPDATE va_request SET inqueryRequestId = ? 
+	UPDATE va_request SET inquiryRequestId = ? 
 	WHERE virtualAccountNo = ? AND paidAmountValue = '0'
 	`
 	_, err = tx.QueryContext(ctx, statement, payload.InquiryRequestID, payload.VirtualAccountNo)
@@ -405,14 +405,22 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInq
 			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
 			return &obj, nil
 		}
+		tx, err := s.DB.BeginTx(ctx, nil)
+		if err != nil {
+			slog.Debug("error beginning transaction", "error", err)
+			tx.Rollback()
+
+			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
+			return &obj, eris.Wrap(err, "beginning transaction")
+		}
 
 		statement := `
 		UPDATE va_request SET paidAmountValue = ?, 
 							  paidAmountCurrency = ?, 
 							  id_va_status = 2   
-		WHERE inqueryRequestId = ?
+		WHERE inquiryRequestId = ?
 		`
-		_, err = s.DB.ExecContext(ctx, statement, payload.PaidAmount.Value, payload.PaidAmount.Currency,
+		_, err = tx.ExecContext(ctx, statement, payload.PaidAmount.Value, payload.PaidAmount.Currency,
 			payload.PaymentRequestID)
 		if err != nil {
 			slog.Debug("error updating va_request", "error", err)
@@ -425,10 +433,10 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInq
 		SELECT  partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
 				totalAmountCurrency
 		FROM va_request 
-		WHERE inqueryRequestId = ?
+		WHERE inquiryRequestId = ?
 		LIMIT 1
 		`
-		if err := s.DB.QueryRowContext(ctx, statement, payload.PaymentRequestID).Scan(
+		if err := tx.QueryRowContext(ctx, statement, payload.PaymentRequestID).Scan(
 			&obj.VirtualAccountData.PartnerServiceID,
 			&obj.VirtualAccountData.CustomerNo,
 			&obj.VirtualAccountData.VirtualAccountNo,
@@ -451,6 +459,14 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInq
 		obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
 		obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
 		obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
+		if err = tx.Commit(); err != nil {
+			slog.Debug("bill presentment", "error committing transaction", err)
+			tx.Rollback()
+
+			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
+			return &obj, eris.Wrap(err, "committing transaction")
+		}
+
 		return &obj, nil
 	}
 }
@@ -550,7 +566,7 @@ func (s *BCAService) GetVirtualAccountTotalAmountByInquiryRequestId(ctx context.
 	query := `
 	SELECT totalAmountValue, totalAmountCurrency 
 	FROM va_request
-	WHERE inqueryRequestId = ?
+	WHERE inquiryRequestId = ?
 	`
 	if err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(
 		&amount.Value, &amount.Currency,
@@ -570,7 +586,7 @@ func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.C
 	query := `
 	SELECT paidAmountValue, paidAmountCurrency 
 	FROM va_request 
-	WHERE inqueryRequestID = ? 
+	WHERE inquiryRequestID = ? 
 	LIMIT 1
 	`
 	err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(&amount.Value, &amount.Currency)
