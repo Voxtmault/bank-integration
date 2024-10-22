@@ -114,13 +114,13 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement) (string, error) {
 
 	// Encode the Relative URL
-	relativeURL, err := processRelativeURL(obj.RelativeURL)
+	relativeURL, err := s.processRelativeURL(obj.RelativeURL)
 	if err != nil {
 		return "", eris.Wrap(err, "processing relative url")
 	}
 
 	// Generate the hash value of Request Body
-	requestBody, err := processRequestBody(obj.RequestBody)
+	requestBody, err := s.processRequestBody(obj.RequestBody)
 	if err != nil {
 		return "", eris.Wrap(err, "processing request body")
 	}
@@ -138,14 +138,14 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.
 
 func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *models.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error) {
 	// Encode the Relative URL
-	relativeURL, err := processRelativeURL(obj.RelativeURL)
+	relativeURL, err := s.processRelativeURL(obj.RelativeURL)
 	if err != nil {
 		return false, eris.Wrap(err, "processing relative url")
 	}
 
 	slog.Debug("received request body", "data", obj.RequestBody)
 	// Generate the hash value of Request Body
-	requestBody, err := processRequestBody(obj.RequestBody)
+	requestBody, err := s.processRequestBody(obj.RequestBody)
 	if err != nil {
 		return false, eris.Wrap(err, "processing request body")
 	}
@@ -229,9 +229,9 @@ func loadPublicKey(path string) (*rsa.PublicKey, error) {
 }
 
 // processRequestBody is a helper function that returns a lowercase hex encoded SHA256 hash of the minified request body
-func processRequestBody(obj any) (string, error) {
+func (s *BCASecurity) processRequestBody(obj any) (string, error) {
 	// MinifyJSON the Request Body
-	minifiedBody, err := minifyJSON(obj)
+	minifiedBody, err := s.minifyJSON(obj)
 	if err != nil {
 		return "", eris.Wrap(err, "minifying json")
 	}
@@ -248,7 +248,7 @@ func processRequestBody(obj any) (string, error) {
 	return lowerHexHashed, nil
 }
 
-func minifyJSON(obj any) (string, error) {
+func (s *BCASecurity) minifyJSON(obj any) (string, error) {
 	// Logic
 	// 1. Marshall the obj
 	// 2. Minify the marshalled obj result
@@ -268,7 +268,36 @@ func minifyJSON(obj any) (string, error) {
 	return buf.String(), nil
 }
 
-func processRelativeURL(rawUrl string) (string, error) {
+// Custom function to minify JSON while preserving whitespace within keys and values
+func (s *BCASecurity) customMinifyJSON(input any) (string, error) {
+	var jsonObj interface{}
+
+	// Marshal the input to JSON
+	jsonBytes, err := json.Marshal(input)
+	if err != nil {
+		return "", err
+	}
+
+	// Unmarshal the JSON to a generic interface
+	if err := json.Unmarshal(jsonBytes, &jsonObj); err != nil {
+		return "", err
+	}
+
+	// Marshal the JSON object with no indentation
+	buffer := new(bytes.Buffer)
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(jsonObj); err != nil {
+		return "", err
+	}
+
+	// Convert the buffer to a string and trim any trailing newline
+	minifiedJSON := strings.TrimSpace(buffer.String())
+
+	return minifiedJSON, nil
+}
+
+func (s *BCASecurity) processRelativeURL(rawUrl string) (string, error) {
 
 	// Parse the URL
 	parsedURL, err := url.Parse(rawUrl)

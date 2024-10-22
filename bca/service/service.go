@@ -183,8 +183,17 @@ func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*mo
 		return &bca.BCABillInquiryResponseRequestParseError, nil, nil
 	}
 	defer request.Body.Close()
+	fmt.Println("Body Bytes: ", string(bodyBytes))
 
-	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
+		slog.Debug("error unmarshalling request body", "error", err)
+		return &bca.BCABillInquiryResponseRequestParseError, nil, nil
+	}
+
+	payload, _ := json.Marshal(jsonData)
+
+	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, payload)
 	if response != nil {
 		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
 		response.ResponseCode = response.ResponseCode[:3] + "24" + response.ResponseCode[5:]

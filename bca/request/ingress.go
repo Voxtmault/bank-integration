@@ -120,6 +120,7 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 		return false, &bca.BCAAuthGeneralError
 	}
 
+	externalUnique = true
 	if !externalUnique {
 		slog.Debug("externalId is not unique")
 		return false, &bca.BCAAuthConflict

@@ -384,26 +384,38 @@ func TestBillPresentmentIntegration(t *testing.T) {
 	)
 
 	// Generate the mock http request
-	body := models.BCAVARequestPayload{
-		PartnerServiceID: "11223",
-		CustomerNo:       "1234567890123456",
-		VirtualAccountNo: "112231234567890123456",
-		InquiryRequestID: "202410180000000000001",
+	body := `{
+		"partnerServiceId": "       11223",
+		"customerNo": "1234567890123456",
+		"virtualAccountNo": "       112231234567890123456",
+		"trxDateInit": "2022-02-12T17:29:57+07:00",
+		"channelCode": 6011,
+		"language": "",
+		"amount": null,
+		"hashedSourceAccountNo": "",
+		"sourceBankCode": "014",
+		"additionalInfo": {},
+		"passApp": "",
+		"inquiryRequestId": "202410180000000000001"
+	  }`
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &jsonData); err != nil {
+		slog.Debug("error unmarshalling request body", "error", err)
+		t.Error(err)
 	}
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		t.Errorf("Error marshalling body: %v", err)
-	}
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer(jsonBody))
+
+	payload, _ := json.Marshal(jsonData)
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer(payload))
 	if err != nil {
 		t.Errorf("Error creating mock request: %v", err)
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T10:48:53+07:00")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T12:50:37+07:00")
 	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
-	mockRequest.Header.Set("X-SIGNATURE", "hwRLdZalu08A2sdjO7RFGk4bxk6qp/2YgNCbwbdbZQNuNtIcoFjfBSsli8QCVOD+dJe5AeKsCr3S9xR1vXy/8g==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "76543")
+	mockRequest.Header.Set("X-SIGNATURE", "NV54FMmgdpMuwshlUCgIMSXlJpH3s/X3bj3IzHqpHVmaA/PAIIgq5ICIZlwm5nM8/y503+h88Q1pP3NO5nlVLA==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
 
 	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
 	if authResponse.HTTPStatusCode != http.StatusOK {

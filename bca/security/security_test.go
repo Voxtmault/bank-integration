@@ -3,6 +3,7 @@ package bca_security
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -50,14 +51,29 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
-	data := models.BCAVARequestPayload{
-		PartnerServiceID: "11223",
-		CustomerNo:       "1234567890123456",
-		VirtualAccountNo: "112231234567890123456",
-		InquiryRequestID: "202410180000000000001",
+	inputJSON := `
+	{
+  "partnerServiceId": "        11223",
+  "customerNo": "1234567890123456",
+  "virtualAccountNo": "        112231234567890123456",
+  "trxDateInit": "2022-02-12T17:29:57+07:00",
+  "channelCode": 6011,
+  "language": "",
+  "amount": null,
+  "hashedSourceAccountNo": "",
+  "sourceBankCode": "014",
+  "additionalInfo": {},
+  "passApp": "",
+  "inquiryRequestId": "202410180000000000001"
+}
+  `
+	var parsedJson map[string]interface{}
+	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
+		t.Error(err)
 	}
+	slog.Debug("Parsed JSON", "data", parsedJson)
 
-	payload, _ := json.Marshal(data)
+	payload, _ := json.Marshal(parsedJson)
 
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
@@ -105,19 +121,38 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	}
 
 	clientSecret := "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
-	signature := "3SQ6tjbXGHnycGiaufUT8AwivHY9OrsEOuZ3ZMk7qWkezPiT1T3h4NrhH4Ak7BvbHteM+uOzkdneojZoR9Te2w=="
+	signature := "NV54FMmgdpMuwshlUCgIMSXlJpH3s/X3bj3IzHqpHVmaA/PAIIgq5ICIZlwm5nM8/y503+h88Q1pP3NO5nlVLA=="
+
+	inputJSON := `
+	{
+  "partnerServiceId": "        11223",
+  "customerNo": "1234567890123456",
+  "virtualAccountNo": "        112231234567890123456",
+  "trxDateInit": "2022-02-12T17:29:57+07:00",
+  "channelCode": 6011,
+  "language": "",
+  "amount": null,
+  "hashedSourceAccountNo": "",
+  "sourceBankCode": "014",
+  "additionalInfo": {},
+  "passApp": "",
+  "inquiryRequestId": "202410180000000000001"
+}
+  `
+	var parsedJson map[string]interface{}
+	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
+		t.Error(err)
+	}
+	// slog.Debug("Parsed JSON", "data", parsedJson)
+
+	payload, _ := json.Marshal(parsedJson)
 
 	result, err := security.VerifySymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "mnC56Gqr5CquF6vLNJuX4waBlg_yAItts6ytPMtytAPqnNsymitxRkw3fwlBhFLj",
-		Timestamp:   "2024-10-21T23:26:36+07:00",
-		RequestBody: `{
-    "partnerServiceId": " 11223",
-    "customerNo": "1234567890123456",
-    "virtualAccountNo": " 112231234567890123457",
-    "inquiryRequestId": "202410180000000000001"
-}`,
-		RelativeURL: "/payment-api/v1.0/transfer-va/inquiry",
+		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
+		Timestamp:   "2024-10-22T12:50:37+07:00",
+		RequestBody: payload,
+		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
 	}, clientSecret, signature)
 	if err != nil {
 		t.Errorf("Error verifying symmetric signature: %v", err)
@@ -128,4 +163,76 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	}
 
 	slog.Debug("Result: ", "data", result)
+}
+
+func TestMinifyJSON(t *testing.T) {
+	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	security := NewBCASecurity(
+		cfg,
+	)
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	inputJson := `{
+  "partnerServiceId": "        12345",
+  "customerNo": "123456789012345678",
+  "virtualAccountNo": "        12345123456789012345678",
+  "trxDateInit": "2022-02-12T17:29:57+07:00",
+  "channelCode": 6011,
+  "language": "",
+  "amount": null,
+  "hashedSourceAccountNo": "",
+  "sourceBankCode": "014",
+  "additionalInfo": {},
+  "passApp": "",
+  "inquiryRequestId": "202202110909311234500001136962"
+}`
+
+	// Parse the input JSON string into a Go data structure
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(inputJson), &jsonData); err != nil {
+		t.Fatalf("error un-marshaling input JSON: %v", err)
+	}
+	slog.Debug("jsonData", "data", jsonData)
+
+	data, err := security.customMinifyJSON(jsonData)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("Custom Result: ", data)
+
+	data, err = security.minifyJSON(jsonData)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("Minify Result: ", data)
+}
+
+func TestProcessingURL(t *testing.T) {
+	cfg := config.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
+	security := NewBCASecurity(
+		cfg,
+	)
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	// data := `/banking/v2/corporates/h2hauto009/accounts/0611104625/statements?StartDate=2017-03-01&EndDate=2017-03-017`
+	data := "/banking/v2/corporates/h2hauto009/accounts/0611104625,0613106704 "
+
+	data, err := security.processRelativeURL(data)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("Result: ", data)
 }
