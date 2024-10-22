@@ -2,7 +2,6 @@ package bca_request
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -176,7 +175,7 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 	obj.HTTPMethod = request.Method
 	obj.RelativeURL = request.URL.Path
 
-	obj.RequestBody, _ = json.Marshal(body)
+	obj.RequestBody = body
 
 	result, err := s.Security.VerifySymmetricSignature(ctx, &obj, clientSecret, signature)
 	if err != nil {
