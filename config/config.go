@@ -28,6 +28,7 @@ type BCAPartnerInformation struct {
 type BCAURLEndpoints struct {
 	AccessTokenURL    string
 	BalanceInquiryURL string
+	PaymentFlagURL    string
 }
 type BCARequestedEndpoints struct {
 	AuthURL            string

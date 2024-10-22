@@ -375,6 +375,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*models.
 
 func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInquiryVAResponse, error) {
 	var obj models.BCAInquiryVAResponse
+	obj.VirtualAccountData = &models.VirtualAccountDataInqury{}
 
 	var payload models.BCAInquiryRequest
 	if err := json.Unmarshal(data, &payload); err != nil {

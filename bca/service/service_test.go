@@ -385,9 +385,9 @@ func TestBillPresentmentIntegration(t *testing.T) {
 
 	// Generate the mock http request
 	body := `{
-		"partnerServiceId": "       11223",
+		"partnerServiceId": "        11223",
 		"customerNo": "1234567890123456",
-		"virtualAccountNo": "       112231234567890123456",
+		"virtualAccountNo": "        112231234567890123456",
 		"trxDateInit": "2022-02-12T17:29:57+07:00",
 		"channelCode": 6011,
 		"language": "",
@@ -399,22 +399,22 @@ func TestBillPresentmentIntegration(t *testing.T) {
 		"inquiryRequestId": "202410180000000000001"
 	  }`
 
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(body), &jsonData); err != nil {
-		slog.Debug("error unmarshalling request body", "error", err)
-		t.Error(err)
-	}
+	// var jsonData map[string]interface{}
+	// if err := json.Unmarshal([]byte(body), &jsonData); err != nil {
+	// 	slog.Debug("error unmarshalling request body", "error", err)
+	// 	t.Error(err)
+	// }
 
-	payload, _ := json.Marshal(jsonData)
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer(payload))
+	// payload, _ := json.Marshal(jsonData)
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer([]byte(body)))
 	if err != nil {
 		t.Errorf("Error creating mock request: %v", err)
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T12:50:37+07:00")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T13:27:00+07:00")
 	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
-	mockRequest.Header.Set("X-SIGNATURE", "NV54FMmgdpMuwshlUCgIMSXlJpH3s/X3bj3IzHqpHVmaA/PAIIgq5ICIZlwm5nM8/y503+h88Q1pP3NO5nlVLA==")
+	mockRequest.Header.Set("X-SIGNATURE", "bMquI+0s8c2YGD5U9nb3E0La77WIuvdYqxIh7CsZTOpKp95peCa9QnVfu1W4UcayOJlOpDg9qdCR7UiasKSSWw==")
 	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
 
 	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
@@ -434,5 +434,62 @@ func TestBillPresentmentIntegration(t *testing.T) {
 
 		slog.Debug("response", "data", string(data))
 	}
+}
 
+func TestInquiryVAIntegration(t *testing.T) {
+	cfg := config.New(envPath)
+	utils.InitValidator()
+	storage.InitMariaDB(&cfg.MariaConfig)
+	storage.InitRedis(&cfg.RedisConfig)
+
+	// Load Registered Banks
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		storage.GetDBConnection(),
+		storage.GetRedisInstance(),
+	)
+
+	// Generate the mock http request
+	body := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
+
+	// payload, _ := json.Marshal(jsonData)
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
+	if err != nil {
+		t.Errorf("Error creating mock request: %v", err)
+	}
+
+	mockRequest.Header.Set("Content-Type", "application/json")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T15:42:48+07:00")
+	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
+	mockRequest.Header.Set("X-SIGNATURE", "T2kXLJDL5pAuPyYPueGF5p4XDjNTAlDTRCaLiXPjuUqB3vEbE3r1TSypbb9Vp73CSPHIRX+LvHokG50WrJGvdg==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
+
+	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
+	if authResponse.HTTPStatusCode != http.StatusOK {
+		t.Errorf("Error validating symmetric signature: %v", authResponse)
+	} else {
+		if err != nil {
+			t.Errorf("Error validating symmetric signature: %v", err)
+		}
+
+		result, err := service.InquiryVA(context.Background(), data)
+		if err != nil {
+			t.Errorf("Error bill presentment: %v", err)
+		}
+
+		data, _ := json.Marshal(result)
+
+		slog.Debug("response", "data", string(data))
+	}
 }

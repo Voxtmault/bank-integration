@@ -119,6 +119,7 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *models.
 		return "", eris.Wrap(err, "processing relative url")
 	}
 
+	slog.Debug("received request body", "data", obj.RequestBody)
 	// Generate the hash value of Request Body
 	requestBody, err := s.processRequestBody(obj.RequestBody)
 	if err != nil {

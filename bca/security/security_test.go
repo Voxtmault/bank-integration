@@ -51,22 +51,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
-	inputJSON := `
-	{
-  "partnerServiceId": "        11223",
-  "customerNo": "1234567890123456",
-  "virtualAccountNo": "        112231234567890123456",
-  "trxDateInit": "2022-02-12T17:29:57+07:00",
-  "channelCode": 6011,
-  "language": "",
-  "amount": null,
-  "hashedSourceAccountNo": "",
-  "sourceBankCode": "014",
-  "additionalInfo": {},
-  "passApp": "",
-  "inquiryRequestId": "202410180000000000001"
-}
-  `
+	inputJSON := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
 	var parsedJson map[string]interface{}
 	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
 		t.Error(err)
@@ -81,7 +66,7 @@ func TestCreateSymmetricSignature(t *testing.T) {
 		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		RequestBody: payload,
-		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
+		RelativeURL: cfg.BCARequestedEndpoints.PaymentFlagURL,
 	})
 	if err != nil {
 		t.Error(err)
@@ -121,24 +106,9 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	}
 
 	clientSecret := "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
-	signature := "NV54FMmgdpMuwshlUCgIMSXlJpH3s/X3bj3IzHqpHVmaA/PAIIgq5ICIZlwm5nM8/y503+h88Q1pP3NO5nlVLA=="
+	signature := "T2kXLJDL5pAuPyYPueGF5p4XDjNTAlDTRCaLiXPjuUqB3vEbE3r1TSypbb9Vp73CSPHIRX+LvHokG50WrJGvdg=="
 
-	inputJSON := `
-	{
-  "partnerServiceId": "        11223",
-  "customerNo": "1234567890123456",
-  "virtualAccountNo": "        112231234567890123456",
-  "trxDateInit": "2022-02-12T17:29:57+07:00",
-  "channelCode": 6011,
-  "language": "",
-  "amount": null,
-  "hashedSourceAccountNo": "",
-  "sourceBankCode": "014",
-  "additionalInfo": {},
-  "passApp": "",
-  "inquiryRequestId": "202410180000000000001"
-}
-  `
+	inputJSON := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
 	var parsedJson map[string]interface{}
 	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
 		t.Error(err)
@@ -150,9 +120,9 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	result, err := security.VerifySymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
-		Timestamp:   "2024-10-22T12:50:37+07:00",
+		Timestamp:   "2024-10-22T15:42:48+07:00",
 		RequestBody: payload,
-		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
+		RelativeURL: cfg.BCARequestedEndpoints.PaymentFlagURL,
 	}, clientSecret, signature)
 	if err != nil {
 		t.Errorf("Error verifying symmetric signature: %v", err)
