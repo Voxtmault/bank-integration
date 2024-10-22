@@ -175,22 +175,28 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 }
 
 // Ingress
-func (s *BCAService) Middleware(ctx context.Context, request *http.Request, payload any) (*models.BCAResponse, error) {
-	slog.Debug("received payload", "data", payload)
+func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*models.BCAResponse, []byte, error) {
 
-	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, payload)
+	bodyBytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		slog.Debug("error reading request body", "error", err)
+		return &bca.BCABillInquiryResponseRequestParseError, nil, nil
+	}
+	defer request.Body.Close()
+
+	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
 	if response != nil {
 		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
 		response.ResponseCode = response.ResponseCode[:3] + "24" + response.ResponseCode[5:]
 
-		return response, nil
+		return response, nil, nil
 	}
 
 	if !result {
-		return &bca.BCABillInquiryResponseUnauthorizedSignature, nil
+		return &bca.BCABillInquiryResponseUnauthorizedSignature, nil, nil
 	}
 
-	return &bca.BCAAuthResponseSuccess, nil
+	return &bca.BCAAuthResponseSuccess, bodyBytes, nil
 }
 
 func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*models.AccessTokenResponse, error) {
@@ -258,11 +264,19 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	}, nil
 }
 
-func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVARequestPayload) (*models.VAResponsePayload, error) {
+func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*models.VAResponsePayload, error) {
 
 	var obj models.VAResponsePayload
 	obj.BCAResponse = &models.BCAResponse{}
 	obj.VirtualAccountData = &models.VABCAResponseData{}
+
+	var payload models.BCAVARequestPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		slog.Debug("error un marshaling request body", "error", err)
+
+		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseRequestParseError.Data()
+		return &obj, nil
+	}
 
 	amount, err := s.GetVirtualAccountPaidAmountByInquiryRequestId(ctx, payload.InquiryRequestID)
 	if err != nil && eris.Cause(err) != sql.ErrNoRows {
@@ -350,8 +364,18 @@ func (s *BCAService) BillPresentment(ctx context.Context, payload *models.BCAVAR
 	return &obj, nil
 }
 
-func (s *BCAService) InquiryVA(ctx context.Context, payload *models.BCAInquiryRequest) (*models.BCAInquiryVAResponse, error) {
+func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*models.BCAInquiryVAResponse, error) {
 	var obj models.BCAInquiryVAResponse
+
+	var payload models.BCAInquiryRequest
+	if err := json.Unmarshal(data, &payload); err != nil {
+		slog.Debug("error un-marshaling request body", "error", err)
+
+		obj.BCAResponse = bca.BCABillInquiryResponseRequestParseError
+
+		return &obj, nil
+	}
+
 	amount, err := s.GetVirtualAccountTotalAmountByInquiryRequestId(ctx, payload.PaymentRequestID)
 	if err == sql.ErrNoRows {
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()

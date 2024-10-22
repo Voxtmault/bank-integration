@@ -156,7 +156,7 @@ func TestInquiryVA(t *testing.T) {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
 	log.Printf("%+v\n", obj)
-	res, err := s.InquiryVA(context.Background(), &obj)
+	res, err := s.InquiryVA(context.Background(), []byte(""))
 	if err != nil {
 		t.Errorf("Error From cuntion Bill: %v", err)
 	}
@@ -400,12 +400,12 @@ func TestBillPresentmentIntegration(t *testing.T) {
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T10:30:41+07:00")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T10:48:53+07:00")
 	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
-	mockRequest.Header.Set("X-SIGNATURE", "R9knlMqDBDssxp9JWHCGpQ7eQBYwXLOVbdWhcNuLRo+FQmATryd0BD8mhAL8VUgJ4maBvCRMRmM9e7CznVg/cQ==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "765")
+	mockRequest.Header.Set("X-SIGNATURE", "hwRLdZalu08A2sdjO7RFGk4bxk6qp/2YgNCbwbdbZQNuNtIcoFjfBSsli8QCVOD+dJe5AeKsCr3S9xR1vXy/8g==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "76543")
 
-	authResponse, err := service.Middleware(context.Background(), mockRequest, body)
+	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
 	if authResponse.HTTPStatusCode != http.StatusOK {
 		t.Errorf("Error validating symmetric signature: %v", authResponse)
 	} else {
@@ -413,7 +413,7 @@ func TestBillPresentmentIntegration(t *testing.T) {
 			t.Errorf("Error validating symmetric signature: %v", err)
 		}
 
-		result, err := service.BillPresentment(context.Background(), &body)
+		result, err := service.BillPresentment(context.Background(), data)
 		if err != nil {
 			t.Errorf("Error bill presentment: %v", err)
 		}

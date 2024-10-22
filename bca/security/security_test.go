@@ -2,6 +2,7 @@ package bca_security
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"log/slog"
 	"net/http"
@@ -49,17 +50,21 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
+	data := models.BCAVARequestPayload{
+		PartnerServiceID: "11223",
+		CustomerNo:       "1234567890123456",
+		VirtualAccountNo: "112231234567890123456",
+		InquiryRequestID: "202410180000000000001",
+	}
+
+	payload, _ := json.Marshal(data)
+
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &models.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
 		Timestamp:   time.Now().Format(time.RFC3339),
-		RequestBody: models.BCAVARequestPayload{
-			PartnerServiceID: "11223",
-			CustomerNo:       "1234567890123456",
-			VirtualAccountNo: "112231234567890123456",
-			InquiryRequestID: "202410180000000000001",
-		},
+		RequestBody: payload,
 		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
 	})
 	if err != nil {
