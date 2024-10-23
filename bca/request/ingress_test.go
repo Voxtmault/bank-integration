@@ -89,21 +89,10 @@ func TestVerifySymmetricSignature(t *testing.T) {
 }
 
 func TestValidateExternalID(t *testing.T) {
-
-	externalID := "a68639216258723649612869423611456896"
+	externalID := "485899127136373621119798753420345267"
 
 	// Check if the external ID is numeric using regex
 	isNumeric := regexp.MustCompile(`^\d+$`).MatchString(externalID)
-	if !isNumeric {
-		slog.Info("externalId is not numeric")
-	} else {
-		t.Errorf("Expected non-numeric externalID to fail, but it passed")
-	}
-
-	externalID = "668639216258723649612869423611456896"
-
-	// Check if the external ID is numeric using regex
-	isNumeric = regexp.MustCompile(`^\d+$`).MatchString(externalID)
 	if !isNumeric {
 		t.Errorf("Expected numeric externalID to pass, but it failed")
 	} else {

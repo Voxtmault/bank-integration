@@ -160,6 +160,9 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 		return false, &bca.BCAAuthInvalidFieldFormatTimestamp
 	}
 
+	// Remove the Bearer prefix from the accessToken
+	obj.AccessToken = obj.AccessToken[7:]
+
 	// Retrieve the client secret from redis
 	clientSecret, err := s.ValidateAccessToken(ctx, redis, obj.AccessToken)
 	if err != nil {
