@@ -594,7 +594,7 @@ func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.C
 	return &amount, nil
 }
 
-func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, []byte, error) {
+func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, error) {
 
 	// For bill presentment, we need to verify the header
 	// 1. channel id
@@ -608,30 +608,30 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 		response := bca.BCABillInquiryResponseMissingMandatoryField
 		response.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
 
-		return &response, nil, nil
+		return &response, nil
 	}
 	if channelID != s.Config.BCAConfig.ChannelID {
 		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
-		return &response, nil, nil
+		return &response, nil
 	}
 
 	if partnerID == "" {
 		response := bca.BCABillInquiryResponseMissingMandatoryField
 		response.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
 
-		return &response, nil, nil
+		return &response, nil
 	}
 	if partnerID != s.Config.BCAPartnerInformation.BCAPartnerId {
 		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
-		return &response, nil, nil
+		return &response, nil
 	}
 
-	return &bca.BCABillInquiryResponseSuccess, nil, nil
+	return &bca.BCABillInquiryResponseSuccess, nil
 }
 
-func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, []byte, error) {
+func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, error) {
 
 	// For bill presentment, we need to verify the header
 	// 1. channel id
@@ -645,24 +645,24 @@ func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context
 		response := bca.BCAPaymentFlagResponseMissingMandatoryField
 		response.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
 
-		return &response, nil, nil
+		return &response, nil
 	}
 	if channelID != s.Config.BCAConfig.ChannelID {
 		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
-		return &response, nil, nil
+		return &response, nil
 	}
 
 	if partnerID == "" {
 		response := bca.BCAPaymentFlagResponseMissingMandatoryField
 		response.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
 
-		return &response, nil, nil
+		return &response, nil
 	}
 	if partnerID != s.Config.BCAPartnerInformation.BCAPartnerId {
 		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
 
-		return &response, nil, nil
+		return &response, nil
 	}
 
-	return &bca.BCAPaymentFlagResponseSuccess, nil, nil
+	return &bca.BCAPaymentFlagResponseSuccess, nil
 }
