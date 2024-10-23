@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
+	"regexp"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -219,8 +219,8 @@ func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *biStorag
 		externalId = externalId[:36]
 	}
 
-	// Checks if the external ID is numeric
-	if _, err := strconv.ParseInt(externalId, 10, 64); err != nil {
+	// Check if the external ID is numeric using regex
+	if isNumeric := regexp.MustCompile(`^\d+$`).MatchString(externalId); !isNumeric {
 		slog.Debug("externalId is not numeric", "externalId", externalId)
 		return false, eris.New("invalid field format")
 	}
