@@ -25,7 +25,7 @@ type SymmetricSignatureRequirement struct {
 	// whitespace except for the key or value json)
 	//
 	// If the request body is empty / nil then it will be set to empty string
-	RequestBody any
+	RequestBody []byte
 
 	// The Relative URL will be URI-encoded according to the following rules:
 	//

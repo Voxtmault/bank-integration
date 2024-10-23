@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"log"
@@ -54,8 +53,8 @@ func TestCreateSymmetricSignature(t *testing.T) {
 
 	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
 	security.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pub"
-	security.ClientID = ""
-	security.ClientSecret = ""
+	security.ClientID = cfg.BCARequestedClientCredentials.ClientID
+	security.ClientSecret = cfg.BCARequestedClientCredentials.ClientSecret
 
 	inputJSON := `
 {
@@ -73,20 +72,13 @@ func TestCreateSymmetricSignature(t *testing.T) {
     "inquiryRequestId": "202410180000000000001"
 }
 	`
-	var parsedJson map[string]interface{}
-	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
-		t.Error(err)
-	}
-	slog.Debug("Parsed JSON", "data", parsedJson)
-
-	payload, _ := json.Marshal(parsedJson)
 
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
 		AccessToken: "6lKrec35Vrs4upmJuGEfctqGIJImYwQm_FDFhbRz076DvqQsLTpCH4HMk7sNE6XG",
 		Timestamp:   time.Now().Format(time.RFC3339),
-		RequestBody: payload,
+		RequestBody: []byte(inputJSON),
 		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
 	})
 	if err != nil {
@@ -103,9 +95,9 @@ func TestVerifyAsymmetricSignature(t *testing.T) {
 		cfg,
 	)
 
-	timeStamp := "2024-10-23T15:09:52+07:00"
-	clientID := "694facb0-f562-44ae-840f-07253ac52f00"
-	signature := "vY2eS7bjseT9S90ClgllXVtT+4Mlyuad9joU7c8k4AMs9sdkZYEd+Mwh+C7vaEc1csZdwsjg9gwseWjM3+c8ZMYBZA7j3HhQWwmJnpd/Z0+uGrTZTASj81+vEXrunlawisFElm4OyzZVzAHtoWmcDVwIH3nAcvidZnFgzrHVKhWpjgQo3vfXUvhi7vV4hDfGqRuL/Vu/INAQlN3Q8Htdhz+/W5npQ2y8nL5tVMU2dgG8nYsjmkzJ4Q5+IFF4m6xdz908CeCq0/Mr1KeurYktb66owVQXM9JEy3mOZzlxmKUR0A+Fff9/TjuPybluOMzj0Oh876hOX4etMUQY9IfTkg=="
+	timeStamp := "2024-10-23T16:26:04+07:00"
+	clientID := cfg.BCARequestedClientCredentials.ClientID
+	signature := "gymKBa1U4RQ8SN5pG02XmdKrXhKBAGy6Dkzxl+NLQ5xcCMADP/KtL9P48eE+lx0hHGliVzxqad/crjPOcOE8PQ=="
 	result, err := security.VerifyAsymmetricSignature(context.Background(), timeStamp, clientID, signature)
 	if err != nil {
 		t.Error(err)
@@ -126,24 +118,18 @@ func TestVerifySymmetricSignature(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
-	clientSecret := "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
-	signature := "T2kXLJDL5pAuPyYPueGF5p4XDjNTAlDTRCaLiXPjuUqB3vEbE3r1TSypbb9Vp73CSPHIRX+LvHokG50WrJGvdg=="
+	clientSecret := cfg.BCARequestedClientCredentials.ClientSecret
 
-	inputJSON := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
-	var parsedJson map[string]interface{}
-	if err := json.Unmarshal([]byte(inputJSON), &parsedJson); err != nil {
-		t.Error(err)
-	}
-	// slog.Debug("Parsed JSON", "data", parsedJson)
+	signature := "gymKBa1U4RQ8SN5pG02XmdKrXhKBAGy6Dkzxl+NLQ5xcCMADP/KtL9P48eE+lx0hHGliVzxqad/crjPOcOE8PQ=="
 
-	payload, _ := json.Marshal(parsedJson)
+	inputJSON := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:26:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241023456763236"}`
 
 	result, err := security.VerifySymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk",
-		Timestamp:   "2024-10-22T15:42:48+07:00",
-		RequestBody: payload,
-		RelativeURL: cfg.BCARequestedEndpoints.PaymentFlagURL,
+		AccessToken: "M30N2QBIiM9GKRtT8_XjdDI5eoP7ozN3Sf-xjmgN6oLFhThJXCmHkuiP6QUfd4Mo",
+		Timestamp:   "2024-10-23T16:26:04+07:00",
+		RequestBody: []byte(inputJSON),
+		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
 	}, clientSecret, signature)
 	if err != nil {
 		t.Errorf("Error verifying symmetric signature: %v", err)
@@ -168,36 +154,20 @@ func TestMinifyJSON(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
-	inputJson := `{
-  "partnerServiceId": "        12345",
-  "customerNo": "123456789012345678",
-  "virtualAccountNo": "        12345123456789012345678",
-  "trxDateInit": "2022-02-12T17:29:57+07:00",
-  "channelCode": 6011,
-  "language": "",
-  "amount": null,
-  "hashedSourceAccountNo": "",
-  "sourceBankCode": "014",
-  "additionalInfo": {},
-  "passApp": "",
-  "inquiryRequestId": "202202110909311234500001136962"
+	inputJson := `{ 
+  "CorporateID" : "H2HAUTO009", 
+  "SourceAccountNumber" : "0611104625", 
+  "TransactionID" : "00177914", 
+  "TransactionDate" : "2017-03-17", 
+  "ReferenceID" : "1234567890098765", 
+  "CurrencyCode" : "IDR", 
+  "Amount" : "175000000", 
+  "BeneficiaryAccountNumber" : "0613106704", 
+  "Remark1" : "Pencairan Kredit", 
+  "Remark2" : "1234567890098765" 
 }`
 
-	// Parse the input JSON string into a Go data structure
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(inputJson), &jsonData); err != nil {
-		t.Fatalf("error un-marshaling input JSON: %v", err)
-	}
-	slog.Debug("jsonData", "data", jsonData)
-
-	data, err := security.customMinifyJSON(jsonData)
-	if err != nil {
-		t.Error(err)
-	}
-
-	fmt.Println("Custom Result: ", data)
-
-	data, err = security.minifyJSON(jsonData)
+	data, err := security.customMinifyJSON([]byte(inputJson))
 	if err != nil {
 		t.Error(err)
 	}

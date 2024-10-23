@@ -15,7 +15,7 @@ func TestVerifyBCARequestHeader(t *testing.T) {
 		Timestamp:   time.Now().Format(time.RFC3339),
 		ContentType: "application/json",
 		Signature:   "123123123123",
-		ClientKey:   cfg.ClientSecret,
+		ClientKey:   cfg.BCAConfig.ClientID,
 		Origin:      "localhost",
 	}
 

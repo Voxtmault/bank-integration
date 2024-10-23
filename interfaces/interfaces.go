@@ -38,7 +38,7 @@ type RequestIngress interface {
 	VerifyAsymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance) (bool, *biModel.BCAResponse, string)
 
 	// VerifySymmetricSignature verifies the request headers for non access-token related http requests.
-	VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance, payload any) (bool, *biModel.BCAResponse)
+	VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance) (bool, *biModel.BCAResponse)
 
 	ValidateAccessToken(ctx context.Context, redis *biStorage.RedisInstance, accessToken string) (string, error)
 }
@@ -75,8 +75,10 @@ type SNAP interface {
 	BalanceInquiry(ctx context.Context, payload *biModel.BCABalanceInquiry) (*biModel.BCAAccountBalance, error)
 
 	BillPresentment(ctx context.Context, data []byte) (*biModel.VAResponsePayload, error)
+	VerifyAdditionalBillPresentmentRequiredHeader(ctx context.Context, request *http.Request) (*biModel.BCAResponse, []byte, error)
 
 	InquiryVA(ctx context.Context, data []byte) (*biModel.BCAInquiryVAResponse, error)
+	VerifyAdditionalInquiryVARequiredHeader(ctx context.Context, request *http.Request) (*biModel.BCAResponse, []byte, error)
 
 	// CreateVA is used in tandem with order creation when VA Payment is chosen as the payment method.
 	CreateVA(ctx context.Context, payload *biModel.CreateVAReq) error

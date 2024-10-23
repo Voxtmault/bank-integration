@@ -23,6 +23,12 @@ type BCAConfig struct {
 	ChannelID                 string `validate:"omitempty"`
 }
 
+type BCARequestedClientCredentials struct {
+	ClientID                  string
+	ClientSecret              string
+	AccessTokenExpirationTime uint
+}
+
 type BCAPartnerInformation struct {
 	BCAPartnerId string `validate:"required"`
 }
@@ -63,6 +69,7 @@ type RedisConfig struct {
 type BankingConfig struct {
 	Keys
 	BCAConfig
+	BCARequestedClientCredentials
 	BCAURLEndpoints
 	BCARequestedEndpoints
 	MariaConfig
@@ -91,6 +98,11 @@ func New(envPath string) *BankingConfig {
 			ClientSecret:              getEnv("BCA_CLIENT_SECRET", ""),
 			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_ACCESS_TOKEN_EXPIRATION_TIME", 0)),
 			ChannelID:                 getEnv("BCA_CHANNEL_ID", ""),
+		},
+		BCARequestedClientCredentials: BCARequestedClientCredentials{
+			ClientID:                  getEnv("BCA_REQ_CLIENT_ID", ""),
+			ClientSecret:              getEnv("BCA_REQ_CLIENT_SECRET", ""),
+			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_REQ_ACCESS_TOKEN_EXPIRATION", 0)),
 		},
 		BCAURLEndpoints: BCAURLEndpoints{
 			AccessTokenURL:    getEnv("BCA_ACCESS_TOKEN_URL", ""),

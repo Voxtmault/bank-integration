@@ -22,8 +22,6 @@ import (
 	"strings"
 
 	"github.com/rotisserie/eris"
-	"github.com/tdewolff/minify/v2"
-	mjson "github.com/tdewolff/minify/v2/json"
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
 	biModels "github.com/voxtmault/bank-integration/models"
@@ -144,7 +142,6 @@ func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *biModel
 		return false, eris.Wrap(err, "processing relative url")
 	}
 
-	slog.Debug("received request body", "data", obj.RequestBody)
 	// Generate the hash value of Request Body
 	requestBody, err := s.processRequestBody(obj.RequestBody)
 	if err != nil {
@@ -158,6 +155,8 @@ func (s *BCASecurity) VerifySymmetricSignature(ctx context.Context, obj *biModel
 	h.Write([]byte(stringToSign))
 
 	calculatedSignature := base64.StdEncoding.EncodeToString(h.Sum(nil))
+
+	slog.Debug("calculated signature", "data", calculatedSignature)
 
 	return hmac.Equal([]byte(signature), []byte(calculatedSignature)), nil
 }
@@ -230,9 +229,9 @@ func loadPublicKey(path string) (*rsa.PublicKey, error) {
 }
 
 // processRequestBody is a helper function that returns a lowercase hex encoded SHA256 hash of the minified request body
-func (s *BCASecurity) processRequestBody(obj any) (string, error) {
+func (s *BCASecurity) processRequestBody(obj []byte) (string, error) {
 	// MinifyJSON the Request Body
-	minifiedBody, err := s.minifyJSON(obj)
+	minifiedBody, err := s.customMinifyJSON(obj)
 	if err != nil {
 		return "", eris.Wrap(err, "minifying json")
 	}
@@ -249,53 +248,13 @@ func (s *BCASecurity) processRequestBody(obj any) (string, error) {
 	return lowerHexHashed, nil
 }
 
-func (s *BCASecurity) minifyJSON(obj any) (string, error) {
-	// Logic
-	// 1. Marshall the obj
-	// 2. Minify the marshalled obj result
-
-	jsonData, err := json.Marshal(obj)
-	if err != nil {
-		return "", eris.Wrap(err, "marshalling object")
-	}
-
-	m := minify.New()
-	m.AddFunc("application/json", mjson.Minify)
-	var buf bytes.Buffer
-	if err := m.Minify("application/json", &buf, bytes.NewReader(jsonData)); err != nil {
-		return "", eris.Wrap(err, "minifying json")
-	}
-
-	return buf.String(), nil
-}
-
 // Custom function to minify JSON while preserving whitespace within keys and values
-func (s *BCASecurity) customMinifyJSON(input any) (string, error) {
-	var jsonObj interface{}
-
-	// Marshal the input to JSON
-	jsonBytes, err := json.Marshal(input)
-	if err != nil {
+func (s *BCASecurity) customMinifyJSON(input []byte) (string, error) {
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, input); err != nil {
 		return "", err
 	}
-
-	// Unmarshal the JSON to a generic interface
-	if err := json.Unmarshal(jsonBytes, &jsonObj); err != nil {
-		return "", err
-	}
-
-	// Marshal the JSON object with no indentation
-	buffer := new(bytes.Buffer)
-	encoder := json.NewEncoder(buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(jsonObj); err != nil {
-		return "", err
-	}
-
-	// Convert the buffer to a string and trim any trailing newline
-	minifiedJSON := strings.TrimSpace(buffer.String())
-
-	return minifiedJSON, nil
+	return buf.String(), nil
 }
 
 func (s *BCASecurity) processRelativeURL(rawUrl string) (string, error) {

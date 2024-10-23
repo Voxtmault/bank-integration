@@ -1,6 +1,7 @@
 package bca_request
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -66,13 +67,21 @@ func (s *BCARequest) AccessTokenRequestHeader(ctx context.Context, request *http
 func (s *BCARequest) RequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig, body any, relativeURL, accessToken string) error {
 	timeStamp := time.Now().Format(time.RFC3339)
 
+	// Read the body and convert to string
+	bodyBytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		return eris.Wrap(err, "reading request body")
+	}
+	request.Body.Close()                                    // Close the body to prevent resource leaks
+	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Reset the body for further use
+
 	slog.Debug("Creating symetric signature")
 	// Create the signature
 	signature, err := s.Security.CreateSymmetricSignature(ctx, &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  request.Method,
 		AccessToken: accessToken,
 		Timestamp:   timeStamp,
-		RequestBody: body,
+		RequestBody: bodyBytes,
 		RelativeURL: relativeURL,
 	})
 	if err != nil {

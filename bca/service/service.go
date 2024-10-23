@@ -185,18 +185,12 @@ func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*bi
 	defer request.Body.Close()
 	fmt.Println("Body Bytes: ", string(bodyBytes))
 
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
-		slog.Debug("error unmarshalling request body", "error", err)
-		return &bca.BCABillInquiryResponseRequestParseError, nil, nil
-	}
+	// Set the body back to the original state
+	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-	payload, _ := json.Marshal(jsonData)
-
-	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, payload)
+	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB)
 	if response != nil {
 		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
-		response.ResponseCode = response.ResponseCode[:3] + "24" + response.ResponseCode[5:]
 
 		return response, nil, nil
 	}
@@ -260,7 +254,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 	// Save the access token to redis along with the configured client secret & expiration time
 	key := fmt.Sprintf("%s:%s", biUtil.AccessTokenRedis, token)
-	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.Config.AccessTokenExpirationTime)).Err(); err != nil {
+	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.Config.BCARequestedClientCredentials.AccessTokenExpirationTime)).Err(); err != nil {
 		return &biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}, eris.Wrap(err, "saving access token to redis")
@@ -272,7 +266,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	return &biModels.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
-		ExpiresIn:   strconv.Itoa(int(s.Config.AccessTokenExpirationTime)),
+		ExpiresIn:   strconv.Itoa(int(s.Config.BCARequestedClientCredentials.AccessTokenExpirationTime)),
 		BCAResponse: &bcaResponse,
 	}, nil
 }
@@ -608,19 +602,67 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 
 	// Parse the request header
 	channelID := request.Header.Get("CHANNEL-ID")
-	// partnerID := request.Header.Get("X-PARTNER-ID")
+	partnerID := request.Header.Get("X-PARTNER-ID")
 
 	if channelID == "" {
 		response := bca.BCABillInquiryResponseMissingMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[CHANNEL-ID]"
+		response.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
 
 		return &response, nil, nil
 	}
 	if channelID != s.Config.BCAConfig.ChannelID {
-		response := bca.BCABillInquiryResponseInvalidFieldFormat
+		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
 		return &response, nil, nil
 	}
 
-	return nil, nil, nil
+	if partnerID == "" {
+		response := bca.BCABillInquiryResponseMissingMandatoryField
+		response.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
+
+		return &response, nil, nil
+	}
+	if partnerID != s.Config.BCAPartnerInformation.BCAPartnerId {
+		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
+
+		return &response, nil, nil
+	}
+
+	return &bca.BCABillInquiryResponseSuccess, nil, nil
+}
+
+func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, []byte, error) {
+
+	// For bill presentment, we need to verify the header
+	// 1. channel id
+	// 2. partner id
+
+	// Parse the request header
+	channelID := request.Header.Get("CHANNEL-ID")
+	partnerID := request.Header.Get("X-PARTNER-ID")
+
+	if channelID == "" {
+		response := bca.BCAPaymentFlagResponseMissingMandatoryField
+		response.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
+
+		return &response, nil, nil
+	}
+	if channelID != s.Config.BCAConfig.ChannelID {
+		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
+		return &response, nil, nil
+	}
+
+	if partnerID == "" {
+		response := bca.BCAPaymentFlagResponseMissingMandatoryField
+		response.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
+
+		return &response, nil, nil
+	}
+	if partnerID != s.Config.BCAPartnerInformation.BCAPartnerId {
+		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
+
+		return &response, nil, nil
+	}
+
+	return &bca.BCAPaymentFlagResponseSuccess, nil, nil
 }

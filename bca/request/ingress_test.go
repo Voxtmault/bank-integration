@@ -3,7 +3,6 @@ package bca_request
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -34,49 +33,29 @@ func TestVerifySymmetricSignature(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
-	// Set to use mock info
-	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
-	security.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pub"
-	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
-	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
+	// // Set to use mock info
+	// security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
+	// security.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pub"
+	// security.ClientID = cfg.BCARequestedClientCredentials.ClientID
+	// security.ClientSecret = cfg.BCARequestedClientCredentials.ClientSecret
 
 	ingress := NewBCAIngress(security)
 
 	// Generate the mock http request
-	body := `{
-  "partnerServiceId": "        11223",
-  "customerNo": "1234567890123456",
-  "virtualAccountNo": "        112231234567890123456",
-  "trxDateInit": "2022-02-12T17:29:57+07:00",
-  "channelCode": 6011,
-  "language": "",
-  "amount": null,
-  "hashedSourceAccountNo": "",
-  "sourceBankCode": "014",
-  "additionalInfo": {},
-  "passApp": "",
-  "inquiryRequestId": "202410180000000000001"
-}`
+	body := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:26:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241023456763236"}`
 
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(body), &jsonData); err != nil {
-		slog.Debug("error unmarshalling request body", "error", err)
-		t.Error(err)
-	}
-
-	payload, _ := json.Marshal(jsonData)
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer(payload))
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBufferString(body))
 	if err != nil {
 		t.Errorf("Error creating mock request: %v", err)
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T12:50:37+07:00")
-	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
-	mockRequest.Header.Set("X-SIGNATURE", "NV54FMmgdpMuwshlUCgIMSXlJpH3s/X3bj3IzHqpHVmaA/PAIIgq5ICIZlwm5nM8/y503+h88Q1pP3NO5nlVLA==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "32131")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-23T16:26:04+07:00")
+	mockRequest.Header.Set("Authorization", "Bearer M30N2QBIiM9GKRtT8_XjdDI5eoP7ozN3Sf-xjmgN6oLFhThJXCmHkuiP6QUfd4Mo")
+	mockRequest.Header.Set("X-SIGNATURE", "gymKBa1U4RQ8SN5pG02XmdKrXhKBAGy6Dkzxl+NLQ5xcCMADP/KtL9P48eE+lx0hHGliVzxqad/crjPOcOE8PQ==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "456763236123")
 
-	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance(), payload)
+	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance())
 	if response != nil {
 		t.Errorf("Error verifying symmetric signature: %v", response)
 	}

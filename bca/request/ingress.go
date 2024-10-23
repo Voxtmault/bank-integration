@@ -1,8 +1,10 @@
 package bca_request
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -96,7 +98,7 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	return result, nil, clientSecret
 }
 
-func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance, body any) (bool, *biModels.BCAResponse) {
+func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance) (bool, *biModels.BCAResponse) {
 
 	var obj biModels.SymmetricSignatureRequirement
 
@@ -165,7 +167,17 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 	}
 
 	// Remove the Bearer prefix from the accessToken
-	obj.AccessToken = obj.AccessToken[7:]
+	if strings.HasPrefix(obj.AccessToken, "Bearer ") {
+		// Remove the Bearer prefix from the accessToken
+		obj.AccessToken = obj.AccessToken[len("Bearer "):]
+	} else {
+		slog.Debug("accessToken does not have Bearer prefix", "accessToken", obj.AccessToken)
+
+		response := bca.BCAAuthInvalidFieldFormatClient
+		response.ResponseMessage = "Invalid Field Format {Authorization}"
+
+		return false, &response
+	}
 
 	// Retrieve the client secret from redis
 	clientSecret, err := s.ValidateAccessToken(ctx, redis, obj.AccessToken)
@@ -176,13 +188,20 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 
 	if clientSecret == "" {
 		slog.Debug("accessToken is not registered")
-		return false, &bca.BCAAuthUnauthorizedUnknownClient
+		return false, &bca.BCAAuthInvalidToken
 	}
 
 	obj.HTTPMethod = request.Method
 	obj.RelativeURL = request.URL.Path
 
-	obj.RequestBody = body
+	// Read the body and convert to string
+	bodyBytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		return false, &bca.BCAAuthGeneralError
+	}
+	request.Body.Close()                                    // Close the body to prevent resource leaks
+	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Reset the body for further use
+	obj.RequestBody = bodyBytes
 
 	result, err := s.Security.VerifySymmetricSignature(ctx, &obj, clientSecret, signature)
 	if err != nil {

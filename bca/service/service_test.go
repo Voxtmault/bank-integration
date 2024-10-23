@@ -314,12 +314,7 @@ func TestMockRequest(t *testing.T) {
 		AccessToken: "mAClHNe62u6L6jUuHjzkQ37YTzP49YRGaikd9d0A_hc2uunz44x6554H1ZkZOeAs",
 		Timestamp:   "2024-10-21T15:38:03+07:00",
 		RelativeURL: "/payment-api/v1.0/transfer-va/inquiry",
-		RequestBody: biModels.BCAVARequestPayload{
-			PartnerServiceID: "11223",
-			CustomerNo:       "1234567890123456",
-			VirtualAccountNo: "112231234567890123456",
-			InquiryRequestID: "202410180000000000001",
-		},
+		RequestBody: []byte(""),
 	})
 	if err != nil {
 		t.Errorf("Error generating mock signature: %v", err)
@@ -349,7 +344,7 @@ func TestMockRequest(t *testing.T) {
 	mockRequest.Header.Set("X-EXTERNAL-ID", "12312321312")
 
 	// Call the validate symmetric signature function
-	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance(), nil)
+	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance())
 
 	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
 	slog.Debug("response", "data", fmt.Sprintf("%+v", response))
@@ -384,38 +379,18 @@ func TestBillPresentmentIntegration(t *testing.T) {
 	)
 
 	// Generate the mock http request
-	body := `{
-		"partnerServiceId": "        11223",
-		"customerNo": "1234567890123456",
-		"virtualAccountNo": "        112231234567890123456",
-		"trxDateInit": "2022-02-12T17:29:57+07:00",
-		"channelCode": 6011,
-		"language": "",
-		"amount": null,
-		"hashedSourceAccountNo": "",
-		"sourceBankCode": "014",
-		"additionalInfo": {},
-		"passApp": "",
-		"inquiryRequestId": "202410180000000000001"
-	  }`
+	body := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:23:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241023566563457"}`
 
-	// var jsonData map[string]interface{}
-	// if err := json.Unmarshal([]byte(body), &jsonData); err != nil {
-	// 	slog.Debug("error unmarshalling request body", "error", err)
-	// 	t.Error(err)
-	// }
-
-	// payload, _ := json.Marshal(jsonData)
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBuffer([]byte(body)))
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBufferString(body))
 	if err != nil {
 		t.Errorf("Error creating mock request: %v", err)
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T13:27:00+07:00")
-	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
-	mockRequest.Header.Set("X-SIGNATURE", "bMquI+0s8c2YGD5U9nb3E0La77WIuvdYqxIh7CsZTOpKp95peCa9QnVfu1W4UcayOJlOpDg9qdCR7UiasKSSWw==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-23T16:23:40+07:00")
+	mockRequest.Header.Set("Authorization", "Bearer M30N2QBIiM9GKRtT8_XjdDI5eoP7ozN3Sf-xjmgN6oLFhThJXCmHkuiP6QUfd4Mo")
+	mockRequest.Header.Set("X-SIGNATURE", "/IZrbCFa/X1kdI1B0IqEvipJ9eKI0eHv8GzzXUzI00qGpUPGRJJTP+Czg687UMkYBx5hZgAapU8KVFOmoOuSEg==")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "21234")
 
 	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
 	if authResponse.HTTPStatusCode != http.StatusOK {

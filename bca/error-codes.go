@@ -254,4 +254,9 @@ var (
 		ResponseCode:    "4097300",
 		ResponseMessage: BCACommonResponseMessageDuplicateExternalID.ToString(),
 	}
+	BCAAuthInvalidToken = biModels.BCAResponse{
+		HTTPStatusCode:  http.StatusUnauthorized,
+		ResponseCode:    "4017301",
+		ResponseMessage: BCACommonResponseMessageInvalidToken.ToString(),
+	}
 )
