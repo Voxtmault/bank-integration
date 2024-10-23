@@ -220,7 +220,7 @@ func (s *BCAIngress) ValidateUniqueExternalID(ctx context.Context, rdb *biStorag
 	}
 
 	// Checks if the external ID is numeric
-	if _, err := strconv.Atoi(externalId); err != nil {
+	if _, err := strconv.ParseInt(externalId, 10, 64); err != nil {
 		slog.Debug("externalId is not numeric", "externalId", externalId)
 		return false, eris.New("invalid field format")
 	}
