@@ -229,9 +229,11 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 	// Validate the received struct
 	if err := biUtil.ValidateStruct(ctx, body); err != nil {
+		slog.Debug("error validating request body", "error", err)
+
 		return &biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthInvalidFieldFormatClient,
-		}, eris.Wrap(err, "validating request body")
+		}, nil
 	}
 
 	// Verify Asymmetric Signature
