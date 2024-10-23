@@ -32,12 +32,12 @@ func (b BCACommonResponseMessage) ToString() string {
 var (
 	BCACommonResponseMessageSuccess                                = BCACommonResponseMessage("Success")
 	BCACommonResponseMessageInvalidToken                           = BCACommonResponseMessage("Invalid Token (B2B)")
-	BCACommonResponseMessageUnauthorizedSignature                  = BCACommonResponseMessage("Unauthorized [Signature]")
-	BCACommonResponseMessageUnauthorizedStringToSign               = BCACommonResponseMessage("Unauthorized [Signature]")
-	BCACommonResponseMessageUnauthorizedUnknownClient              = BCACommonResponseMessage("Unauthorized [Unknown client]")
-	BCACommonResponseMessageUnauthorizedConnectionNotAllowed       = BCACommonResponseMessage("Unauthorized [Connection not allowed]")
-	BCACommonResponseMessageMissingMandatoryField                  = BCACommonResponseMessage("Invalid Mandatory Field")
-	BCACommonResponseMessageInvalidFieldFormat                     = BCACommonResponseMessage("Invalid Field Format")
+	BCACommonResponseMessageUnauthorizedSignature                  = BCACommonResponseMessage("Unauthorized. [Signature]")
+	BCACommonResponseMessageUnauthorizedStringToSign               = BCACommonResponseMessage("Unauthorized. [Signature]")
+	BCACommonResponseMessageUnauthorizedUnknownClient              = BCACommonResponseMessage("Unauthorized. [Unknown client]")
+	BCACommonResponseMessageUnauthorizedConnectionNotAllowed       = BCACommonResponseMessage("Unauthorized. [Connection not allowed]")
+	BCACommonResponseMessageMissingMandatoryField                  = BCACommonResponseMessage("Invalid mandatory field")
+	BCACommonResponseMessageInvalidFieldFormat                     = BCACommonResponseMessage("Invalid field format")
 	BCACommonResponseMessageDuplicateExternalID                    = BCACommonResponseMessage("Conflict")
 	BCACommonResponseMessageVAPaid                                 = BCACommonResponseMessage("Paid Bill")
 	BCACommonResponseMessageVAExpired                              = BCACommonResponseMessage("Invalid Bill/Virtual Account")
@@ -207,17 +207,17 @@ var (
 	BCAAuthResponseSuccess = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusOK,
 		ResponseCode:    "2007300",
-		ResponseMessage: BCACommonResponseMessageSuccess.ToString(),
+		ResponseMessage: "Successful",
 	}
 	BCAAuthInvalidFieldFormatClient = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4007301",
-		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + "[clientId/clientSecret/grantType]",
+		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + " [clientId/clientSecret/grantType]",
 	}
 	BCAAuthInvalidFieldFormatTimestamp = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,
 		ResponseCode:    "4007301",
-		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + "[X-TIMESTAMP]",
+		ResponseMessage: BCACommonResponseMessageInvalidFieldFormat.ToString() + " [X-TIMESTAMP]",
 	}
 	BCAAUthInvalidMandatoryField = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,

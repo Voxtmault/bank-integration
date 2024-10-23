@@ -13,7 +13,7 @@ type BCARequestHeader struct {
 }
 
 type GrantType struct {
-	GrantType string `json:"grantType" validate:"required"`
+	GrantType string `json:"grantType" validate:"required,eq=client_credentials"`
 }
 
 type SymmetricSignatureRequirement struct {

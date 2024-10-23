@@ -264,11 +264,14 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		}, eris.Wrap(err, "saving access token to redis")
 	}
 
+	bcaResponse := bca.BCAAuthResponseSuccess
+	bcaResponse.ResponseMessage = "Successful"
+
 	return &biModels.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
 		ExpiresIn:   strconv.Itoa(int(s.Config.AccessTokenExpirationTime)),
-		BCAResponse: &bca.BCAAuthResponseSuccess,
+		BCAResponse: &bcaResponse,
 	}, nil
 }
 
@@ -593,4 +596,29 @@ func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.C
 		return &amount, eris.Wrap(err, "querying va_request")
 	}
 	return &amount, nil
+}
+
+func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, []byte, error) {
+
+	// For bill presentment, we need to verify the header
+	// 1. channel id
+	// 2. partner id
+
+	// Parse the request header
+	channelID := request.Header.Get("CHANNEL-ID")
+	// partnerID := request.Header.Get("X-PARTNER-ID")
+
+	if channelID == "" {
+		response := bca.BCABillInquiryResponseMissingMandatoryField
+		response.ResponseMessage = response.ResponseMessage + "[CHANNEL-ID]"
+
+		return &response, nil, nil
+	}
+	if channelID != s.Config.BCAConfig.ChannelID {
+		response := bca.BCABillInquiryResponseInvalidFieldFormat
+
+		return &response, nil, nil
+	}
+
+	return nil, nil, nil
 }

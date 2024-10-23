@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -42,27 +43,28 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 		slog.Debug("clientKey is empty")
 
 		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[X-CLIENT-KEY]"
+		response.ResponseMessage = response.ResponseMessage + " [X-CLIENT-KEY]"
 
 		return false, &response, ""
 	} else if timeStamp == "" {
 		slog.Debug("timeStamp is empty")
 
 		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[X-TIMESTAMP]"
+		response.ResponseMessage = response.ResponseMessage + " [X-TIMESTAMP]"
 
 		return false, &response, ""
 	} else if signature == "" {
 		slog.Debug("signature is empty")
 
 		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[X-SIGNATURE]"
+		response.ResponseMessage = response.ResponseMessage + " [X-SIGNATURE]"
 		return false, &response, ""
 	}
 
 	// Validate the timestamp format
 	if _, err := time.Parse(time.RFC3339, timeStamp); err != nil {
 		slog.Debug("invalid timestamp format")
+
 		return false, &bca.BCAAuthInvalidFieldFormatTimestamp, ""
 	}
 
@@ -75,6 +77,7 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 
 	if clientSecret == "" {
 		slog.Debug("clientId is not registered")
+
 		return false, &bca.BCAAuthUnauthorizedUnknownClient, ""
 	}
 
@@ -82,7 +85,8 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	if err != nil {
 		slog.Debug("error verifying signature", "error", err)
 
-		if eris.Cause(err).Error() == "verification error" {
+		if strings.Contains(eris.Cause(err).Error(), "verification error") {
+			slog.Debug("signature verification failed")
 			return false, &bca.BCAAuthUnauthorizedSignature, ""
 		}
 
