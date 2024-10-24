@@ -553,6 +553,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseSuccess.Data()
 		obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
 		obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
+		obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
 		obj.VirtualAccountData.PaymentFlagStatus = "00"
 		inqueryReason.Indonesia = "Sukses"
 		inqueryReason.English = "Success"
