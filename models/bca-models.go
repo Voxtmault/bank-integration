@@ -292,11 +292,11 @@ type Reason struct {
 
 type BCAInquiryVAResponse struct {
 	BCAResponse
-	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData"` // Data related to virtual account
-	AdditionalInfo     map[string]interface{}    `json:"additionalInfo"`     // Additional information (optional)
+	VirtualAccountData *VirtualAccountDataInquiry `json:"virtualAccountData"` // Data related to virtual account
+	AdditionalInfo     map[string]interface{}     `json:"additionalInfo"`     // Additional information (optional)
 }
 
-type VirtualAccountDataInqury struct {
+type VirtualAccountDataInquiry struct {
 	PaymentFlagReason   Reason       `json:"paymentFlagReason"`                      // Reason for payment status
 	PartnerServiceID    string       `json:"partnerServiceId" validate:"required"`   // Partner ID
 	CustomerNo          string       `json:"customerNo" validate:"required"`         // Customer number
@@ -317,6 +317,18 @@ type VirtualAccountDataInqury struct {
 	PaymentFlagStatus   string       `json:"paymentFlagStatus"`                      // Status for payment flag
 	BillDetails         []BillDetail `json:"billDetails"`                            // Array of bill details (optional)
 	FreeTexts           []FreeText   `json:"freeTexts"`                              // Array of free texts (optional)
+}
+
+func (r VirtualAccountDataInquiry) Default() *VirtualAccountDataInquiry {
+	data := &VirtualAccountDataInquiry{
+		PaymentFlagReason: Reason{},
+		BillDetails:       []BillDetail{},
+		FreeTexts:         []FreeText{},
+		PaidAmount:        Amount{},
+		TotalAmount:       Amount{},
+	}
+
+	return data
 }
 
 type CreateVAReq struct {

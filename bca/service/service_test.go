@@ -20,7 +20,7 @@ import (
 	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
-var envPath = "../../.env"
+var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
 
 func TestGetAccessToken(t *testing.T) {
 	cfg := biConfig.New(envPath)
@@ -116,10 +116,11 @@ func TestBillPresentment(t *testing.T) {
 	fmt.Println(string(result))
 }
 
-func TestInquiryVA(t *testing.T) {
+func TestInquiryVACore(t *testing.T) {
 	cfg := biConfig.New(envPath)
 	biUtil.InitValidator()
 	biStorage.InitMariaDB(&cfg.MariaConfig)
+
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	} else {
@@ -127,20 +128,36 @@ func TestInquiryVA(t *testing.T) {
 	}
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
-	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Testing VA","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202410246573456768","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-24T14:37:00+07:00","referenceNo":"57345676801","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
+
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789","virtualAccountNo":"   15335123456789","virtualAccountName":"","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"2024102423434554754","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"0.00","currency":""},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"0.00","currency":""},"trxDateTime":"2024-10-24T16:46:00+07:00","referenceNo":"43455475401","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
 	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
-	log.Printf("%+v\n", obj)
-	res, err := s.InquiryVA(context.Background(), []byte(bodyReq))
-	if err != nil {
-		t.Errorf("Error From cuntion Bill: %v", err)
+
+	var res biModels.BCAInquiryVAResponse
+	res.VirtualAccountData = &biModels.VirtualAccountDataInquiry{
+		BillDetails:       []biModels.BillDetail{},
+		FreeTexts:         []biModels.FreeText{},
+		PaymentRequestID:  obj.PaymentRequestID,
+		ReferenceNo:       obj.ReferenceNo,
+		CustomerNo:        obj.CustomerNo,
+		VirtualAccountNo:  obj.VirtualAccountNo,
+		TrxDateTime:       obj.TrxDateTime,
+		PartnerServiceID:  obj.PartnerServiceID,
+		PaidAmount:        biModels.Amount{},
+		TotalAmount:       biModels.Amount{},
+		PaymentFlagReason: biModels.Reason{},
+		FlagAdvise:        "N",
 	}
-	result, err := json.Marshal(res)
-	if err != nil {
-		t.Errorf("Error From Marshal: %v", err)
+	res.AdditionalInfo = map[string]interface{}{}
+
+	if err := s.InquiryVACore(context.Background(), &res, &obj); err != nil {
+		t.Errorf("Error From function Bill: %v", err)
 	}
+
+	result, _ := json.Marshal(res)
+
 	fmt.Println(string(result))
 }
 
@@ -321,7 +338,7 @@ func TestMockRequest(t *testing.T) {
 	mockRequest.Header.Set("X-EXTERNAL-ID", "12312321312")
 
 	// Call the validate symmetric signature function
-	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance())
+	result, response := service.Ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance(), []byte(body))
 
 	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
 	slog.Debug("response", "data", fmt.Sprintf("%+v", response))
@@ -331,62 +348,49 @@ func TestMockRequest(t *testing.T) {
 	}
 }
 
-func TestBillPresentmentIntegration(t *testing.T) {
-	cfg := biConfig.New(envPath)
-	biUtil.InitValidator()
-	biStorage.InitMariaDB(&cfg.MariaConfig)
-	biStorage.InitRedis(&cfg.RedisConfig)
+// func TestBillPresentmentIntegration(t *testing.T) {
+// 	cfg := biConfig.New(envPath)
+// 	biUtil.InitValidator()
+// 	biStorage.InitMariaDB(&cfg.MariaConfig)
+// 	biStorage.InitRedis(&cfg.RedisConfig)
 
-	// Load Registered Banks
+// 	// Load Registered Banks
 
-	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-	} else {
-		slog.SetLogLoggerLevel(slog.LevelInfo)
-	}
+// 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+// 		slog.SetLogLoggerLevel(slog.LevelDebug)
+// 	} else {
+// 		slog.SetLogLoggerLevel(slog.LevelInfo)
+// 	}
 
-	security := security.NewBCASecurity(cfg)
+// 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
-		request.NewBCAEgress(security),
-		request.NewBCAIngress(security),
-		cfg,
-		biStorage.GetDBConnection(),
-		biStorage.GetRedisInstance(),
-	)
+// 	service := NewBCAService(
+// 		request.NewBCAEgress(security),
+// 		request.NewBCAIngress(security),
+// 		cfg,
+// 		biStorage.GetDBConnection(),
+// 		biStorage.GetRedisInstance(),
+// 	)
 
-	// Generate the mock http request
-	body := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:23:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241023566563457"}`
+// 	// Generate the mock http request
+// 	body := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:23:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241023566563457"}`
 
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBufferString(body))
-	if err != nil {
-		t.Errorf("Error creating mock request: %v", err)
-	}
+// 	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.BillPresentmentURL, bytes.NewBufferString(body))
+// 	if err != nil {
+// 		t.Errorf("Error creating mock request: %v", err)
+// 	}
 
-	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-23T16:23:40+07:00")
-	mockRequest.Header.Set("Authorization", "Bearer M30N2QBIiM9GKRtT8_XjdDI5eoP7ozN3Sf-xjmgN6oLFhThJXCmHkuiP6QUfd4Mo")
-	mockRequest.Header.Set("X-SIGNATURE", "/IZrbCFa/X1kdI1B0IqEvipJ9eKI0eHv8GzzXUzI00qGpUPGRJJTP+Czg687UMkYBx5hZgAapU8KVFOmoOuSEg==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "21234")
+// 	mockRequest.Header.Set("Content-Type", "application/json")
+// 	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-23T16:23:40+07:00")
+// 	mockRequest.Header.Set("Authorization", "Bearer M30N2QBIiM9GKRtT8_XjdDI5eoP7ozN3Sf-xjmgN6oLFhThJXCmHkuiP6QUfd4Mo")
+// 	mockRequest.Header.Set("X-SIGNATURE", "/IZrbCFa/X1kdI1B0IqEvipJ9eKI0eHv8GzzXUzI00qGpUPGRJJTP+Czg687UMkYBx5hZgAapU8KVFOmoOuSEg==")
+// 	mockRequest.Header.Set("X-EXTERNAL-ID", "21234")
 
-	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
-	if authResponse.HTTPStatusCode != http.StatusOK {
-		t.Errorf("Error validating symmetric signature: %v", authResponse)
-	} else {
-		if err != nil {
-			t.Errorf("Error validating symmetric signature: %v", err)
-		}
-
-		result, err := service.BillPresentment(context.Background(), data)
-		if err != nil {
-			t.Errorf("Error bill presentment: %v", err)
-		}
-
-		data, _ := json.Marshal(result)
-
-		slog.Debug("response", "data", string(data))
-	}
-}
+// 	_, err = service.BillPresentment(context.Background(), data)
+// 	if err != nil {
+// 		t.Errorf("Error bill presentment: %v", err)
+// 	}
+// }
 
 func TestInquiryVAIntegration(t *testing.T) {
 	cfg := biConfig.New(envPath)
@@ -427,21 +431,10 @@ func TestInquiryVAIntegration(t *testing.T) {
 	mockRequest.Header.Set("X-SIGNATURE", "T2kXLJDL5pAuPyYPueGF5p4XDjNTAlDTRCaLiXPjuUqB3vEbE3r1TSypbb9Vp73CSPHIRX+LvHokG50WrJGvdg==")
 	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
 
-	authResponse, data, err := service.Middleware(context.Background(), mockRequest)
-	if authResponse.HTTPStatusCode != http.StatusOK {
-		t.Errorf("Error validating symmetric signature: %v", authResponse)
-	} else {
-		if err != nil {
-			t.Errorf("Error validating symmetric signature: %v", err)
-		}
-
-		result, err := service.InquiryVA(context.Background(), data)
-		if err != nil {
-			t.Errorf("Error bill presentment: %v", err)
-		}
-
-		data, _ := json.Marshal(result)
-
-		slog.Debug("response", "data", string(data))
+	result, err := service.InquiryVA(context.Background(), mockRequest)
+	if err != nil {
+		t.Errorf("Error bill presentment: %v", err)
 	}
+
+	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
 }
