@@ -394,8 +394,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 
 	obj.VirtualAccountData = &biModels.VirtualAccountDataInqury{}
 	inqueryReason := biModels.Reason{}
-	obj.VirtualAccountData.BillDetails = append(obj.VirtualAccountData.BillDetails, biModels.BillDetail{AdditionalInfo: map[string]interface{}{}})
-	obj.VirtualAccountData.FreeTexts = append(obj.VirtualAccountData.FreeTexts, biModels.FreeText{})
+	obj.VirtualAccountData.BillDetails = []biModels.BillDetail{}
+	obj.VirtualAccountData.FreeTexts = []biModels.FreeText{}
 	obj.AdditionalInfo = map[string]interface{}{}
 	var payload biModels.BCAInquiryRequest
 	if err := json.Unmarshal(data, &payload); err != nil {
@@ -426,7 +426,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 		return &obj, eris.Wrap(err, "Error Find VA")
 	}
 
-	if amountPaid.Value != "" && amountPaid.Value != "0" {
+	if amountPaid.Value != "" && amountPaid.Value != "0.00" {
 		slog.Debug("va has been paid")
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVAPaid.Data()
 		inqueryReason.English = "Paid Bill"
