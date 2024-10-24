@@ -20,7 +20,7 @@ import (
 	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
-var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+var envPath = "../../.env"
 
 func TestGetAccessToken(t *testing.T) {
 	cfg := biConfig.New(envPath)
@@ -93,37 +93,28 @@ func TestBalanceInquiryUnmarshal(t *testing.T) {
 	log.Printf("%+v\n", obj)
 }
 
-// func TestBillPresentment(t *testing.T) {
-// 	cfg := config.New(envPath)
-// 	biUtil.InitValidator()
-// 	storage.InitMariaDB(&cfg.MariaConfig)
-// 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
-// 		slog.SetLogLoggerLevel(slog.LevelDebug)
-// 	} else {
-// 		slog.SetLogLoggerLevel(slog.LevelInfo)
-// 	}
-// 	s := BCAService{DB: storage.GetDBConnection()}
-// 	bodyReq := `{
-// 	"partnerServiceId": " 11223",
-// 	"customerNo": "1234567890123456",
-// 	"virtualAccountNo": " 112231234567890123457",
-// 	"inquiryRequestId": "202410180000000000001"
-// 	}`
-// 	var obj models.BCAVARequestPayload
-// 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
-// 		t.Errorf("Error un-marshaling: %v", err)
-// 	}
-// 	log.Printf("%+v\n", obj)
-// 	res, err := s.BillPresentment(context.Background(), &obj)
-// 	if err != nil {
-// 		t.Errorf("Error From function Bill: %v", err)
-// 	}
-// 	result, err := json.Marshal(res)
-// 	if err != nil {
-// 		t.Errorf("Error From Marshal: %v", err)
-// 	}
-// 	slog.Debug(string(result))
-// }
+func TestBillPresentment(t *testing.T) {
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+	s := BCAService{DB: biStorage.GetDBConnection()}
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:04:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"2024102345678984342"}`
+
+	res, err := s.BillPresentment(context.Background(), []byte(bodyReq))
+	if err != nil {
+		t.Errorf("Error From function Bill: %v", err)
+	}
+	result, err := json.Marshal(res)
+	if err != nil {
+		t.Errorf("Error From Marshal: %v", err)
+	}
+	fmt.Println(string(result))
+}
 
 func TestInquiryVA(t *testing.T) {
 	cfg := biConfig.New(envPath)
@@ -136,27 +127,13 @@ func TestInquiryVA(t *testing.T) {
 	}
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
-	bodyReq := `{
-	"partnerServiceId": " 11223",
-	"customerNo": "1234567890123456",
-	"virtualAccountNo": " 112231234567890123456",
-	"virtualAccountName": "Test Va",
-	"paymentRequestId": "202410180000000000001",
-	"paidAmount": {
-	"value": "150000.00",
-	"currency": "IDR"
-	},
-	"totalAmount": {
-	"value": "100000.00",
-	"currency": "IDR"
-	}
-	}`
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Testing Va","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"2024102345678984342","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
 	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
 	}
 	log.Printf("%+v\n", obj)
-	res, err := s.InquiryVA(context.Background(), []byte(""))
+	res, err := s.InquiryVA(context.Background(), []byte(bodyReq))
 	if err != nil {
 		t.Errorf("Error From cuntion Bill: %v", err)
 	}
