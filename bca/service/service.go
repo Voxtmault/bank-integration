@@ -550,6 +550,9 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 		inqueryReason.Indonesia = "Sukses"
 		inqueryReason.English = "Success"
 		obj.VirtualAccountData.PaymentFlagReason = inqueryReason
+		obj.VirtualAccountData.BillDetails = []biModels.BillDetail{}
+		obj.VirtualAccountData.FreeTexts = []biModels.FreeText{}
+		obj.AdditionalInfo = map[string]interface{}{}
 		if err = tx.Commit(); err != nil {
 			slog.Debug("bill presentment", "error committing transaction", err)
 			tx.Rollback()
