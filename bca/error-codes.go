@@ -97,7 +97,7 @@ var (
 		ResponseMessage: BCACommonResponseMessageVAPaid.ToString(),
 	}
 	BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID = biModels.BCAResponse{
-		HTTPStatusCode:  http.StatusConflict,
+		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042518",
 		ResponseMessage: BCACommonResponseMessageDuplicateExternalIDAndPaymentRequestID.ToString(),
 	}

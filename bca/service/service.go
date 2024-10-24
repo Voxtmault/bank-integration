@@ -790,7 +790,7 @@ func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context
 	}
 
 	if externalID == payload.PaymentRequestID {
-		slog.Debug("external id and payment request id are the same, incosistent request")
+		slog.Debug("external id and payment request id are the same, inconsistent request")
 
 		return &bca.BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID, nil
 	}
