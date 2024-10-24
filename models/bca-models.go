@@ -304,7 +304,7 @@ type VirtualAccountDataInqury struct {
 	VirtualAccountName  string       `json:"virtualAccountName" validate:"required"` // Customer name
 	VirtualAccountEmail string       `json:"virtualAccountEmail"`                    // Customer email (optional)
 	VirtualAccountPhone string       `json:"virtualAccountPhone"`                    // Customer phone number (optional)
-	TrxID               string       `json:"trxId,omitempty"`                        // Transaction ID
+	TrxID               string       `json:"trxId"`                                  // Transaction ID
 	PaymentRequestID    string       `json:"paymentRequestId" validate:"required"`   // Payment request ID
 	PaidAmount          Amount       `json:"paidAmount" validate:"required"`         // Paid amount
 	PaidBills           string       `json:"paidBills"`                              // Flag of paid bills (optional)
