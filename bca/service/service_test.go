@@ -127,7 +127,7 @@ func TestInquiryVA(t *testing.T) {
 	}
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
-	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Testing VA","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"20241024657345676","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-24T14:37:00+07:00","referenceNo":"57345676801","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Testing VA","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202410246573456768","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-24T14:37:00+07:00","referenceNo":"57345676801","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
 	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
