@@ -543,6 +543,13 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 				return &obj, eris.Wrap(err, "querying va_request")
 			}
 		}
+		obj.VirtualAccountData.FlagAdvise = "N"
+		obj.VirtualAccountData.ReferenceNo = payload.ReferenceNo
+		obj.VirtualAccountData.CustomerNo = payload.CustomerNo
+		obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
+		obj.VirtualAccountData.TrxDateTime = payload.TrxDateTime
+		obj.VirtualAccountData.PaidAmount = payload.PaidAmount
+		obj.VirtualAccountData.TotalAmount = payload.TotalAmount
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseSuccess.Data()
 		obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
 		obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
