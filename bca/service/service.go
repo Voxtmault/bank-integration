@@ -193,11 +193,11 @@ func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*bi
 	if response != nil {
 		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
 
-		return response, nil, nil
+		return response, bodyBytes, nil
 	}
 
 	if !result {
-		return &bca.BCABillInquiryResponseUnauthorizedSignature, nil, nil
+		return &bca.BCABillInquiryResponseUnauthorizedSignature, bodyBytes, nil
 	}
 
 	return &bca.BCAAuthResponseSuccess, bodyBytes, nil
