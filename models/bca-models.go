@@ -175,38 +175,40 @@ type VAResponsePayload struct {
 }
 
 type VABCAResponseData struct {
-	InquiryStatus         string                 `json:"inquiryStatus,omitempty"`                // Inquiry status
-	InquiryReason         InquiryReason          `json:"inquiryReason,omitempty"`                // Reason for inquiry status
+	InquiryStatus         string                 `json:"inquiryStatus"`                          // Inquiry status
+	InquiryReason         InquiryReason          `json:"inquiryReason"`                          // Reason for inquiry status
 	PartnerServiceID      string                 `json:"partnerServiceId" validate:"required"`   // Derived from X-PARTNER-ID
 	CustomerNo            string                 `json:"customerNo" validate:"required"`         // Customer number
 	VirtualAccountNo      string                 `json:"virtualAccountNo" validate:"required"`   // Virtual account number
 	VirtualAccountName    string                 `json:"virtualAccountName" validate:"required"` // Customer name
-	VirtualAccountEmail   string                 `json:"virtualAccountEmail,omitempty"`          // Customer email (optional)
-	VirtualAccountPhone   string                 `json:"virtualAccountPhone,omitempty"`          // Customer's phone number (optional)
+	VirtualAccountEmail   string                 `json:"virtualAccountEmail"`                    // Customer email (optional)
+	VirtualAccountPhone   string                 `json:"virtualAccountPhone"`                    // Customer's phone number (optional)
 	InquiryRequestID      string                 `json:"inquiryRequestId" validate:"required"`   // Inquiry request ID
 	TotalAmount           Amount                 `json:"totalAmount"`                            // Total transaction amount
-	SubCompany            string                 `json:"subCompany,omitempty"`                   // Sub company code (optional)
-	BillDetails           []BillInfo             `json:"billDetails,omitempty"`                  // Bill details (optional for multi-settlement)
-	FreeTexts             []FreeText             `json:"freeTexts,omitempty"`                    // Optional free text displayed in channel
+	SubCompany            string                 `json:"subCompany"`                             // Sub company code (optional)
+	BillDetails           []BillInfo             `json:"billDetails"`                            // Bill details (optional for multi-settlement)
+	FreeTexts             []FreeText             `json:"freeTexts"`                              // Optional free text displayed in channel
 	FeeAmount             Amount                 `json:"feeAmaount"`
-	VirtualAccountTrxType string                 `json:"virtualAccountTrxType,omitempty"` // Type of virtual account (optional)
-	AdditionalInfo        map[string]interface{} `json:"additionalInfo,omitempty"`        // Optional additional information
+	VirtualAccountTrxType string                 `json:"virtualAccountTrxType"` // Type of virtual account (optional)
+	AdditionalInfo        map[string]interface{} `json:"additionalInfo"`        // Optional additional information
 }
 
 type InquiryReason struct {
-	English   string `json:"english,omitempty"`   // Reason in English
-	Indonesia string `json:"indonesia,omitempty"` // Reason in Indonesian
+	English   string `json:"english"`   // Reason in English
+	Indonesia string `json:"indonesia"` // Reason in Indonesian
 }
 
 type BillDetail struct {
-	BillCode        string          `json:"billCode,omitempty"`        // Bill code
-	BillNo          string          `json:"billNo,omitempty"`          // Bill number
-	BillName        string          `json:"billName,omitempty"`        // Bill name
-	BillShortName   string          `json:"billShortName,omitempty"`   // Short bill name
-	BillDescription BillDescription `json:"billDescription,omitempty"` // Bill description
-	BillAmount      Amount          `json:"billAmount,omitempty"`      // Amount for each bill
-	BillSubCompany  string          `json:"billSubCompany,omitempty"`  // Bill sub company code (optional)
-
+	BillCode        string                 `json:"billCode"`        // Bill code
+	BillNo          string                 `json:"billNo"`          // Bill number
+	BillName        string                 `json:"billName"`        // Bill name
+	BillShortName   string                 `json:"billShortName"`   // Short bill name
+	BillDescription BillDescription        `json:"billDescription"` // Bill description
+	BillAmount      Amount                 `json:"billAmount"`      // Amount for each bill
+	BillSubCompany  string                 `json:"billSubCompany"`  // Bill sub company code (optional)
+	BillStatus      string                 `json:"status"`
+	AdditionalInfo  map[string]interface{} `json:"additionalInfo"`
+	Reason          Reason                 `json:"reason"`
 }
 type BillInfo struct {
 	BillCode        string                 `json:"billCode"`        // Kode tagihan, opsional
@@ -222,8 +224,8 @@ type BillInfo struct {
 }
 
 type FreeText struct {
-	English   string `json:"english,omitempty"`   // Free text in English
-	Indonesia string `json:"indonesia,omitempty"` // Free text in Indonesian
+	English   string `json:"english"`   // Free text in English
+	Indonesia string `json:"indonesia"` // Free text in Indonesian
 }
 
 type BCAInquiryRequest struct {
@@ -257,7 +259,7 @@ type InquiryResponse struct {
 	ResponseCode       string                 `json:"responseCode" validate:"required"`       // Response code from partner
 	ResponseMessage    string                 `json:"responseMessage" validate:"required"`    // Response message from partner
 	VirtualAccountData VirtualAccountData     `json:"virtualAccountData" validate:"required"` // Data related to virtual account
-	AdditionalInfo     map[string]interface{} `json:"additionalInfo,omitempty"`               // Additional information (optional)
+	AdditionalInfo     map[string]interface{} `json:"additionalInfo"`                         // Additional information (optional)
 }
 
 type VirtualAccountData struct {
@@ -279,42 +281,42 @@ type VirtualAccountData struct {
 	PaymentType         string       `json:"paymentType,omitempty"`                  // Type of payment
 	FlagAdvise          string       `json:"flagAdvise,omitempty"`                   // Retry flag status
 	PaymentFlagStatus   string       `json:"paymentFlagStatus,omitempty"`            // Status for payment flag
-	BillDetails         []BillDetail `json:"billDetails,omitempty"`                  // Array of bill details (optional)
-	FreeTexts           []FreeText   `json:"freeTexts,omitempty"`                    // Array of free texts (optional)
+	BillDetails         []BillDetail `json:"billDetail"`                             // Array of bill details (optional)
+	FreeTexts           []FreeText   `json:"freeTexts"`                              // Array of free texts (optional)
 }
 
 type Reason struct {
-	English   string `json:"english,omitempty"`   // Reason in English
-	Indonesia string `json:"indonesia,omitempty"` // Reason in Indonesian
+	English   string `json:"english"`   // Reason in English
+	Indonesia string `json:"indonesia"` // Reason in Indonesian
 }
 
 type BCAInquiryVAResponse struct {
 	BCAResponse
-	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData,omitempty"` // Data related to virtual account
-	AdditionalInfo     map[string]interface{}    `json:"additionalInfo,omitempty"`     // Additional information (optional)
+	VirtualAccountData *VirtualAccountDataInqury `json:"virtualAccountData"` // Data related to virtual account
+	AdditionalInfo     map[string]interface{}    `json:"additionalInfo"`     // Additional information (optional)
 }
 
 type VirtualAccountDataInqury struct {
-	PaymentFlagReason   Reason       `json:"paymentFlagReason,omitempty"`            // Reason for payment status
+	PaymentFlagReason   Reason       `json:"paymentFlagReason"`                      // Reason for payment status
 	PartnerServiceID    string       `json:"partnerServiceId" validate:"required"`   // Partner ID
 	CustomerNo          string       `json:"customerNo" validate:"required"`         // Customer number
 	VirtualAccountNo    string       `json:"virtualAccountNo" validate:"required"`   // Virtual account number
 	VirtualAccountName  string       `json:"virtualAccountName" validate:"required"` // Customer name
-	VirtualAccountEmail string       `json:"virtualAccountEmail,omitempty"`          // Customer email (optional)
-	VirtualAccountPhone string       `json:"virtualAccountPhone,omitempty"`          // Customer phone number (optional)
+	VirtualAccountEmail string       `json:"virtualAccountEmail"`                    // Customer email (optional)
+	VirtualAccountPhone string       `json:"virtualAccountPhone"`                    // Customer phone number (optional)
 	TrxID               string       `json:"trxId,omitempty"`                        // Transaction ID
 	PaymentRequestID    string       `json:"paymentRequestId" validate:"required"`   // Payment request ID
 	PaidAmount          Amount       `json:"paidAmount" validate:"required"`         // Paid amount
-	PaidBills           string       `json:"paidBills,omitempty"`                    // Flag of paid bills (optional)
+	PaidBills           string       `json:"paidBills"`                              // Flag of paid bills (optional)
 	TotalAmount         Amount       `json:"totalAmount" validate:"required"`        // Total transaction amount
-	TrxDateTime         string       `json:"trxDateTime,omitempty"`                  // Transaction datetime in ISO-8601 format
-	ReferenceNo         string       `json:"referenceNo,omitempty"`                  // Payment reference number
-	JournalNum          string       `json:"journalNum,omitempty"`                   // Journal number
-	PaymentType         string       `json:"paymentType,omitempty"`                  // Type of payment
-	FlagAdvise          string       `json:"flagAdvise,omitempty"`                   // Retry flag status
-	PaymentFlagStatus   string       `json:"paymentFlagStatus,omitempty"`            // Status for payment flag
-	BillDetails         []BillDetail `json:"billDetails,omitempty"`                  // Array of bill details (optional)
-	FreeTexts           []FreeText   `json:"freeTexts,omitempty"`                    // Array of free texts (optional)
+	TrxDateTime         string       `json:"trxDateTime"`                            // Transaction datetime in ISO-8601 format
+	ReferenceNo         string       `json:"referenceNo"`                            // Payment reference number
+	JournalNum          string       `json:"journalNum"`                             // Journal number
+	PaymentType         string       `json:"paymentType"`                            // Type of payment
+	FlagAdvise          string       `json:"flagAdvise"`                             // Retry flag status
+	PaymentFlagStatus   string       `json:"paymentFlagStatus"`                      // Status for payment flag
+	BillDetails         []BillDetail `json:"billDetails"`                            // Array of bill details (optional)
+	FreeTexts           []FreeText   `json:"freeTexts"`                              // Array of free texts (optional)
 }
 
 type CreateVAReq struct {
