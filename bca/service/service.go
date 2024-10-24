@@ -244,6 +244,8 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		}, nil
 	}
 
+	slog.Debug("received client secret", "clientSecret", clientSecret)
+
 	// Generate the access token
 	token, err := s.GeneralSecurity.GenerateAccessToken(ctx)
 	if err != nil {
@@ -379,7 +381,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 	if err := json.Unmarshal(data, &payload); err != nil {
 		slog.Debug("error un-marshaling request body", "error", err)
 
-		obj.BCAResponse = bca.BCABillInquiryResponseRequestParseError
+		obj.BCAResponse = bca.BCAPaymentFlagResponseRequestParseError
 
 		return &obj, nil
 	}
@@ -461,7 +463,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 			slog.Debug("bill presentment", "error committing transaction", err)
 			tx.Rollback()
 
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
+			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
 			return &obj, eris.Wrap(err, "committing transaction")
 		}
 
@@ -640,6 +642,7 @@ func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context
 	// Parse the request header
 	channelID := request.Header.Get("CHANNEL-ID")
 	partnerID := request.Header.Get("X-PARTNER-ID")
+	externalID := request.Header.Get("X-EXTERNAL-ID")
 
 	if channelID == "" {
 		response := bca.BCAPaymentFlagResponseMissingMandatoryField
@@ -662,6 +665,30 @@ func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context
 		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
 
 		return &response, nil
+	}
+
+	// Validate that X-EXTERNAL-ID and paymentRequestId is not the same
+	bodyBytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		slog.Debug("error reading request body", "error", err)
+		return &bca.BCABillInquiryResponseRequestParseError, nil
+	}
+	defer request.Body.Close()
+
+	// Set the body back to the original state
+	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	var payload biModels.BCAInquiryRequest
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+		slog.Debug("error un-marshaling request body", "error", err)
+
+		return &bca.BCAPaymentFlagResponseRequestParseError, nil
+	}
+
+	if externalID == payload.PaymentRequestID {
+		slog.Debug("external id and payment request id are the same, incosistent request")
+
+		return &bca.BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID, nil
 	}
 
 	return &bca.BCAPaymentFlagResponseSuccess, nil
