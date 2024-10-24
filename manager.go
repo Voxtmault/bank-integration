@@ -47,7 +47,7 @@ func InitBankAPI(envPath, timezone string) error {
 
 	// Schedule the task to run every day at midnight
 	_, err = c.AddFunc("0 0 * * *", func() {
-		if err := clearList(context.Background(), obj, "unique_external_id:*"); err != nil {
+		if err := clearList(context.Background(), obj, "unique-external-id:*"); err != nil {
 			slog.Info("failed to clear unique external id", "reason", err)
 		} else {
 			slog.Info("unique external id cleared")
@@ -89,7 +89,6 @@ func InitManagementService() biInterfaces.Management {
 }
 
 func clearList(ctx context.Context, rdb *biStorage.RedisInstance, pattern string) error {
-	slog.Debug("clearing redis unique external id list")
 	var cursor uint64
 	for {
 		keys, nextCursor, err := rdb.RDB.Scan(ctx, cursor, pattern, 100).Result()
@@ -97,11 +96,13 @@ func clearList(ctx context.Context, rdb *biStorage.RedisInstance, pattern string
 			return err
 		}
 
-		if len(keys) > 0 {
-			if err := rdb.RDB.Del(ctx, keys...).Err(); err != nil {
-				return err
-			}
-		}
+		// if len(keys) > 0 {
+		// 	if err := rdb.RDB.Del(ctx, keys...).Err(); err != nil {
+		// 		return err
+		// 	}
+		// }
+
+		slog.Debug("keys", "value", keys)
 
 		cursor = nextCursor
 		if cursor == 0 {
@@ -109,4 +110,13 @@ func clearList(ctx context.Context, rdb *biStorage.RedisInstance, pattern string
 		}
 	}
 	return nil
+}
+
+func CloseBankAPI() {
+	if err := biStorage.Close(); err != nil {
+		slog.Error("failed to close storage connections", "reason", err)
+	}
+	if err := biStorage.GetRedisInstance().CloseRedis(); err != nil {
+		slog.Error("failed to close redis connection", "reason", err)
+	}
 }

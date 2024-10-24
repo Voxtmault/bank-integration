@@ -180,12 +180,12 @@ func TestGenerateAccessToken(t *testing.T) {
 		cfg,
 	)
 	mockSecurity.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
-	mockSecurity.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pem"
-	mockSecurity.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
-	mockSecurity.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
+	mockSecurity.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/snap_sign.devapi.klikbca.com.pem"
+	mockSecurity.ClientID = cfg.BCARequestedClientCredentials.ClientID
+	mockSecurity.ClientSecret = cfg.BCARequestedClientCredentials.ClientSecret
 
 	// Generate the mock signature
-	timeStamp := time.Now().Format(time.RFC3339)
+	timeStamp := "2024-10-23T15:15:42+07:00"
 	mockSignature, err := mockSecurity.CreateAsymmetricSignature(context.Background(), timeStamp)
 	if err != nil {
 		t.Errorf("Error generating mock signature: %v", err)
@@ -208,7 +208,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	mockRequest.Header.Set("Content-Type", "application/json")
 	mockRequest.Header.Set("X-TIMESTAMP", timeStamp)
 	mockRequest.Header.Set("X-CLIENT-KEY", mockSecurity.ClientID)
-	mockRequest.Header.Set("X-SIGNATURE", mockSignature)
+	mockRequest.Header.Set("X-SIGNATURE", "oTNgXCLPXEkiqV1UVV9qRodxukUHhcixToOqfdWhWkfFrygOFjjmPtzG/ec2ZZrVLCGtIHoQUwf9FmKNvh7WvVddAqLa08zvPvzrkWWBPEYcOrJgtmrQbmWOk+CTMEcO9CDHHbz7NfwXQwnj2gEz2oeSWj0yadZxjbhv1ar578ukQ8hxiItk0bHdAnc+M2OtTl3fK8NaADpaZg+7ZOdNh4uiF4jxlNEVqQ0F9+MgIW+pbP73ynMC+WaJ17f4O/k8nUuB81sekeqpd9hSG6gJvx/DF4D9NCbzn3Ty5p+c4t0AUJh5WzEowBJ7l0WwTVHQJr+/IjV98HANMklqVwaU7Q==")
 
 	// Call the Generate Access Token function
 	data, err := service.GenerateAccessToken(context.Background(), mockRequest)

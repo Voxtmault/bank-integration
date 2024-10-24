@@ -102,9 +102,14 @@ func GetDBStats() MariaDatabaseStats {
 //
 // Under normal circumstances, this shouldn't be called by anyone other than main
 func Close() error {
-	if err := mariaCon.Close(); err != nil {
-		return eris.Wrap(err, "Closing DB")
+	if mariaCon != nil {
+		if err := mariaCon.Close(); err != nil {
+			return eris.Wrap(err, "Closing DB")
+		} else {
+			return nil
+		}
 	} else {
+		slog.Info("MariaDB Connection is already closed or is not opened in the first place")
 		return nil
 	}
 }

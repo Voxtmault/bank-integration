@@ -95,9 +95,9 @@ func TestVerifyAsymmetricSignature(t *testing.T) {
 		cfg,
 	)
 
-	timeStamp := "2024-10-23T16:26:04+07:00"
+	timeStamp := "2024-10-23T15:15:42+07:00"
 	clientID := cfg.BCARequestedClientCredentials.ClientID
-	signature := "gymKBa1U4RQ8SN5pG02XmdKrXhKBAGy6Dkzxl+NLQ5xcCMADP/KtL9P48eE+lx0hHGliVzxqad/crjPOcOE8PQ=="
+	signature := "oTNgXCLPXEkiqV1UVV9qRodxukUHhcixToOqfdWhWkfFrygOFjjmPtzG/ec2ZZrVLCGtIHoQUwf9FmKNvh7WvVddAqLa08zvPvzrkWWBPEYcOrJgtmrQbmWOk+CTMEcO9CDHHbz7NfwXQwnj2gEz2oeSWj0yadZxjbhv1ar578ukQ8hxiItk0bHdAnc+M2OtTl3fK8NaADpaZg+7ZOdNh4uiF4jxlNEVqQ0F9+MgIW+pbP73ynMC+WaJ17f4O/k8nUuB81sekeqpd9hSG6gJvx/DF4D9NCbzn3Ty5p+c4t0AUJh5WzEowBJ7l0WwTVHQJr+/IjV98HANMklqVwaU7Q=="
 	result, err := security.VerifyAsymmetricSignature(context.Background(), timeStamp, clientID, signature)
 	if err != nil {
 		t.Error(err)
@@ -120,14 +120,14 @@ func TestVerifySymmetricSignature(t *testing.T) {
 
 	clientSecret := cfg.BCARequestedClientCredentials.ClientSecret
 
-	signature := "gymKBa1U4RQ8SN5pG02XmdKrXhKBAGy6Dkzxl+NLQ5xcCMADP/KtL9P48eE+lx0hHGliVzxqad/crjPOcOE8PQ=="
+	signature := "7I5uQA06kpl0YK/ExygooNCf52b6CuKXCkrwZQx/nvdn+VjBr8wl2JR52LMJEPtgZr7Ppqvy1OUK8rteZOAb3w=="
 
-	inputJSON := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:26:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241023456763236"}`
+	inputJSON := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-23T16:04:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"2024102345678984342"}`
 
 	result, err := security.VerifySymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "M30N2QBIiM9GKRtT8_XjdDI5eoP7ozN3Sf-xjmgN6oLFhThJXCmHkuiP6QUfd4Mo",
-		Timestamp:   "2024-10-23T16:26:04+07:00",
+		AccessToken: "P9r-p49whJWG1t5HECd-3kz3F4_MJh1KPs1x8dDoNH8xOGB8ujaOL098GlSjilNY",
+		Timestamp:   "2024-10-23T16:04:23+07:00",
 		RequestBody: []byte(inputJSON),
 		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
 	}, clientSecret, signature)
