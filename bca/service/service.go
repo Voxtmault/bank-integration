@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/bca"
 	biConfig "github.com/voxtmault/bank-integration/config"
@@ -176,33 +177,6 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 }
 
 // Ingress
-func (s *BCAService) Middleware(ctx context.Context, request *http.Request) (*biModels.BCAResponse, []byte, error) {
-
-	bodyBytes, err := io.ReadAll(request.Body)
-	if err != nil {
-		slog.Debug("error reading request body", "error", err)
-		return &bca.BCABillInquiryResponseRequestParseError, nil, nil
-	}
-	defer request.Body.Close()
-	fmt.Println("Body Bytes: ", string(bodyBytes))
-
-	// Set the body back to the original state
-	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-	result, response := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB)
-	if response != nil {
-		slog.Debug("verifying symmetric signature failed", "response", response.ResponseMessage)
-
-		return response, bodyBytes, nil
-	}
-
-	if !result {
-		return &bca.BCABillInquiryResponseUnauthorizedSignature, bodyBytes, nil
-	}
-
-	return &bca.BCAAuthResponseSuccess, bodyBytes, nil
-}
-
 func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*biModels.AccessTokenResponse, error) {
 	// Logic
 	// 1. Parse the request body
@@ -389,117 +363,71 @@ func (s *BCAService) BillPresentment(ctx context.Context, data []byte) (*biModel
 	return &obj, nil
 }
 
-func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAInquiryVAResponse, error) {
-	var obj biModels.BCAInquiryVAResponse
+func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAInquiryVAResponse, payload *biModels.BCAInquiryRequest) error {
 
-	obj.VirtualAccountData = &biModels.VirtualAccountDataInqury{}
-	inqueryReason := biModels.Reason{}
-	obj.VirtualAccountData.BillDetails = []biModels.BillDetail{}
-	obj.VirtualAccountData.FreeTexts = []biModels.FreeText{}
-	obj.AdditionalInfo = map[string]interface{}{}
-	var payload biModels.BCAInquiryRequest
-	if err := json.Unmarshal(data, &payload); err != nil {
-		slog.Debug("error un-marshaling request body", "error", err)
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseRequestParseError.Data()
-		inqueryReason.English = "Error When Unmarshalling Request Body"
-		inqueryReason.Indonesia = "Kesalahan saat melakukan unmarshalling pada badan Request Body"
-		obj.VirtualAccountData.PaymentFlagStatus = "01"
-		obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-		return &obj, nil
-	}
-	obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
-	obj.VirtualAccountData.FlagAdvise = "N"
-	obj.VirtualAccountData.ReferenceNo = payload.ReferenceNo
-	obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-	obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-	obj.VirtualAccountData.TrxDateTime = payload.TrxDateTime
-	obj.VirtualAccountData.PaidAmount = biModels.Amount{}
-	obj.VirtualAccountData.TotalAmount = biModels.Amount{}
-	amountPaid, amountTotal, err := s.GetVirtualAccountPaidnTotalAmountByInquiryRequestId(ctx, payload.PaymentRequestID)
+	amountPaid, amountTotal, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, payload.PaymentRequestID)
 	if eris.Cause(err) == sql.ErrNoRows {
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
-		inqueryReason.English = "Bill Not Found"
-		inqueryReason.Indonesia = "Tagihan Tidak Ditemukan"
-		obj.VirtualAccountData.PaymentFlagStatus = "01"
-		obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-		obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-		obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-		obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-		return &obj, eris.Wrap(err, "querying va_table for")
+		slog.Debug("va not found in database")
+		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
+
+		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+
+		return eris.Wrap(err, "va not found")
 	} else if err != nil {
-		slog.Debug("error getting virtual account paid amount by inquiry request id", "error", err)
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
-		return &obj, eris.Wrap(err, "Error Find VA")
+		slog.Error("error getting virtual account paid amount by inquiry request id", "error", eris.Cause(err))
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+		response.AdditionalInfo = map[string]interface{}{}
+
+		return eris.Wrap(err, "get virtual account paid total amount by inquiry request id")
 	}
 
 	if amountPaid.Value != "" && amountPaid.Value != "0.00" {
 		slog.Debug("va has been paid")
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVAPaid.Data()
-		inqueryReason.English = "Paid Bill"
-		inqueryReason.Indonesia = "Tagihan Telah Terbayar"
-		obj.VirtualAccountData.PaymentFlagStatus = "01"
-		obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-		obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-		obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-		obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-		obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-		return &obj, nil
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseVAPaid
+		response.VirtualAccountData.PaymentFlagReason.English = "Paid Bill"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Telah Terbayar"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+
+		return nil
 	}
-	// amount, err := s.GetVirtualAccountTotalAmountByInquiryRequestId(ctx, payload.PaymentRequestID)
-	// if eris.Cause(err) == sql.ErrNoRows {
-	// 	obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
-	// 	inqueryReason.English = "Bill Not Found"
-	// 	inqueryReason.Indonesia = "Tagihan Tidak Ditemukan"
-	// 	obj.VirtualAccountData.PaymentFlagStatus = "01"
-	// 	obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-	// 	obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-	// 	obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-	// 	obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-	// 	// fmt.Println("disini 1")
-	// 	return &obj, eris.Wrap(err, "querying va_table")
-	// } else if err != nil {
-	// 	obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
-	// 	return &obj, eris.Wrap(err, "querying va_table")
-	// }
-	// This could be because the payment request ID is not found in the database
+
+	// TODO : I don't think this if clause is ever going to be executed since we have checked if the result is sql.ErrNoRows
 	if amountPaid == nil || amountTotal == nil {
 		slog.Debug("payment request ID not found in database")
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
-		inqueryReason.English = "Bill Not Found"
-		inqueryReason.Indonesia = "Tagihan Tidak Ditemukan"
-		obj.VirtualAccountData.PaymentFlagStatus = "01"
-		obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-		obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-		obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-		obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-		obj.VirtualAccountData.ReferenceNo = payload.ReferenceNo
-		obj.VirtualAccountData.TrxDateTime = payload.TrxDateTime
-		obj.VirtualAccountData.PaidAmount = biModels.Amount{}
-		obj.VirtualAccountData.TotalAmount = biModels.Amount{}
 
-		return &obj, nil
+		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
+		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+
+		return nil
 	} else {
 		if amountTotal.Value != payload.PaidAmount.Value {
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
-			inqueryReason.English = "Bill Not Found"
-			inqueryReason.Indonesia = "Tagihan Tidak Ditemukan"
-			obj.VirtualAccountData.PaymentFlagStatus = "01"
-			obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-			obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-			obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-			obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-			obj.VirtualAccountData.PaidAmount = biModels.Amount{}
-			obj.VirtualAccountData.TotalAmount = biModels.Amount{}
+			slog.Debug("paid amount is not equal to total amount")
 
-			return &obj, nil
+			response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
+			response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
+			response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
+			response.VirtualAccountData.PaymentFlagStatus = "01"
+
+			return nil
 		}
+
 		tx, err := s.DB.BeginTx(ctx, nil)
 		if err != nil {
 			slog.Debug("error beginning transaction", "error", err)
 			tx.Rollback()
 
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCABillInquiryResponseGeneralError.Data()
-			return &obj, eris.Wrap(err, "beginning transaction")
+			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+			response.AdditionalInfo = map[string]interface{}{}
+
+			return eris.Wrap(err, "beginning transaction")
 		}
 
 		statement := `
@@ -511,12 +439,15 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 		_, err = tx.ExecContext(ctx, statement, payload.PaidAmount.Value, payload.PaidAmount.Currency,
 			payload.PaymentRequestID)
 		if err != nil {
-			slog.Debug("error updating va_request", "error", err)
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
-			return &obj, eris.Wrap(err, "updating va_request")
+			slog.Error("error updating va_request", "error", eris.Cause(err))
+
+			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+			response.AdditionalInfo = map[string]interface{}{}
+
+			return eris.Wrap(err, "updating va_request")
 		}
 
-		obj.VirtualAccountData = &biModels.VirtualAccountDataInqury{}
 		statement = `
 		SELECT  partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
 				totalAmountCurrency
@@ -525,59 +456,50 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 		LIMIT 1
 		`
 		if err := tx.QueryRowContext(ctx, statement, payload.PaymentRequestID).Scan(
-			&obj.VirtualAccountData.PartnerServiceID,
-			&obj.VirtualAccountData.CustomerNo,
-			&obj.VirtualAccountData.VirtualAccountNo,
-			&obj.VirtualAccountData.VirtualAccountName,
-			&obj.VirtualAccountData.TotalAmount.Value,
-			&obj.VirtualAccountData.TotalAmount.Currency,
+			&response.VirtualAccountData.PartnerServiceID,
+			&response.VirtualAccountData.CustomerNo,
+			&response.VirtualAccountData.VirtualAccountNo,
+			&response.VirtualAccountData.VirtualAccountName,
+			&response.VirtualAccountData.TotalAmount.Value,
+			&response.VirtualAccountData.TotalAmount.Currency,
 		); err != nil {
-			slog.Debug("error querying va_request", "error", err)
-
 			if err == sql.ErrNoRows {
-				obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
-				inqueryReason.English = "Bill Not Found"
-				inqueryReason.Indonesia = "Tagihan Tidak Ditemukan"
-				obj.VirtualAccountData.PaymentFlagStatus = "01"
-				obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-				obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-				obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-				obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
-				obj.VirtualAccountData.PaidAmount = biModels.Amount{}
-				obj.VirtualAccountData.TotalAmount = biModels.Amount{}
-				return &obj, nil
+				response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
+				response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
+				response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
+				response.VirtualAccountData.PaymentFlagStatus = "01"
+
+				return nil
 			} else {
-				obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
-				return &obj, eris.Wrap(err, "querying va_request")
+				slog.Error("error querying va_request", "error", eris.Cause(err))
+
+				response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+				response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+				response.AdditionalInfo = map[string]interface{}{}
+
+				return eris.Wrap(err, "querying va_request")
 			}
 		}
-		obj.VirtualAccountData.FlagAdvise = "N"
-		obj.VirtualAccountData.ReferenceNo = payload.ReferenceNo
-		obj.VirtualAccountData.CustomerNo = payload.CustomerNo
-		obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
-		obj.VirtualAccountData.TrxDateTime = payload.TrxDateTime
-		obj.VirtualAccountData.PaidAmount = payload.PaidAmount
-		obj.VirtualAccountData.TotalAmount = payload.TotalAmount
-		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseSuccess.Data()
-		obj.VirtualAccountData.PaidAmount.Value = payload.PaidAmount.Value
-		obj.VirtualAccountData.PaidAmount.Currency = payload.PaidAmount.Currency
-		obj.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
-		obj.VirtualAccountData.PaymentFlagStatus = "00"
-		inqueryReason.Indonesia = "Sukses"
-		inqueryReason.English = "Success"
-		obj.VirtualAccountData.PaymentFlagReason = inqueryReason
-		obj.VirtualAccountData.BillDetails = []biModels.BillDetail{}
-		obj.VirtualAccountData.FreeTexts = []biModels.FreeText{}
-		obj.AdditionalInfo = map[string]interface{}{}
+		response.BCAResponse = bca.BCAPaymentFlagResponseSuccess
+		response.VirtualAccountData.PaymentFlagReason.English = "Success"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Sukses"
+
+		response.VirtualAccountData.PaidAmount = payload.PaidAmount
+		response.VirtualAccountData.TotalAmount = payload.TotalAmount
+		response.VirtualAccountData.PaymentFlagStatus = "00"
+
 		if err = tx.Commit(); err != nil {
-			slog.Debug("bill presentment", "error committing transaction", err)
+			slog.Debug("InquiryVACore", "error committing transaction", eris.Cause(err))
 			tx.Rollback()
 
-			obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
-			return &obj, eris.Wrap(err, "committing transaction")
+			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+			response.AdditionalInfo = map[string]interface{}{}
+
+			return eris.Wrap(err, "committing transaction")
 		}
 
-		return &obj, nil
+		return nil
 	}
 }
 
@@ -691,7 +613,7 @@ func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.C
 	return &amount, nil
 }
 
-func (s *BCAService) GetVirtualAccountPaidnTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, *biModels.Amount, error) {
+func (s *BCAService) GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, *biModels.Amount, error) {
 	var amountPaid biModels.Amount
 	var amountTotal biModels.Amount
 	query := `
@@ -761,63 +683,157 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 	return &bca.BCABillInquiryResponseSuccess, nil
 }
 
-func (s *BCAService) VerifyAdditionalInquiryVARequiredHeader(ctx context.Context, request *http.Request) (*biModels.BCAResponse, error) {
+func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biModels.BCAInquiryVAResponse, error) {
 
-	// For bill presentment, we need to verify the header
-	// 1. channel id
-	// 2. partner id
+	var response biModels.BCAInquiryVAResponse
 
-	// Parse the request header
-	channelID := request.Header.Get("CHANNEL-ID")
-	partnerID := request.Header.Get("X-PARTNER-ID")
-	externalID := request.Header.Get("X-EXTERNAL-ID")
+	// Validate Channel ID
+	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.Config.BCAConfig.ChannelID {
 
-	if channelID == "" {
-		response := bca.BCAPaymentFlagResponseMissingMandatoryField
-		response.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
+		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
 
-		return &response, nil
-	}
-	if channelID != s.Config.BCAConfig.ChannelID {
-		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
-		return &response, nil
-	}
-
-	if partnerID == "" {
-		response := bca.BCAPaymentFlagResponseMissingMandatoryField
-		response.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
-
-		return &response, nil
-	}
-	if partnerID != s.Config.BCAPartnerInformation.BCAPartnerId {
-		response := bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
+		if request.Header.Get("CHANNEL-ID") == "" {
+			response.BCAResponse = bca.BCAPaymentFlagResponseMissingMandatoryField
+			response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
+		}
 
 		return &response, nil
 	}
 
-	// Validate that X-EXTERNAL-ID and paymentRequestId is not the same
+	// Validate Partner ID
+	if request.Header.Get("X-PARTNER-ID") == "" || request.Header.Get("X-PARTNER-ID") != s.Config.BCAPartnerInformation.BCAPartnerId {
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
+
+		if request.Header.Get("X-PARTNER-ID") == "" {
+			response := bca.BCAPaymentFlagResponseMissingMandatoryField
+			response.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
+		}
+
+		return &response, nil
+	}
+
+	// Parse the Request Body
 	bodyBytes, err := io.ReadAll(request.Body)
 	if err != nil {
 		slog.Debug("error reading request body", "error", err)
-		return &bca.BCABillInquiryResponseRequestParseError, nil
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseRequestParseError
+
+		return &response, nil
 	}
 	defer request.Body.Close()
-
-	// Set the body back to the original state
-	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	var payload biModels.BCAInquiryRequest
 	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
 		slog.Debug("error un-marshaling request body", "error", err)
 
-		return &bca.BCAPaymentFlagResponseRequestParseError, nil
+		response.BCAResponse = bca.BCAPaymentFlagResponseRequestParseError
+
+		return &response, nil
 	}
 
-	if externalID == payload.PaymentRequestID {
-		slog.Debug("external id and payment request id are the same, inconsistent request")
+	// Set the default value of response
+	response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+	response.AdditionalInfo = map[string]interface{}{}
 
-		return &bca.BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID, nil
+	// Validate X-EXTERNAL-ID and paymentRequestID is not already stored in redis
+	key := request.Header.Get("X-EXTERNAL-ID") + ":" + payload.PaymentRequestID
+	val, err := s.RDB.RDB.HGetAll(ctx, key).Result()
+	if err == nil && len(val) > 0 {
+		// Meaning that a system error has occurred at BCA side causing double flagging request with the same X-EXTERNAL-ID and paymentRequestId
+		uncompressedResponse, err := biUtil.DecompressData([]byte(val["response"]))
+		if err != nil {
+			slog.Error("error decompressing response", "error", err)
+			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+
+			return &response, nil
+		}
+
+		var storedResponse biModels.BCAInquiryVAResponse
+		if err := json.Unmarshal(uncompressedResponse, &storedResponse); err == nil {
+			slog.Error("error unmarshalling stored response", "error", err)
+			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+
+			return &response, nil
+		}
+
+		response.VirtualAccountData = storedResponse.VirtualAccountData
+		response.BCAResponse = bca.BCAPaymentFlagResponseDuplicateExternalIDAndPaymentRequestID
+
+		return &response, nil
+	} else if err != nil && err != redis.Nil {
+		slog.Error("error checking X-EXTERNAL-ID and paymentRequestID in redis", "error", err)
+		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+
+		return &response, nil
 	}
 
-	return &bca.BCAPaymentFlagResponseSuccess, nil
+	// Validate Auth related header
+	result, authResponse := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
+	if authResponse != nil {
+		slog.Error("verifying symmetric signature failed", "response", authResponse)
+
+		response.BCAResponse = *authResponse
+		response.BCAResponse.ResponseCode = (response.BCAResponse.ResponseCode)[:3] + "25" + (response.BCAResponse.ResponseCode)[5:]
+		response.VirtualAccountData = nil
+
+		return &response, nil
+	}
+
+	if !result {
+		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedSignature
+		response.VirtualAccountData = nil
+
+		return &response, nil
+	}
+
+	// Populate the default value
+	response.VirtualAccountData = &biModels.VirtualAccountDataInquiry{
+		BillDetails:       []biModels.BillDetail{},
+		FreeTexts:         []biModels.FreeText{},
+		PaymentRequestID:  payload.PaymentRequestID,
+		ReferenceNo:       payload.ReferenceNo,
+		CustomerNo:        payload.CustomerNo,
+		VirtualAccountNo:  payload.VirtualAccountNo,
+		TrxDateTime:       payload.TrxDateTime,
+		PartnerServiceID:  payload.PartnerServiceID,
+		PaidAmount:        biModels.Amount{},
+		TotalAmount:       biModels.Amount{},
+		PaymentFlagReason: biModels.Reason{},
+		FlagAdvise:        "N",
+	}
+
+	// Call the core function
+	if err = s.InquiryVACore(ctx, &response, &payload); err != nil {
+		slog.Error("error in InquiryVACore", "error", err)
+
+		return &response, nil
+	}
+
+	// Save the response to redis along with the key consisting of X-EXTERNAL-ID and paymentRequestId
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		slog.Error("error marshalling response", "error", err)
+		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+
+		return &response, nil
+	}
+
+	compressedResponse, err := biUtil.CompressData(responseBytes)
+	if err != nil {
+		slog.Error("error compressing response", "error", err)
+		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+
+		return &response, nil
+	}
+
+	if err := s.RDB.RDB.HSet(ctx, key, "response", string(compressedResponse)).Err(); err != nil {
+		slog.Error("error saving response to redis", "error", err)
+		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
+
+		return &response, nil
+	}
+
+	return &response, nil
 }

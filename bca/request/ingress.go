@@ -1,10 +1,8 @@
 package bca_request
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -98,7 +96,7 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	return result, nil, clientSecret
 }
 
-func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance) (bool, *biModels.BCAResponse) {
+func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance, payload []byte) (bool, *biModels.BCAResponse) {
 
 	var obj biModels.SymmetricSignatureRequirement
 
@@ -194,14 +192,7 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 	obj.HTTPMethod = request.Method
 	obj.RelativeURL = request.URL.Path
 
-	// Read the body and convert to string
-	bodyBytes, err := io.ReadAll(request.Body)
-	if err != nil {
-		return false, &bca.BCAAuthGeneralError
-	}
-	request.Body.Close()                                    // Close the body to prevent resource leaks
-	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Reset the body for further use
-	obj.RequestBody = bodyBytes
+	obj.RequestBody = payload
 
 	result, err := s.Security.VerifySymmetricSignature(ctx, &obj, clientSecret, signature)
 	if err != nil {

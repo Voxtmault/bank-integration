@@ -55,7 +55,7 @@ func TestVerifySymmetricSignature(t *testing.T) {
 	mockRequest.Header.Set("X-SIGNATURE", "gymKBa1U4RQ8SN5pG02XmdKrXhKBAGy6Dkzxl+NLQ5xcCMADP/KtL9P48eE+lx0hHGliVzxqad/crjPOcOE8PQ==")
 	mockRequest.Header.Set("X-EXTERNAL-ID", "456763236123")
 
-	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance())
+	result, response := ingress.VerifySymmetricSignature(context.Background(), mockRequest, biStorage.GetRedisInstance(), []byte(body))
 	if response != nil {
 		t.Errorf("Error verifying symmetric signature: %v", response)
 	}
