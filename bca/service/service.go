@@ -413,8 +413,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 	obj.VirtualAccountData.CustomerNo = payload.CustomerNo
 	obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
 	obj.VirtualAccountData.TrxDateTime = payload.TrxDateTime
-	obj.VirtualAccountData.PaidAmount = payload.PaidAmount
-	obj.VirtualAccountData.TotalAmount = payload.TotalAmount
+	obj.VirtualAccountData.PaidAmount = biModels.Amount{}
+	obj.VirtualAccountData.TotalAmount = biModels.Amount{}
 	amountPaid, amountTotal, err := s.GetVirtualAccountPaidnTotalAmountByInquiryRequestId(ctx, payload.PaymentRequestID)
 	if eris.Cause(err) == sql.ErrNoRows {
 		obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseVANotFound.Data()
@@ -472,6 +472,10 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 		obj.VirtualAccountData.CustomerNo = payload.CustomerNo
 		obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
 		obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+		obj.VirtualAccountData.ReferenceNo = payload.ReferenceNo
+		obj.VirtualAccountData.TrxDateTime = payload.TrxDateTime
+		obj.VirtualAccountData.PaidAmount = biModels.Amount{}
+		obj.VirtualAccountData.TotalAmount = biModels.Amount{}
 
 		return &obj, nil
 	} else {
@@ -484,6 +488,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 			obj.VirtualAccountData.CustomerNo = payload.CustomerNo
 			obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
 			obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+			obj.VirtualAccountData.PaidAmount = biModels.Amount{}
+			obj.VirtualAccountData.TotalAmount = biModels.Amount{}
 
 			return &obj, nil
 		}
@@ -537,6 +543,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, data []byte) (*biModels.BCAI
 				obj.VirtualAccountData.CustomerNo = payload.CustomerNo
 				obj.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
 				obj.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+				obj.VirtualAccountData.PaidAmount = biModels.Amount{}
+				obj.VirtualAccountData.TotalAmount = biModels.Amount{}
 				return &obj, nil
 			} else {
 				obj.HTTPStatusCode, obj.ResponseCode, obj.ResponseMessage = bca.BCAPaymentFlagResponseGeneralError.Data()
