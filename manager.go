@@ -96,13 +96,11 @@ func clearList(ctx context.Context, rdb *biStorage.RedisInstance, pattern string
 			return err
 		}
 
-		// if len(keys) > 0 {
-		// 	if err := rdb.RDB.Del(ctx, keys...).Err(); err != nil {
-		// 		return err
-		// 	}
-		// }
-
-		slog.Debug("keys", "value", keys)
+		if len(keys) > 0 {
+			if err := rdb.RDB.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
 
 		cursor = nextCursor
 		if cursor == 0 {
