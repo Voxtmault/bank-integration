@@ -188,7 +188,7 @@ type VABCAResponseData struct {
 	SubCompany            string                 `json:"subCompany"`                             // Sub company code (optional)
 	BillDetails           []BillInfo             `json:"billDetails"`                            // Bill details (optional for multi-settlement)
 	FreeTexts             []FreeText             `json:"freeTexts"`                              // Optional free text displayed in channel
-	FeeAmount             Amount                 `json:"feeAmaount"`
+	FeeAmount             *Amount                `json:"feeAmaount"`
 	VirtualAccountTrxType string                 `json:"virtualAccountTrxType"` // Type of virtual account (optional)
 	AdditionalInfo        map[string]interface{} `json:"additionalInfo"`        // Optional additional information
 }
