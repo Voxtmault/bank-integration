@@ -111,3 +111,12 @@ func clearList(ctx context.Context, rdb *biStorage.RedisInstance, pattern string
 	}
 	return nil
 }
+
+func CloseBankAPI() {
+	if err := biStorage.Close(); err != nil {
+		slog.Error("failed to close storage connections", "reason", err)
+	}
+	if err := biStorage.GetRedisInstance().CloseRedis(); err != nil {
+		slog.Error("failed to close redis connection", "reason", err)
+	}
+}

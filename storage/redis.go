@@ -58,11 +58,15 @@ func GetRedisInstance() *RedisInstance {
 }
 
 func (r *RedisInstance) CloseRedis() error {
-	if err := r.RDB.Close(); err != nil {
-		return eris.Wrap(err, "Closing redis connection")
+	if redisInstance.RDB != nil {
+		if err := r.RDB.Close(); err != nil {
+			return eris.Wrap(err, "Closing redis connection")
+		}
+		return nil
+	} else {
+		slog.Info("Redis connection is already closed or is not opened in the first place")
+		return nil
 	}
-
-	return nil
 }
 
 func (r *RedisInstance) SaveToRedis(ctx context.Context, key string, value interface{}, exp time.Duration) error {
