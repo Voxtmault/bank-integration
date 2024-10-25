@@ -74,8 +74,7 @@ type SNAP interface {
 	// Used to get the information regarding the account balance and other informations.
 	BalanceInquiry(ctx context.Context, payload *biModel.BCABalanceInquiry) (*biModel.BCAAccountBalance, error)
 
-	BillPresentment(ctx context.Context, data []byte) (*biModel.VAResponsePayload, error)
-	VerifyAdditionalBillPresentmentRequiredHeader(ctx context.Context, request *http.Request) (*biModel.BCAResponse, error)
+	BillPresentment(ctx context.Context, request *http.Request) (*biModel.VAResponsePayload, error)
 
 	InquiryVA(ctx context.Context, request *http.Request) (*biModel.BCAInquiryVAResponse, error)
 
