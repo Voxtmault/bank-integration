@@ -306,7 +306,7 @@ type Reason struct {
 type BCAInquiryVAResponse struct {
 	BCAResponse
 	VirtualAccountData *VirtualAccountDataInquiry `json:"virtualAccountData,omitempty"` // Data related to virtual account
-	AdditionalInfo     map[string]interface{}     `json:"additionalInfo,omitempty"`     // Additional information (optional)
+	AdditionalInfo     map[string]interface{}     `json:"additionalInfo"`               // Additional information (optional)
 }
 
 type VirtualAccountDataInquiry struct {
