@@ -592,9 +592,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 			}
 
 			if err := s.InquiryVACore(ctx, &temp, &payload); err != nil {
-				slog.Error("error in InquiryVACore", "error", err)
-
-				return &response, nil
+				slog.Error("error in InquiryVACore", "error", eris.Cause(err))
 			}
 
 			// Adjust the returned message
@@ -680,10 +678,12 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	amountPaid, amountTotal, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, strings.ReplaceAll(payload.VirtualAccountNo, " ", ""))
 	if eris.Cause(err) == sql.ErrNoRows {
 		slog.Debug("va not found in database")
+
 		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
+
 		return eris.Wrap(err, "va not found")
 	} else if err != nil {
 		slog.Error("error getting virtual account paid amount by inquiry request id", "error", eris.Cause(err))
