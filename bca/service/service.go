@@ -277,6 +277,16 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		return &response, nil
 	}
 
+	// Validate External ID
+	if request.Header.Get("X-EXTERNAL-ID") == "" {
+		slog.Debug("externalId is empty")
+
+		response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
+		response.ResponseMessage = response.ResponseMessage + " [X-EXTERNAL-ID]"
+
+		return &response, nil
+	}
+
 	// Parse the Request Body
 	bodyBytes, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -307,39 +317,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 
 		response.BCAResponse = *authResponse
 		response.BCAResponse.ResponseCode = (response.BCAResponse.ResponseCode)[:3] + "24" + (response.BCAResponse.ResponseCode)[5:]
-		if response.BCAResponse.HTTPStatusCode == http.StatusConflict {
-			// This happens if the X-EXTERNAL-ID is not unique
-			// For this case, we will still call the core function to get the default response
-			var temp biModels.VAResponsePayload
-			temp.VirtualAccountData = &biModels.VABCAResponseData{
-				BillDetails:           []biModels.BillInfo{},
-				FreeTexts:             []biModels.FreeText{},
-				InquiryReason:         biModels.InquiryReason{},
-				SubCompany:            "00000",
-				VirtualAccountTrxType: "C",
-				CustomerNo:            payload.CustomerNo,
-				VirtualAccountNo:      payload.VirtualAccountNo,
-				PartnerServiceID:      payload.PartnerServiceID,
-				InquiryRequestID:      payload.InquiryRequestID,
-				InquiryStatus:         "01", // Default to failure
-				TotalAmount:           biModels.Amount{},
-				AdditionalInfo:        map[string]interface{}{},
-			}
-
-			if err := s.BillPresentmentCore(ctx, &temp, &payload); err != nil {
-				slog.Error("error in BillPresentmentCore", "error", err)
-				response.VirtualAccountData = nil
-
-				return &response, nil
-			}
-
-			// Adjust the returned message
-			response.VirtualAccountData = temp.VirtualAccountData
-			response.VirtualAccountData.InquiryReason.English = "Cannot use the same X-EXTERNAL-ID"
-			response.VirtualAccountData.InquiryReason.Indonesia = "Tidak bisa menggunakan X-EXTERNAL-ID yang sama"
-
-			return &response, nil
-		} else if response.BCAResponse.HTTPStatusCode == http.StatusInternalServerError {
+		if response.BCAResponse.HTTPStatusCode == http.StatusInternalServerError {
 			response.VirtualAccountData = biModels.VABCAResponseData{}.Default()
 		} else {
 			response.VirtualAccountData = nil
@@ -351,6 +329,21 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	if !result {
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedSignature
 		response.VirtualAccountData = nil
+
+		return &response, nil
+	}
+
+	// Validate unique external id if the request is consistent
+	externalUnique, err := s.Ingress.ValidateUniqueExternalID(ctx, s.RDB, request.Header.Get("X-EXTERNAL-ID"))
+	if err != nil {
+		slog.Debug("error validating externalId", "error", err)
+
+		if eris.Cause(err).Error() == "invalid field format" {
+			response.BCAResponse = bca.BCABillInquiryResponseInvalidFieldFormat
+			response.ResponseMessage = "Invalid Field Format [X-EXTERNAL-ID]"
+		} else {
+			response.BCAResponse = bca.BCABillInquiryResponseGeneralError
+		}
 
 		return &response, nil
 	}
@@ -376,6 +369,14 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		slog.Error("error in BillPresentmentCore", "error", err)
 
 		return &response, nil
+	}
+
+	if !externalUnique {
+		slog.Debug("externalId is not unique")
+
+		response.BCAResponse = bca.BCABillInquiryResponseDuplicateExternalID
+		response.VirtualAccountData.InquiryReason.English = "Cannot use the same X-EXTERNAL-ID"
+		response.VirtualAccountData.InquiryReason.Indonesia = "Tidak bisa menggunakan X-EXTERNAL-ID yang sama"
 	}
 
 	return &response, nil
@@ -501,6 +502,16 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		return &response, nil
 	}
 
+	// Validate External ID
+	if request.Header.Get("X-EXTERNAL-ID") == "" {
+		slog.Debug("externalId is empty")
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseMissingMandatoryField
+		response.ResponseMessage = response.ResponseMessage + " [X-EXTERNAL-ID]"
+
+		return &response, nil
+	}
+
 	// Parse the Request Body
 	bodyBytes, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -517,6 +528,30 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		slog.Debug("error un-marshaling request body", "error", err)
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseRequestParseError
+
+		return &response, nil
+	}
+
+	// Validate Auth related header
+	result, authResponse := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
+	if authResponse != nil {
+		slog.Error("verifying symmetric signature failed", "response", authResponse)
+
+		response.BCAResponse = *authResponse
+		response.BCAResponse.ResponseCode = (response.BCAResponse.ResponseCode)[:3] + "25" + (response.BCAResponse.ResponseCode)[5:]
+		if response.BCAResponse.HTTPStatusCode == http.StatusInternalServerError {
+			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+			response.AdditionalInfo = map[string]interface{}{}
+		} else {
+			response.VirtualAccountData = nil
+		}
+
+		return &response, nil
+	}
+
+	if !result {
+		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedSignature
+		response.VirtualAccountData = nil
 
 		return &response, nil
 	}
@@ -564,57 +599,17 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		return &response, nil
 	}
 
-	// Validate Auth related header, this function will also be validating for duplicate X-EXTERNAL-ID
-	result, authResponse := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
-	if authResponse != nil {
-		slog.Error("verifying symmetric signature failed", "response", authResponse)
+	// Validate unique external id if the request is consistent
+	externalUnique, err := s.Ingress.ValidateUniqueExternalID(ctx, s.RDB, request.Header.Get("X-EXTERNAL-ID"))
+	if err != nil {
+		slog.Debug("error validating externalId", "error", err)
 
-		response.BCAResponse = *authResponse
-		response.BCAResponse.ResponseCode = (response.BCAResponse.ResponseCode)[:3] + "25" + (response.BCAResponse.ResponseCode)[5:]
-		if response.BCAResponse.HTTPStatusCode == http.StatusConflict {
-			// This happens if the X-EXTERNAL-ID is not unique
-			// For this case, we will still call the core function to get the default response
-			var temp biModels.BCAInquiryVAResponse
-			temp.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
-			temp.AdditionalInfo = map[string]interface{}{}
-			temp.VirtualAccountData = &biModels.VirtualAccountDataInquiry{
-				BillDetails:       []biModels.BillDetail{},
-				FreeTexts:         []biModels.FreeText{},
-				PaymentRequestID:  payload.PaymentRequestID,
-				ReferenceNo:       payload.ReferenceNo,
-				CustomerNo:        payload.CustomerNo,
-				VirtualAccountNo:  payload.VirtualAccountNo,
-				TrxDateTime:       payload.TrxDateTime,
-				PartnerServiceID:  payload.PartnerServiceID,
-				PaidAmount:        biModels.Amount{},
-				TotalAmount:       biModels.Amount{},
-				PaymentFlagReason: biModels.Reason{},
-				FlagAdvise:        "N",
-			}
-
-			if err := s.InquiryVACore(ctx, &temp, &payload); err != nil {
-				slog.Error("error in InquiryVACore", "error", eris.Cause(err))
-			}
-
-			// Adjust the returned message
-			response.VirtualAccountData = temp.VirtualAccountData
-			response.VirtualAccountData.PaymentFlagReason.English = "Cannot use the same X-EXTERNAL-ID"
-			response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tidak bisa menggunakan X-EXTERNAL-ID yang sama"
-
-			return &response, nil
-		} else if response.BCAResponse.HTTPStatusCode == http.StatusInternalServerError {
-			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
-			response.AdditionalInfo = map[string]interface{}{}
+		if eris.Cause(err).Error() == "invalid field format" {
+			response.BCAResponse = bca.BCAPaymentFlagResponseInvalidFieldFormat
+			response.ResponseMessage = "Invalid Field Format [X-EXTERNAL-ID]"
 		} else {
-			response.VirtualAccountData = nil
+			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 		}
-
-		return &response, nil
-	}
-
-	if !result {
-		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedSignature
-		response.VirtualAccountData = nil
 
 		return &response, nil
 	}
@@ -669,6 +664,14 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		response.AdditionalInfo = map[string]interface{}{}
 
 		return &response, nil
+	}
+
+	if !externalUnique {
+		slog.Debug("externalId is not unique")
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseDuplicateExternalID
+		response.VirtualAccountData.PaymentFlagReason.English = "Cannot use the same X-EXTERNAL-ID"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tidak bisa menggunakan X-EXTERNAL-ID yang sama"
 	}
 
 	return &response, nil

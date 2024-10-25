@@ -41,6 +41,8 @@ type RequestIngress interface {
 	VerifySymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance, payload []byte) (bool, *biModel.BCAResponse)
 
 	ValidateAccessToken(ctx context.Context, redis *biStorage.RedisInstance, accessToken string) (string, error)
+
+	ValidateUniqueExternalID(ctx context.Context, rdb *biStorage.RedisInstance, externalId string) (bool, error)
 }
 
 type Security interface {

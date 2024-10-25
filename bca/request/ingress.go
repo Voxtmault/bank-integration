@@ -100,35 +100,6 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 
 	var obj biModels.SymmetricSignatureRequirement
 
-	// Validate External ID
-	if request.Header.Get("X-EXTERNAL-ID") == "" {
-		slog.Debug("externalId is empty")
-
-		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[X-EXTERNAL-ID]"
-
-		return false, &response
-	}
-
-	externalUnique, err := s.ValidateUniqueExternalID(ctx, redis, request.Header.Get("X-EXTERNAL-ID"))
-	if err != nil {
-		slog.Debug("error validating externalId", "error", err)
-
-		if eris.Cause(err).Error() == "invalid field format" {
-			response := bca.BCAAuthInvalidFieldFormatClient
-
-			response.ResponseMessage = "Invalid Field Format [X-EXTERNAL-ID]"
-			return false, &response
-		}
-
-		return false, &bca.BCAAuthGeneralError
-	}
-
-	if !externalUnique {
-		slog.Debug("externalId is not unique")
-		return false, &bca.BCAAuthConflict
-	}
-
 	// Parse the request header
 	obj.Timestamp = request.Header.Get("X-TIMESTAMP")
 	obj.AccessToken = request.Header.Get("Authorization")
@@ -139,21 +110,21 @@ func (s *BCAIngress) VerifySymmetricSignature(ctx context.Context, request *http
 		slog.Debug("timeStamp is empty")
 
 		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[X-TIMESTAMP]"
+		response.ResponseMessage = response.ResponseMessage + " [X-TIMESTAMP]"
 
 		return false, &response
 	} else if obj.AccessToken == "" {
 		slog.Debug("accessToken is empty")
 
 		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[Authorization]"
+		response.ResponseMessage = response.ResponseMessage + " [Authorization]"
 
 		return false, &response
 	} else if signature == "" {
 		slog.Debug("signature is empty")
 
 		response := bca.BCAAUthInvalidMandatoryField
-		response.ResponseMessage = response.ResponseMessage + "[X-SIGNATURE]"
+		response.ResponseMessage = response.ResponseMessage + " [X-SIGNATURE]"
 
 		return false, &response
 	}
