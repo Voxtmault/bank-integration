@@ -344,6 +344,11 @@ func (r VirtualAccountDataInquiry) Default() *VirtualAccountDataInquiry {
 	return data
 }
 
+type AdditionalInfo struct {
+	Label Reason `json:"label"` // Label for additional information
+	Value Reason `json:"value"` // Value for additional information
+}
+
 type CreateVAReq struct {
 	IdUser           int    `json:"id_user"`
 	NamaUser         string `json:"nama_user"`

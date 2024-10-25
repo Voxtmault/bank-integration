@@ -527,10 +527,10 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 
 	// Validate X-EXTERNAL-ID and paymentRequestID is not already stored in redis
 	key := request.Header.Get("X-EXTERNAL-ID") + ":" + payload.PaymentRequestID
-	val, err := s.RDB.RDB.HGetAll(ctx, key).Result()
+	val, err := s.RDB.RDB.Get(ctx, key).Result()
 	if err == nil && len(val) > 0 {
 		// Meaning that a system error has occurred at BCA side causing double flagging request with the same X-EXTERNAL-ID and paymentRequestId
-		uncompressedResponse, err := biUtil.DecompressData([]byte(val["response"]))
+		uncompressedResponse, err := biUtil.DecompressData([]byte(val))
 		if err != nil {
 			slog.Error("error decompressing response", "error", err)
 			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
@@ -541,8 +541,9 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		}
 
 		var storedResponse biModels.BCAInquiryVAResponse
-		if err := json.Unmarshal(uncompressedResponse, &storedResponse); err == nil {
+		if err := json.Unmarshal(uncompressedResponse, &storedResponse); err != nil {
 			slog.Error("error unmarshalling stored response", "error", err)
+
 			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
 			response.AdditionalInfo = map[string]interface{}{}
@@ -636,7 +637,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 
 	// Call the core function
 	if err = s.InquiryVACore(ctx, &response, &payload); err != nil {
-		slog.Error("error in InquiryVACore", "error", err)
+		slog.Error("error in InquiryVACore", "error", eris.Cause(err))
 	}
 
 	// Save the response to redis along with the key consisting of X-EXTERNAL-ID and paymentRequestId
@@ -660,7 +661,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		return &response, nil
 	}
 
-	if err := s.RDB.RDB.HSet(ctx, key, "response", string(compressedResponse)).Err(); err != nil {
+	if err := s.RDB.RDB.Set(ctx, key, string(compressedResponse), 0).Err(); err != nil {
 		slog.Error("error saving response to redis", "error", err)
 		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
@@ -729,6 +730,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		payload.PaymentRequestID)
 	if err != nil {
 		slog.Error("error updating va_request", "error", eris.Cause(err))
+		tx.Rollback()
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
@@ -753,6 +755,10 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		&response.VirtualAccountData.TotalAmount.Currency,
 	); err != nil {
 		if err == sql.ErrNoRows {
+
+			// TODO : Decide if rollback in this step is necessary or not
+			// tx.Rollback()
+
 			response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 			response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
 			response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
@@ -761,6 +767,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 			return nil
 		} else {
 			slog.Error("error querying va_request", "error", eris.Cause(err))
+			tx.Rollback()
 
 			response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
@@ -769,6 +776,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 			return eris.Wrap(err, "querying va_request")
 		}
 	}
+
 	response.BCAResponse = bca.BCAPaymentFlagResponseSuccess
 	response.VirtualAccountData.PaymentFlagReason.English = "Success"
 	response.VirtualAccountData.PaymentFlagReason.Indonesia = "Sukses"

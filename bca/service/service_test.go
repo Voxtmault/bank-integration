@@ -142,6 +142,53 @@ func TestBillPresentmentCore(t *testing.T) {
 	fmt.Println(string(result))
 }
 
+func TestInquiryVa(t *testing.T) {
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	body := `{"partnerServiceId":"   15335","customerNo":"123456789","virtualAccountNo":"   15335123456789","virtualAccountName":"","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"2024102423434554754","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"0.00","currency":""},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"0.00","currency":""},"trxDateTime":"2024-10-24T16:46:00+07:00","referenceNo":"43455475401","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
+
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
+	if err != nil {
+		t.Errorf("Error creating mock request: %v", err)
+	}
+
+	mockRequest.Header.Set("Content-Type", "application/json")
+	mockRequest.Header.Set("X-PARTNER-ID", cfg.BCAPartnerInformation.BCAPartnerId)
+	mockRequest.Header.Set("CHANNEL-ID", cfg.BCAConfig.ChannelID)
+	mockRequest.Header.Set("X-EXTERNAL-ID", "24334557246236")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-24T16:46:21+07:00")
+	mockRequest.Header.Set("Authorization", "Bearer wInBc11t6Ai3IhZabJXLUaqcrbi3kjwJ2MkcVcuR7jAyvXM0cCsPd4JCHkS0gHjV")
+	mockRequest.Header.Set("X-SIGNATURE", "BIFziF7AZwWf6f9Yg9uF0fmfX7VftJ4Vo/5+nA94NQJGPiGfhe0FuxjAMeSgWsVhG5RUXeSImJz98834KSGbuA==")
+
+	data, err := service.InquiryVA(context.Background(), mockRequest)
+	if err != nil {
+		t.Errorf("Error getting access token: %v", err)
+	}
+
+	result, _ := json.Marshal(data)
+	fmt.Println(string(result))
+
+}
+
 func TestInquiryVACore(t *testing.T) {
 	cfg := biConfig.New(envPath)
 	biUtil.InitValidator()
