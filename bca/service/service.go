@@ -637,8 +637,6 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	// Call the core function
 	if err = s.InquiryVACore(ctx, &response, &payload); err != nil {
 		slog.Error("error in InquiryVACore", "error", err)
-
-		return &response, nil
 	}
 
 	// Save the response to redis along with the key consisting of X-EXTERNAL-ID and paymentRequestId
