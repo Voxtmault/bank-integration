@@ -170,7 +170,7 @@ type Amount struct {
 }
 
 type VAResponsePayload struct {
-	*BCAResponse
+	BCAResponse
 	VirtualAccountData *VABCAResponseData `json:"virtualAccountData,omitempty"` // Virtual account data object
 }
 
@@ -193,6 +193,19 @@ type VABCAResponseData struct {
 	AdditionalInfo        map[string]interface{} `json:"additionalInfo"`        // Optional additional information
 }
 
+func (r VABCAResponseData) Default() *VABCAResponseData {
+	data := &VABCAResponseData{
+		InquiryReason:  InquiryReason{},
+		BillDetails:    []BillInfo{},
+		FreeTexts:      []FreeText{},
+		TotalAmount:    Amount{},
+		FeeAmount:      &Amount{},
+		AdditionalInfo: map[string]interface{}{},
+	}
+
+	return data
+}
+
 type InquiryReason struct {
 	English   string `json:"english"`   // Reason in English
 	Indonesia string `json:"indonesia"` // Reason in Indonesian
@@ -204,11 +217,11 @@ type BillDetail struct {
 	BillName        string                 `json:"billName"`        // Bill name
 	BillShortName   string                 `json:"billShortName"`   // Short bill name
 	BillDescription BillDescription        `json:"billDescription"` // Bill description
-	BillAmount      Amount                 `json:"billAmount"`      // Amount for each bill
 	BillSubCompany  string                 `json:"billSubCompany"`  // Bill sub company code (optional)
+	BillAmount      Amount                 `json:"billAmount"`      // Amount for each bill
 	BillStatus      string                 `json:"status"`
-	AdditionalInfo  map[string]interface{} `json:"additionalInfo"`
 	Reason          Reason                 `json:"reason"`
+	AdditionalInfo  map[string]interface{} `json:"additionalInfo"`
 }
 type BillInfo struct {
 	BillCode        string                 `json:"billCode"`        // Kode tagihan, opsional

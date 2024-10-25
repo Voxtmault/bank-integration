@@ -93,26 +93,51 @@ func TestBalanceInquiryUnmarshal(t *testing.T) {
 	log.Printf("%+v\n", obj)
 }
 
-func TestBillPresentment(t *testing.T) {
+func TestBillPresentmentCore(t *testing.T) {
 	cfg := biConfig.New(envPath)
 	biUtil.InitValidator()
 	biStorage.InitMariaDB(&cfg.MariaConfig)
+
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	} else {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
+
 	s := BCAService{DB: biStorage.GetDBConnection()}
 	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-24T11:31:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241024568326673"}`
 
-	res, err := s.BillPresentment(context.Background(), []byte(bodyReq))
+	var payload biModels.BCAVARequestPayload
+	if err := json.Unmarshal([]byte(bodyReq), &payload); err != nil {
+		t.Errorf("Error unmarshalling: %v", err)
+	}
+
+	var response biModels.VAResponsePayload
+	response.VirtualAccountData = &biModels.VABCAResponseData{
+		BillDetails:           []biModels.BillInfo{},
+		FreeTexts:             []biModels.FreeText{},
+		InquiryReason:         biModels.InquiryReason{},
+		SubCompany:            "00000",
+		VirtualAccountTrxType: "C",
+		CustomerNo:            payload.CustomerNo,
+		VirtualAccountNo:      payload.VirtualAccountNo,
+		PartnerServiceID:      payload.PartnerServiceID,
+		InquiryRequestID:      payload.InquiryRequestID,
+		InquiryStatus:         "01", // Default to failure
+		TotalAmount:           biModels.Amount{},
+		AdditionalInfo:        map[string]interface{}{},
+	}
+
+	err := s.BillPresentmentCore(context.Background(), &response, &payload)
 	if err != nil {
 		t.Errorf("Error From function Bill: %v", err)
 	}
-	result, err := json.Marshal(res)
+
+	result, err := json.Marshal(response)
 	if err != nil {
 		t.Errorf("Error From Marshal: %v", err)
 	}
+
 	fmt.Println(string(result))
 }
 
