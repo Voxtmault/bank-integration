@@ -20,7 +20,8 @@ import (
 	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
-var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+// var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+var envPath = "../../.env"
 
 func TestGetAccessToken(t *testing.T) {
 	cfg := biConfig.New(envPath)
@@ -129,7 +130,7 @@ func TestInquiryVACore(t *testing.T) {
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
 
-	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789","virtualAccountNo":"   15335123456789","virtualAccountName":"","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"2024102423434554754","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"0.00","currency":""},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"0.00","currency":""},"trxDateTime":"2024-10-24T16:46:00+07:00","referenceNo":"43455475401","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Testing VA","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"20241025354356483245","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-25T08:32:00+07:00","referenceNo":"35648324501","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
 	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
