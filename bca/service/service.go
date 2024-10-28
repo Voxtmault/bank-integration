@@ -814,18 +814,27 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 				   			virtualAccountName, id_user, owner_table)
 	VALUES(?,?,?,?,?,?,?)
 	`
-	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
 
-	cekpaid, err := s.CheckVAPaid(ctx, numVA)
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Debug("error beginning transaction", "error", err)
+		tx.Rollback()
+		return eris.Wrap(err, "beginning transaction")
+	}
+
+	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
+	cekpaid, err := s.CheckVAPaid(ctx, numVA, tx)
 	if err != nil {
 		return eris.Wrap(err, "querying va_table")
 	}
 	if cekpaid {
-		_, err = s.DB.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
+		_, err = tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
 		if err != nil {
+			tx.Rollback()
 			return eris.Wrap(err, "querying va_table")
 		}
 	} else {
+		tx.Rollback()
 		return eris.Wrap(err, "Va Not Paid")
 	}
 	return nil
@@ -880,23 +889,23 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 	return partnerId + customerNo, customerNo
 }
 
-func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string) (bool, error) {
+func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, tx *sql.Tx) (bool, error) {
 	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
 	query := `
 	SELECT paidAmountValue,paidAmountCurrency FROM va_table WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00'
 	`
 	var amount biModels.Amount
-	err := s.DB.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", "")).Scan(&amount.Value, &amount.Currency)
+	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", "")).Scan(&amount.Value, &amount.Currency)
 	if err == sql.ErrNoRows {
 		return true, nil
 	}
 	if err != nil {
+		tx.Rollback()
 		return false, eris.Wrap(err, "querying va_table")
 	}
 
 	return false, nil
 }
-
 func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, error) {
 	var amount biModels.Amount
 	query := `
