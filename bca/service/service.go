@@ -377,6 +377,9 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		response.BCAResponse = bca.BCABillInquiryResponseDuplicateExternalID
 		response.VirtualAccountData.InquiryReason.English = "Cannot use the same X-EXTERNAL-ID"
 		response.VirtualAccountData.InquiryReason.Indonesia = "Tidak bisa menggunakan X-EXTERNAL-ID yang sama"
+
+		// For conflicting external id, set the inquiry status to failure
+		response.VirtualAccountData.InquiryStatus = "01"
 	}
 
 	return &response, nil
