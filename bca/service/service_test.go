@@ -164,7 +164,7 @@ func TestInquiryVa(t *testing.T) {
 		biStorage.GetRedisInstance(),
 	)
 
-	body := `{"partnerServiceId":"   15335","customerNo":"123456789","virtualAccountNo":"   15335123456789","virtualAccountName":"","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"2024102423434554754","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"0.00","currency":""},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"0.00","currency":""},"trxDateTime":"2024-10-24T16:46:00+07:00","referenceNo":"43455475401","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
+	body := `{"partnerServiceId":"   15335","customerNo":"050000000000000012","virtualAccountNo":"   15335050000000000000012","virtualAccountName":"Pemesanan-12","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"20241028345467246571256","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-31T10:27:00+07:00","referenceNo":"24657125601","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":"","freeTexts":"","additionalInfo":""}`
 
 	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
 	if err != nil {
@@ -202,7 +202,7 @@ func TestInquiryVACore(t *testing.T) {
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
 
-	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Testing VA","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"20241025354356483245","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-25T08:32:00+07:00","referenceNo":"35648324501","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[null],"freeTexts":[],"additionalInfo":{}}`
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"050000000000000012","virtualAccountNo":"   15335050000000000000012","virtualAccountName":"Pemesanan-12","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"20241031546785453654","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-31T10:27:00+07:00","referenceNo":"24657125601","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":"","freeTexts":"","additionalInfo":""}`
 	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
@@ -210,8 +210,8 @@ func TestInquiryVACore(t *testing.T) {
 
 	var res biModels.BCAInquiryVAResponse
 	res.VirtualAccountData = &biModels.VirtualAccountDataInquiry{
-		BillDetails:       []biModels.BillDetail{},
-		FreeTexts:         []biModels.FreeText{},
+		BillDetails:       obj.BillDetails,
+		FreeTexts:         obj.FreeTexts,
 		PaymentRequestID:  obj.PaymentRequestID,
 		ReferenceNo:       obj.ReferenceNo,
 		CustomerNo:        obj.CustomerNo,
@@ -223,7 +223,7 @@ func TestInquiryVACore(t *testing.T) {
 		PaymentFlagReason: biModels.Reason{},
 		FlagAdvise:        "N",
 	}
-	res.AdditionalInfo = map[string]interface{}{}
+	res.AdditionalInfo = obj.AdditionalInfo
 
 	if err := s.InquiryVACore(context.Background(), &res, &obj); err != nil {
 		t.Errorf("Error From function Bill: %v", err)

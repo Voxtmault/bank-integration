@@ -706,6 +706,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	if amountTotal.Value != payload.PaidAmount.Value {
+
 		slog.Debug("paid amount is not equal to total amount")
 		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
@@ -759,7 +760,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		&response.VirtualAccountData.TotalAmount.Currency,
 	); err != nil {
 		if err == sql.ErrNoRows {
-
+			// fmt.Println("masuk sini")
 			// TODO : Decide if rollback in this step is necessary or not
 			// tx.Rollback()
 
