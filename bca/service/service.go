@@ -619,8 +619,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 
 	// Populate the default value
 	response.VirtualAccountData = &biModels.VirtualAccountDataInquiry{
-		BillDetails:        []biModels.BillDetail{},
-		FreeTexts:          []biModels.FreeText{},
+		BillDetails:        payload.BillDetails,
+		FreeTexts:          payload.FreeTexts,
 		PaymentRequestID:   payload.PaymentRequestID,
 		ReferenceNo:        payload.ReferenceNo,
 		CustomerNo:         payload.CustomerNo,
@@ -633,6 +633,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		PaymentFlagReason:  biModels.Reason{},
 		FlagAdvise:         "N",
 	}
+	response.AdditionalInfo = payload.AdditionalInfo
 
 	// Call the core function
 	if err = s.InquiryVACore(ctx, &response, &payload); err != nil {
