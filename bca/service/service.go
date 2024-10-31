@@ -838,6 +838,13 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 		tx.Rollback()
 		return eris.Wrap(err, "Va Not Paid")
 	}
+
+	if err = tx.Commit(); err != nil {
+		slog.Debug("error committing transaction", "error", err)
+		tx.Rollback()
+		return eris.Wrap(err, "committing transaction")
+	}
+
 	return nil
 }
 
