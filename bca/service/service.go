@@ -544,6 +544,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		response.BCAResponse.ResponseCode = (response.BCAResponse.ResponseCode)[:3] + "25" + (response.BCAResponse.ResponseCode)[5:]
 		if response.BCAResponse.HTTPStatusCode == http.StatusInternalServerError {
 			response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+			response.VirtualAccountData.BillDetails = payload.BillDetails
+			response.VirtualAccountData.FreeTexts = payload.FreeTexts
 			response.AdditionalInfo = payload.AdditionalInfo
 		} else {
 			response.VirtualAccountData = nil
@@ -561,6 +563,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 
 	// Set the default value of response
 	response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+	response.VirtualAccountData.BillDetails = payload.BillDetails
+	response.VirtualAccountData.FreeTexts = payload.FreeTexts
 	response.AdditionalInfo = payload.AdditionalInfo
 
 	// Validate X-EXTERNAL-ID and paymentRequestID is not already stored in redis
@@ -646,6 +650,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		slog.Error("error marshalling response", "error", err)
 		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+		response.VirtualAccountData.BillDetails = payload.BillDetails
+		response.VirtualAccountData.FreeTexts = payload.FreeTexts
 		response.AdditionalInfo = payload.AdditionalInfo
 
 		return &response, nil
@@ -656,6 +662,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		slog.Error("error compressing response", "error", err)
 		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+		response.VirtualAccountData.BillDetails = payload.BillDetails
+		response.VirtualAccountData.FreeTexts = payload.FreeTexts
 		response.AdditionalInfo = payload.AdditionalInfo
 
 		return &response, nil
@@ -665,6 +673,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		slog.Error("error saving response to redis", "error", err)
 		response.BCAResponse = bca.BCAPaymentFlagResponseGeneralError
 		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+		response.VirtualAccountData.BillDetails = payload.BillDetails
+		response.VirtualAccountData.FreeTexts = payload.FreeTexts
 		response.AdditionalInfo = payload.AdditionalInfo
 
 		return &response, nil
