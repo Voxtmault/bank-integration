@@ -932,10 +932,11 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, tx *sql.Tx) (bool, error) {
 	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
 	query := `
-	SELECT paidAmountValue,paidAmountCurrency FROM va_table WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00'
+	SELECT paidAmountValue,paidAmountCurrency,expired_date FROM va_table WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00'
 	`
 	var amount biModels.Amount
-	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", "")).Scan(&amount.Value, &amount.Currency)
+	expDate := ""
+	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", "")).Scan(&amount.Value, &amount.Currency, &expDate)
 	if err == sql.ErrNoRows {
 		return true, nil
 	}
@@ -943,7 +944,10 @@ func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, 
 		tx.Rollback()
 		return false, eris.Wrap(err, "querying va_table")
 	}
-
+	nExp, _ := time.Parse(time.DateTime, expDate)
+	if getTimeNow().After(nExp) {
+		return true, nil
+	}
 	return false, nil
 }
 func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, error) {
