@@ -40,6 +40,7 @@ var (
 	BCACommonResponseMessageInvalidFieldFormat                     = BCACommonResponseMessage("Invalid field format")
 	BCACommonResponseMessageDuplicateExternalID                    = BCACommonResponseMessage("Conflict")
 	BCACommonResponseMessageVAPaid                                 = BCACommonResponseMessage("Paid Bill")
+	BCACommonResponseMessageInvalidAmount                          = BCACommonResponseMessage("Invalid Amount")
 	BCACommonResponseMessageVAExpired                              = BCACommonResponseMessage("Invalid Bill/Virtual Account")
 	BCACommonResponseMessageVANotFound                             = BCACommonResponseMessage("Invalid Bill/Virtual Account [Not Found]")
 	BCACommonResponseMessageRequestParseError                      = BCACommonResponseMessage("Bad Request")
@@ -110,6 +111,11 @@ var (
 		HTTPStatusCode:  http.StatusNotFound,
 		ResponseCode:    "4042512",
 		ResponseMessage: BCACommonResponseMessageVANotFound.ToString(),
+	}
+	BCAPaymentFlagResponseInvalidAmount = biModels.BCAResponse{
+		HTTPStatusCode:  http.StatusNotFound,
+		ResponseCode:    "4042513",
+		ResponseMessage: BCACommonResponseMessageInvalidAmount.ToString(),
 	}
 	BCAPaymentFlagResponseRequestParseError = biModels.BCAResponse{
 		HTTPStatusCode:  http.StatusBadRequest,

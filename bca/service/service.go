@@ -742,11 +742,10 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	if amountTotal.Value != payload.PaidAmount.Value {
-
 		slog.Debug("paid amount is not equal to total amount")
-		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
-		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
-		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
+		response.BCAResponse = bca.BCAPaymentFlagResponseInvalidAmount
+		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah yang dibayarkan tidak sesuai"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
 		return nil
 	}
