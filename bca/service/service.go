@@ -418,7 +418,7 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 		slog.Debug("bill presentment core", "error", "va not found")
 		tx.Rollback()
 
-		response.BCAResponse = bca.BCABillInquiryResponseVAExpired
+		response.BCAResponse = bca.BCABillInquiryResponseVANotFound
 		response.VirtualAccountData.InquiryReason.English = "Bill Not Found"
 		response.VirtualAccountData.InquiryReason.Indonesia = "Tagihan tidak ditemukan"
 		response.VirtualAccountData.InquiryStatus = "01"
@@ -433,17 +433,6 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 
 		return nil
 	}
-	nExpDate, _ := time.Parse(time.DateTime, expDate)
-	if time.Now().After(nExpDate) {
-		slog.Debug("va has been Expired")
-		tx.Rollback()
-		response.BCAResponse = bca.BCABillInquiryResponseVANotFound
-		response.VirtualAccountData.InquiryReason.English = "Bill Expired"
-		response.VirtualAccountData.InquiryReason.Indonesia = "Tagihan sudah kadarluasa"
-		response.VirtualAccountData.InquiryStatus = "01"
-
-		return nil
-	}
 	if paidAmount.Value != "0.00" && paidAmount.Value != "" {
 		slog.Debug("va has been paid")
 		tx.Rollback()
@@ -454,7 +443,17 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 		response.VirtualAccountData.InquiryStatus = "01"
 		return nil
 	}
+	nExpDate, _ := time.Parse(time.DateTime, expDate)
+	if time.Now().After(nExpDate) {
+		slog.Debug("va has been Expired")
+		tx.Rollback()
+		response.BCAResponse = bca.BCABillInquiryResponseVAExpired
+		response.VirtualAccountData.InquiryReason.English = "Bill Expired"
+		response.VirtualAccountData.InquiryReason.Indonesia = "Tagihan sudah kadarluasa"
+		response.VirtualAccountData.InquiryStatus = "01"
 
+		return nil
+	}
 	statement = `
 	UPDATE va_request SET inquiryRequestId = ? 
 	WHERE virtualAccountNo = ? AND paidAmountValue = '0.00'
@@ -722,6 +721,15 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		response.AdditionalInfo = map[string]interface{}{}
 		return eris.Wrap(err, "get virtual account paid total amount by inquiry request id")
 	}
+
+	if amountPaid.Value != "" && amountPaid.Value != "0.00" {
+		slog.Debug("va has been paid")
+		response.BCAResponse = bca.BCAPaymentFlagResponseVAPaid
+		response.VirtualAccountData.PaymentFlagReason.English = "Bill has been paid"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Telah Terbayar"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+		return nil
+	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
 	if time.Now().After(nExpDate) {
 		slog.Debug("va not found in database")
@@ -734,17 +742,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		return eris.Wrap(err, "va not found")
 	}
 
-	if amountPaid.Value != "" && amountPaid.Value != "0.00" {
-		slog.Debug("va has been paid")
-		response.BCAResponse = bca.BCAPaymentFlagResponseVAPaid
-		response.VirtualAccountData.PaymentFlagReason.English = "Bill has been paid"
-		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Telah Terbayar"
-		response.VirtualAccountData.PaymentFlagStatus = "01"
-		return nil
-	}
-
 	if amountTotal.Value != payload.PaidAmount.Value {
-
 		slog.Debug("paid amount is not equal to total amount")
 		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"

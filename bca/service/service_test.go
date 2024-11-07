@@ -106,7 +106,7 @@ func TestBillPresentmentCore(t *testing.T) {
 	}
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
-	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335123456789012345678","trxDateInit":"2024-10-24T11:31:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241024568326673"}`
+	bodyReq := `{"partnerServiceId":"   15335","customerNo":"123456789012345678","virtualAccountNo":"   15335081234567891234567","trxDateInit":"2024-10-24T11:31:00+07:00","channelCode":6011,"language":"","amount":null,"hashedSourceAccountNo":"","sourceBankCode":"014","additionalInfo":{},"passApp":"","inquiryRequestId":"20241024568326673"}`
 
 	var payload biModels.BCAVARequestPayload
 	if err := json.Unmarshal([]byte(bodyReq), &payload); err != nil {
