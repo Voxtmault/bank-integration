@@ -93,3 +93,8 @@ type Management interface {
 
 	RevokeRegisteredBank(ctx context.Context) error
 }
+
+
+type Timer interface {
+	
+}

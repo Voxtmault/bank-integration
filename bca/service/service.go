@@ -20,6 +20,7 @@ import (
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
 	biModels "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
+	timerexpired "github.com/voxtmault/bank-integration/timer_expired"
 	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
@@ -847,7 +848,8 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 				   			virtualAccountName, id_user, owner_table,expired_date)
 	VALUES(?,?,?,?,?,?,?)
 	`
-
+	var id int64
+	expiredTime := time.Now().Add(24 * time.Hour)
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Debug("error beginning transaction", "error", err)
@@ -861,11 +863,12 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 		return eris.Wrap(err, "querying va_table")
 	}
 	if cekpaid {
-		_, err = tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser, time.Now().Add(24*time.Hour).Format(time.DateTime))
+		result, err := tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser, expiredTime.Format(time.DateTime))
 		if err != nil {
 			tx.Rollback()
 			return eris.Wrap(err, "querying va_table")
 		}
+		id, _ = result.LastInsertId()
 	} else {
 		tx.Rollback()
 		return eris.Wrap(err, "Va Not Paid")
@@ -876,7 +879,25 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 		tx.Rollback()
 		return eris.Wrap(err, "committing transaction")
 	}
+	timerexpired.SetTimer(biModels.TimerPayment{Id: int(id), NumVA: numVA, IdBank: 0, ExpiredAt: expiredTime})
+	return nil
+}
 
+func (s *BCAService) GetAllVaWaitingPaid(ctx context.Context) error {
+	var obj biModels.TimerPayment
+	query := "SELECT id,virtualAccountNum,expired_date FROM va_request WHERE id_va_status = 1"
+	rows, err := s.DB.QueryContext(ctx, query)
+	if err != nil {
+		return eris.Wrap(err, "querying va_table")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&obj.Id, &obj.NumVA, &obj.ExpiredAt)
+		if err != nil {
+			return eris.Wrap(err, "scan va_table")
+		}
+		timerexpired.SetTimer(obj)
+	}
 	return nil
 }
 
@@ -932,7 +953,7 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, tx *sql.Tx) (bool, error) {
 	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
 	query := `
-	SELECT paidAmountValue,paidAmountCurrency,expired_date FROM va_table WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00'
+	SELECT paidAmountValue,paidAmountCurrency,expired_date FROM va_table WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00' AND id_va_status = 1
 	`
 	var amount biModels.Amount
 	expDate := ""
