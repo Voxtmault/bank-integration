@@ -844,7 +844,7 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 	partnerId := "   " + s.Config.BCAPartnerInformation.BCAPartnerId
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
-				   			virtualAccountName, id_user, owner_table)
+				   			virtualAccountName, id_user, owner_table,expired_date)
 	VALUES(?,?,?,?,?,?,?)
 	`
 
@@ -861,7 +861,7 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 		return eris.Wrap(err, "querying va_table")
 	}
 	if cekpaid {
-		_, err = tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser)
+		_, err = tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser, time.Now().Add(24*time.Hour).Format(time.DateTime))
 		if err != nil {
 			tx.Rollback()
 			return eris.Wrap(err, "querying va_table")
