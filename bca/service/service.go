@@ -444,7 +444,7 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 		return nil
 	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
-	if time.Now().After(nExpDate) {
+	if getTimeNow().After(nExpDate) {
 		slog.Debug("va has been Expired")
 		tx.Rollback()
 		response.BCAResponse = bca.BCABillInquiryResponseVAExpired
@@ -706,13 +706,12 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 
 	amountPaid, amountTotal, expDate, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, strings.ReplaceAll(payload.VirtualAccountNo, " ", ""))
 	if eris.Cause(err) == sql.ErrNoRows {
-		slog.Debug("va not found in database")
 
+		slog.Debug("va not found in database")
 		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan Tidak Ditemukan"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
-
 		return eris.Wrap(err, "va not found")
 	} else if err != nil {
 		slog.Error("error getting virtual account paid amount by inquiry request id", "error", eris.Cause(err))
@@ -731,7 +730,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		return nil
 	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
-	if time.Now().After(nExpDate) {
+	if getTimeNow().After(nExpDate) {
 		slog.Debug("va not found in database")
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseVAExpired
@@ -743,6 +742,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	if amountTotal.Value != payload.PaidAmount.Value {
+
 		slog.Debug("paid amount is not equal to total amount")
 		response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
@@ -798,7 +798,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		if err == sql.ErrNoRows {
 			// fmt.Println("masuk sini")
 			// TODO : Decide if rollback in this step is necessary or not
-			// tx.Rollback()
+			tx.Rollback()
 
 			response.BCAResponse = bca.BCAPaymentFlagResponseVANotFound
 			response.VirtualAccountData.PaymentFlagReason.English = "Bill Not Found"
@@ -1036,4 +1036,10 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 	}
 
 	return &bca.BCABillInquiryResponseSuccess, nil
+}
+
+func getTimeNow() time.Time {
+	now := time.Now().Format(time.DateTime)
+	nNow, _ := time.Parse(time.DateTime, now)
+	return nNow
 }
