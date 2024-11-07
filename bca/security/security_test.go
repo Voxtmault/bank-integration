@@ -18,7 +18,7 @@ import (
 	biModels "github.com/voxtmault/bank-integration/models"
 )
 
-var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
+var envPath = "../../.env"
 
 func TestCreateAsymmetricSignature(t *testing.T) {
 	cfg := biConfig.New(envPath)
@@ -56,30 +56,47 @@ func TestCreateSymmetricSignature(t *testing.T) {
 	security.ClientID = cfg.BCARequestedClientCredentials.ClientID
 	security.ClientSecret = cfg.BCARequestedClientCredentials.ClientSecret
 
-	inputJSON := `
-{
-    "partnerServiceId": "        11223",
-    "customerNo": "1234567890123456",
-    "virtualAccountNo": "        112231234567890123456",
-    "trxDateInit": "2022-02-12T17:29:57+07:00",
-    "channelCode": 6011,
-    "language": "",
-    "amount": null,
+	inputJSON := `{
+    "partnerServiceId": "   15335",
+    "customerNo": "050000000000000012",
+    "virtualAccountNo": "   15335050000000000000012",
+    "virtualAccountName": "Pemesanan-12",
+    "virtualAccountEmail": "",
+    "virtualAccountPhone": "",
+    "trxId": "",
+    "paymentRequestId": "20241028345467246571256",
+    "channelCode": 6014,
     "hashedSourceAccountNo": "",
     "sourceBankCode": "014",
-    "additionalInfo": {},
-    "passApp": "",
-    "inquiryRequestId": "202410180000000000001"
-}
-	`
+    "paidAmount": {
+        "value": "15000.00",
+        "currency": "IDR"
+    },
+    "cumulativePaymentAmount": null,
+    "paidBills": "",
+    "totalAmount": {
+        "value": "15000.00",
+        "currency": "IDR"
+    },
+    "trxDateTime": "2024-10-31T10:27:00+07:00",
+    "referenceNo": "24657125601",
+    "journalNum": "",
+    "paymentType": "",
+    "flagAdvise": "N",
+    "subCompany": "00000",
+    "billDetails": "",
+    "freeTexts": "",
+    "additionalInfo": ""
+}`
+	fmt.Println(cfg.BCARequestedClientCredentials.ClientID)
 
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "6lKrec35Vrs4upmJuGEfctqGIJImYwQm_FDFhbRz076DvqQsLTpCH4HMk7sNE6XG",
+		AccessToken: "Q8W8oiCXUFNyQNrdkBrhSPLVkpSZW92BO03P4qArJpqIKXSM__yeQ9ZpqXhRsU8N",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		RequestBody: []byte(inputJSON),
-		RelativeURL: cfg.BCARequestedEndpoints.BillPresentmentURL,
+		RelativeURL: cfg.BCARequestedEndpoints.PaymentFlagURL,
 	})
 	if err != nil {
 		t.Error(err)

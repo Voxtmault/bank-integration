@@ -398,12 +398,13 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 	}
 	paidAmount := biModels.Amount{}
 	statement := `
-	SELECT partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue, totalAmountCurrency, paidAmountValue, paidAmountCurrency
+	SELECT partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue, totalAmountCurrency, paidAmountValue, paidAmountCurrency,COALESCE(expired_date, CURRENT_TIMESTAMP()) AS effective_expired_date
 	FROM va_request 
 	WHERE TRIM(virtualAccountNo) = ?
 	ORDER BY created_at DESC
 	LIMIT 1
 	`
+	expDate := ""
 	err = tx.QueryRowContext(ctx, statement, strings.ReplaceAll(payload.VirtualAccountNo, " ", "")).Scan(
 		&response.VirtualAccountData.PartnerServiceID,
 		&response.VirtualAccountData.CustomerNo,
@@ -412,14 +413,15 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 		&response.VirtualAccountData.TotalAmount.Value,
 		&response.VirtualAccountData.TotalAmount.Currency,
 		&paidAmount.Value,
-		&paidAmount.Currency)
+		&paidAmount.Currency, &expDate)
 	if err == sql.ErrNoRows {
 		slog.Debug("bill presentment core", "error", "va not found")
 		tx.Rollback()
 
-		response.BCAResponse = bca.BCABillInquiryResponseVANotFound
+		response.BCAResponse = bca.BCABillInquiryResponseVAExpired
 		response.VirtualAccountData.InquiryReason.English = "Bill Not Found"
 		response.VirtualAccountData.InquiryReason.Indonesia = "Tagihan tidak ditemukan"
+		response.VirtualAccountData.InquiryStatus = "01"
 
 		return nil
 	} else if err != nil {
@@ -431,6 +433,17 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 
 		return nil
 	}
+	nExpDate, _ := time.Parse(time.DateTime, expDate)
+	if time.Now().After(nExpDate) {
+		slog.Debug("va has been Expired")
+		tx.Rollback()
+		response.BCAResponse = bca.BCABillInquiryResponseVANotFound
+		response.VirtualAccountData.InquiryReason.English = "Bill Expired"
+		response.VirtualAccountData.InquiryReason.Indonesia = "Tagihan sudah kadarluasa"
+		response.VirtualAccountData.InquiryStatus = "01"
+
+		return nil
+	}
 	if paidAmount.Value != "0.00" && paidAmount.Value != "" {
 		slog.Debug("va has been paid")
 		tx.Rollback()
@@ -438,7 +451,7 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 		response.BCAResponse = bca.BCABillInquiryResponseVAPaid
 		response.VirtualAccountData.InquiryReason.English = "Paid Bill"
 		response.VirtualAccountData.InquiryReason.Indonesia = "Tagihan Telah Terbayar"
-
+		response.VirtualAccountData.InquiryStatus = "01"
 		return nil
 	}
 
@@ -692,7 +705,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 }
 func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAInquiryVAResponse, payload *biModels.BCAInquiryRequest) error {
 
-	amountPaid, amountTotal, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, strings.ReplaceAll(payload.VirtualAccountNo, " ", ""))
+	amountPaid, amountTotal, expDate, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, strings.ReplaceAll(payload.VirtualAccountNo, " ", ""))
 	if eris.Cause(err) == sql.ErrNoRows {
 		slog.Debug("va not found in database")
 
@@ -708,6 +721,17 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
 		response.AdditionalInfo = map[string]interface{}{}
 		return eris.Wrap(err, "get virtual account paid total amount by inquiry request id")
+	}
+	nExpDate, _ := time.Parse(time.DateTime, expDate)
+	if time.Now().After(nExpDate) {
+		slog.Debug("va not found in database")
+
+		response.BCAResponse = bca.BCAPaymentFlagResponseVAExpired
+		response.VirtualAccountData.PaymentFlagReason.English = "Bill has been expired"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan sudah kadarluasa"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+
+		return eris.Wrap(err, "va not found")
 	}
 
 	if amountPaid.Value != "" && amountPaid.Value != "0.00" {
@@ -945,20 +969,21 @@ func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.C
 	return &amount, nil
 }
 
-func (s *BCAService) GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, *biModels.Amount, error) {
+func (s *BCAService) GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, *biModels.Amount, string, error) {
 	var amountPaid biModels.Amount
 	var amountTotal biModels.Amount
+	var expDate string
 	query := `
-	SELECT paidAmountValue, paidAmountCurrency,totalAmountValue, totalAmountCurrency  
+	SELECT paidAmountValue, paidAmountCurrency,totalAmountValue, totalAmountCurrency, COALESCE(expired_date, CURRENT_TIMESTAMP()) AS effective_expired_date  
 	FROM va_request 
 	WHERE TRIM(virtualAccountNo) = ?  ORDER BY created_at DESC
 	LIMIT 1
 	`
-	err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(&amountPaid.Value, &amountPaid.Currency, &amountTotal.Value, &amountTotal.Currency)
+	err := s.DB.QueryRowContext(ctx, query, inquiryRequestId).Scan(&amountPaid.Value, &amountPaid.Currency, &amountTotal.Value, &amountTotal.Currency, &expDate)
 	if err != nil {
-		return &amountPaid, &amountTotal, eris.Wrap(err, "querying va_request")
+		return &amountPaid, &amountTotal, "", eris.Wrap(err, "querying va_request")
 	}
-	return &amountPaid, &amountTotal, nil
+	return &amountPaid, &amountTotal, expDate, nil
 }
 
 func (s *BCAService) GetVirtualAccountPaidByInquiryRequestId(ctx context.Context, vaNum string) (*biModels.Amount, *biModels.Amount, error) {

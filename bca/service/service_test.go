@@ -172,12 +172,12 @@ func TestInquiryVa(t *testing.T) {
 	}
 
 	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-PARTNER-ID", cfg.BCAPartnerInformation.BCAPartnerId)
-	mockRequest.Header.Set("CHANNEL-ID", cfg.BCAConfig.ChannelID)
-	mockRequest.Header.Set("X-EXTERNAL-ID", "24334557246236")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-24T16:46:21+07:00")
-	mockRequest.Header.Set("Authorization", "Bearer wInBc11t6Ai3IhZabJXLUaqcrbi3kjwJ2MkcVcuR7jAyvXM0cCsPd4JCHkS0gHjV")
-	mockRequest.Header.Set("X-SIGNATURE", "BIFziF7AZwWf6f9Yg9uF0fmfX7VftJ4Vo/5+nA94NQJGPiGfhe0FuxjAMeSgWsVhG5RUXeSImJz98834KSGbuA==")
+	mockRequest.Header.Set("X-PARTNER-ID", "15335")
+	mockRequest.Header.Set("CHANNEL-ID", "95231")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "546785453654")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-31T13:34:49+07:00")
+	mockRequest.Header.Set("Authorization", "Bearer GPOGvZrlLcvs_Dhi7ju9nKkIkXlOXi-2C4Capr3PaXzCdvAsQS-OtnWgVTN04o3I")
+	mockRequest.Header.Set("X-SIGNATURE", "KraW/u8f2622zI3wrF68EIeP4Z873SzoH9zodc8NWL4uMM8VwLifNEDDBDIqNgLa8Mjesvi9uw0/AD2wn4Xgkw==")
 
 	data, err := service.InquiryVA(context.Background(), mockRequest)
 	if err != nil {
