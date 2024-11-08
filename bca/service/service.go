@@ -763,11 +763,11 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 
 	statement := `
 	UPDATE va_request SET paidAmountValue = ?, 
-							paidAmountCurrency = ?, 
-							id_va_status = 2   
+						  paidAmountCurrency = ?, 
+						  id_va_status = ?   
 	WHERE inquiryRequestId = ?
 	`
-	_, err = tx.ExecContext(ctx, statement, payload.PaidAmount.Value, payload.PaidAmount.Currency,
+	_, err = tx.ExecContext(ctx, statement, payload.PaidAmount.Value, payload.PaidAmount.Currency, biUtil.VAStatusPaid,
 		payload.PaymentRequestID)
 	if err != nil {
 		slog.Error("error updating va_request", "error", eris.Cause(err))
@@ -849,7 +849,7 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 	VALUES(?,?,?,?,?,?,?)
 	`
 	var id int64
-	expiredTime := time.Now().Add(24 * time.Hour)
+	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Debug("error beginning transaction", "error", err)
@@ -953,7 +953,7 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, tx *sql.Tx) (bool, error) {
 	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
 	query := `
-	SELECT paidAmountValue,paidAmountCurrency,expired_date FROM va_table WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00' AND id_va_status = 1
+	SELECT paidAmountValue,paidAmountCurrency,expired_date FROM va_request WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00' AND id_va_status = 1
 	`
 	var amount biModels.Amount
 	expDate := ""
@@ -966,7 +966,7 @@ func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, 
 		return false, eris.Wrap(err, "querying va_table")
 	}
 	nExp, _ := time.Parse(time.DateTime, expDate)
-	if getTimeNow().After(nExp) {
+	if time.Now().After(nExp) {
 		return true, nil
 	}
 	return false, nil

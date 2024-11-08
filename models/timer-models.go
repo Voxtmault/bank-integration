@@ -8,3 +8,11 @@ type TimerPayment struct {
 	IdBank    int
 	ExpiredAt time.Time
 }
+
+type TransactionWatcher struct {
+	IDTransaction uint      // Identifier
+	ExpireAt      time.Time // Time of expiration
+	PaymentStatus chan bool // Controlls the watcher behavior
+	MaxRetry      uint      // Maximum number of retries
+	RetryCount    uint      // Current retry count
+}

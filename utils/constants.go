@@ -12,3 +12,11 @@ var UniqueExternalIDRedis = "unique-external-id"
 const (
 	BankCodeBCA = "bca"
 )
+
+type VAPaymentStatus uint
+
+const (
+	VAStatusPending VAPaymentStatus = 1
+	VAStatusPaid    VAPaymentStatus = 2
+	VAStatusExpired VAPaymentStatus = 3
+)

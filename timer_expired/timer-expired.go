@@ -15,8 +15,8 @@ var mutex = sync.Mutex{}
 func expireTransaction(id int) error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	con := biStorage.GetDBConnection()
 	if txn, exists := transactions[id]; exists {
+		con := biStorage.GetDBConnection()
 		query := `UPDATE va_request SET id_va_status = 3 WHERE id = ?;`
 		_, err := con.Exec(query, txn.Id)
 		if err != nil {

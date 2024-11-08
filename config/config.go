@@ -21,6 +21,7 @@ type BCAConfig struct {
 	AccessToken               string `validate:"omitempty"`
 	AccessTokenExpirationTime uint   `validate:"omitempty"`
 	ChannelID                 string `validate:"omitempty"`
+	BCAVAExpireTime           uint   `validate:"omitempty"`
 }
 
 type BCARequestedClientCredentials struct {
@@ -98,6 +99,7 @@ func New(envPath string) *BankingConfig {
 			ClientSecret:              getEnv("BCA_CLIENT_SECRET", ""),
 			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_ACCESS_TOKEN_EXPIRATION_TIME", 0)),
 			ChannelID:                 getEnv("BCA_CHANNEL_ID", ""),
+			BCAVAExpireTime:           uint(getEnvAsInt("BCA_VA_EXPIRE_TIME", 0)),
 		},
 		BCARequestedClientCredentials: BCARequestedClientCredentials{
 			ClientID:                  getEnv("BCA_REQ_CLIENT_ID", ""),
