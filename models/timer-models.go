@@ -1,6 +1,9 @@
 package bank_integration_models
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 type TimerPayment struct {
 	Id        int
@@ -15,4 +18,5 @@ type TransactionWatcher struct {
 	PaymentStatus chan bool // Controlls the watcher behavior
 	MaxRetry      uint      // Maximum number of retries
 	RetryCount    uint      // Current retry count
+	Con           *sql.DB   // Database connection
 }
