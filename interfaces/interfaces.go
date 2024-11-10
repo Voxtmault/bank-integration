@@ -82,6 +82,12 @@ type SNAP interface {
 
 	// CreateVA is used in tandem with order creation when VA Payment is chosen as the payment method.
 	CreateVA(ctx context.Context, payload *biModel.CreateVAReq) error
+
+	// GetAllVAWaitingPayment is called upon program startup to populate transaction watcher
+	GetAllVAWaitingPayment(ctx context.Context) error
+
+	// GetWatchedTransaction returns list of transaction that is currently being watched by the bank service implementation
+	GetWatchedTransaction(ctx context.Context) []*biModel.TransactionWatcherPublic
 }
 
 type Management interface {
@@ -94,7 +100,5 @@ type Management interface {
 	RevokeRegisteredBank(ctx context.Context) error
 }
 
-
 type Timer interface {
-	
 }

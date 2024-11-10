@@ -16,9 +16,10 @@ const (
 type VAPaymentStatus uint
 
 const (
-	VAStatusPending VAPaymentStatus = 1
-	VAStatusPaid    VAPaymentStatus = 2
-	VAStatusExpired VAPaymentStatus = 3
+	VAStatusPending   VAPaymentStatus = 1
+	VAStatusPaid      VAPaymentStatus = 2
+	VAStatusExpired   VAPaymentStatus = 3
+	VAStatusCancelled VAPaymentStatus = 4
 )
 
 type TransactionWatcherStatus uint

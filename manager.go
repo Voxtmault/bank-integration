@@ -63,11 +63,11 @@ func InitBankAPI(envPath, timezone string) error {
 	return nil
 }
 
-func InitBCAService() biInterfaces.SNAP {
+func InitBCAService() (biInterfaces.SNAP, error) {
 
 	security := bcaSecurity.NewBCASecurity(biConfig.GetConfig())
 
-	service := bcaService.NewBCAService(
+	service, err := bcaService.NewBCAService(
 		bcaRequest.NewBCAEgress(security),
 		bcaRequest.NewBCAIngress(security),
 		biConfig.GetConfig(),
@@ -75,7 +75,7 @@ func InitBCAService() biInterfaces.SNAP {
 		biStorage.GetRedisInstance(),
 	)
 
-	return service
+	return service, err
 }
 
 func InitManagementService() biInterfaces.Management {

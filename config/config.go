@@ -16,6 +16,8 @@ type Keys struct {
 
 // Banking Config
 type BCAConfig struct {
+	InternalBankID            uint   `validate:"omitempty"`
+	InternalBankName          string `validate:"omitempty"`
 	BaseURL                   string `validate:"required"`
 	ClientID                  string `validate:"required"`
 	ClientSecret              string `validate:"required"`

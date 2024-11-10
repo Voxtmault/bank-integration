@@ -36,8 +36,16 @@ func NewWatcher() *biModel.TransactionWatcher {
 func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 	s.Lock()
 	defer s.Unlock()
+
+	// Check for existing transaction ID
+	if _, ok := s.WatchedList[watcher.IDTransaction]; ok {
+		// Transaction already exists, skipping
+		slog.Warn("skipping transaction since it already exists in watcher list", "transaction id", watcher.IDTransaction)
+		return
+	}
 	s.WatchedList[watcher.IDTransaction] = watcher
 
+	slog.Debug(time.Until(watcher.ExpireAt).String())
 	watcher.Timer = time.NewTimer(time.Until(watcher.ExpireAt))
 
 	go func(w *biModel.TransactionWatcher) {
@@ -53,7 +61,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 
 				// Add another attempt
 				s.AddWatcher(w)
-
+				return
 			} else {
 				// No errors, add log to watcher table and remove the watcher
 				s.logWatcher(w, biConst.WatcherSuccess, "watcher successfully run")
@@ -62,6 +70,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				s.Lock()
 				delete(s.WatchedList, w.IDTransaction)
 				s.Unlock()
+				return
 			}
 		case paymentStatus := <-w.PaymentStatus:
 			// Stop the timer
@@ -76,6 +85,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				// This else is for when the transaction is cancelled
 				s.logWatcher(w, biConst.WatcherCancelled, "transaction has been cancelled")
 			}
+			return
 		}
 	}(watcher)
 
@@ -87,12 +97,18 @@ func (s *TransactionWatcher) RemoveWatcher(id uint) {
 	delete(s.WatchedList, id)
 }
 
-func (s *TransactionWatcher) GetWatcher(id uint) *biModel.TransactionWatcher {
-	return s.WatchedList[id]
+func (s *TransactionWatcher) GetWatcher(id uint) *biModel.TransactionWatcherPublic {
+	return s.WatchedList[id].ToPublic()
 }
 
-func (s *TransactionWatcher) GetWatchers() map[uint]*biModel.TransactionWatcher {
-	return s.WatchedList
+func (s *TransactionWatcher) GetWatchers() []*biModel.TransactionWatcherPublic {
+	s.RLock()
+	defer s.RUnlock()
+	var watchers []*biModel.TransactionWatcherPublic
+	for _, watcher := range s.WatchedList {
+		watchers = append(watchers, watcher.ToPublic())
+	}
+	return watchers
 }
 
 func (s *TransactionWatcher) TransactionPaid(idTransaction uint) {
@@ -126,8 +142,8 @@ func (s *TransactionWatcher) expireFunc(obj *biModel.TransactionWatcher) error {
 		}
 	}
 
-	if transactionStatus == uint(biConst.VAStatusPaid) {
-		slog.Info("transaction already paid, killing watcher")
+	if transactionStatus == uint(biConst.VAStatusPaid) || transactionStatus == uint(biConst.VAStatusCancelled) {
+		slog.Info("current transaction not according to plan, killing watcher", "current status", transactionStatus)
 		return nil
 	}
 

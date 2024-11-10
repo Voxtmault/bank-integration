@@ -20,8 +20,10 @@ import (
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
 	biModels "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
-	timerexpired "github.com/voxtmault/bank-integration/timer_expired"
+
+	// timerexpired "github.com/voxtmault/bank-integration/timer_expired"
 	biUtil "github.com/voxtmault/bank-integration/utils"
+	watcher "github.com/voxtmault/bank-integration/watcher"
 )
 
 type BCAService struct {
@@ -30,6 +32,9 @@ type BCAService struct {
 	Egress          biInterfaces.RequestEgress
 	Ingress         biInterfaces.RequestIngress
 	GeneralSecurity biUtil.GeneralSecurity
+
+	// Adding Watcher here instead of using a centralized Watcher is an intentional design choice
+	Watcher *watcher.TransactionWatcher
 
 	// Configs
 	Config *biConfig.BankingConfig
@@ -45,14 +50,29 @@ type BCAService struct {
 
 var _ biInterfaces.SNAP = &BCAService{}
 
-func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, config *biConfig.BankingConfig, db *sql.DB, rdb *biStorage.RedisInstance) *BCAService {
-	return &BCAService{
+func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, config *biConfig.BankingConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*BCAService, error) {
+
+	service := BCAService{
 		Egress:  egress,
 		Ingress: ingress,
 		Config:  config,
 		DB:      db,
 		RDB:     rdb,
+		Watcher: watcher.NewTransactionWatcher(),
 	}
+	// Get current loaded BCAService internal bank id and bank name
+	if err := service.getInternalBankInfo(); err != nil {
+		slog.Error("error getting internal bank id", "error", err)
+		return nil, err
+	}
+
+	// Get VA created by the loaded bank id that is still waiting for payment and add it to the watcher
+	if err := service.GetAllVAWaitingPayment(context.Background()); err != nil {
+		slog.Error("error getting all va waiting payment", "error", err)
+		return nil, err
+	}
+
+	return &service, nil
 }
 
 // Egress
@@ -157,6 +177,60 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 	}
 
 	return &obj, nil
+}
+
+func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
+	partnerId := "   " + s.Config.BCAPartnerInformation.BCAPartnerId
+	query := `
+	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
+				   			virtualAccountName, id_user, owner_table,expired_date, id_bank)
+	VALUES(?,?,?,?,?,?,?,?,?)
+	`
+	var id int64
+	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Debug("error beginning transaction", "error", err)
+		tx.Rollback()
+		return eris.Wrap(err, "beginning transaction")
+	}
+
+	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
+	cekpaid, err := s.CheckVAPaid(ctx, numVA, tx)
+	if err != nil {
+		return eris.Wrap(err, "querying va_table")
+	}
+	if cekpaid {
+		// Meaning all previous VA with the same VA Number has been paid or cancelled
+		result, err := tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran,
+			payload.NamaUser, payload.IdUser, payload.IdJenisUser, expiredTime.Format(time.DateTime),
+			s.Config.BCAConfig.InternalBankID)
+		if err != nil {
+			tx.Rollback()
+			return eris.Wrap(err, "querying va_table")
+		}
+		id, _ = result.LastInsertId()
+	} else {
+		// Meaning there is still a VA with the same VA Number that is still waiting for payment
+		tx.Rollback()
+		return eris.Wrap(err, "Va Not Paid")
+	}
+
+	if err = tx.Commit(); err != nil {
+		slog.Debug("error committing transaction", "error", err)
+		tx.Rollback()
+		return eris.Wrap(err, "committing transaction")
+	}
+
+	// Create Transaction Watcher after successfull transaction commit
+	watchedTransaction := watcher.NewWatcher()
+	watchedTransaction.IDTransaction = uint(id)
+	watchedTransaction.ExpireAt = expiredTime.Local()
+
+	s.Watcher.AddWatcher(watchedTransaction)
+
+	// timerexpired.SetTimer(biModels.TimerPayment{Id: int(id), NumVA: numVA, IdBank: 0, ExpiredAt: expiredTime})
+	return nil
 }
 
 // ChecksAccessToken is an exclusive function to renew the access token if it is expired or if it's empty.
@@ -838,67 +912,11 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	return nil
-
 }
 
-func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
-	partnerId := "   " + s.Config.BCAPartnerInformation.BCAPartnerId
-	query := `
-	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
-				   			virtualAccountName, id_user, owner_table,expired_date)
-	VALUES(?,?,?,?,?,?,?)
-	`
-	var id int64
-	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
-	tx, err := s.DB.BeginTx(ctx, nil)
-	if err != nil {
-		slog.Debug("error beginning transaction", "error", err)
-		tx.Rollback()
-		return eris.Wrap(err, "beginning transaction")
-	}
-
-	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
-	cekpaid, err := s.CheckVAPaid(ctx, numVA, tx)
-	if err != nil {
-		return eris.Wrap(err, "querying va_table")
-	}
-	if cekpaid {
-		result, err := tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran, payload.NamaUser, payload.IdUser, payload.IdJenisUser, expiredTime.Format(time.DateTime))
-		if err != nil {
-			tx.Rollback()
-			return eris.Wrap(err, "querying va_table")
-		}
-		id, _ = result.LastInsertId()
-	} else {
-		tx.Rollback()
-		return eris.Wrap(err, "Va Not Paid")
-	}
-
-	if err = tx.Commit(); err != nil {
-		slog.Debug("error committing transaction", "error", err)
-		tx.Rollback()
-		return eris.Wrap(err, "committing transaction")
-	}
-	timerexpired.SetTimer(biModels.TimerPayment{Id: int(id), NumVA: numVA, IdBank: 0, ExpiredAt: expiredTime})
-	return nil
-}
-
-func (s *BCAService) GetAllVaWaitingPaid(ctx context.Context) error {
-	var obj biModels.TimerPayment
-	query := "SELECT id,virtualAccountNum,expired_date FROM va_request WHERE id_va_status = 1"
-	rows, err := s.DB.QueryContext(ctx, query)
-	if err != nil {
-		return eris.Wrap(err, "querying va_table")
-	}
-	defer rows.Close()
-	for rows.Next() {
-		err = rows.Scan(&obj.Id, &obj.NumVA, &obj.ExpiredAt)
-		if err != nil {
-			return eris.Wrap(err, "scan va_table")
-		}
-		timerexpired.SetTimer(obj)
-	}
-	return nil
+// Transaction Watcher
+func (s *BCAService) GetWatchedTransaction(ctx context.Context) []*biModels.TransactionWatcherPublic {
+	return s.Watcher.GetWatchers()
 }
 
 // Service Utils
@@ -950,14 +968,21 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 	return partnerId + customerNo, customerNo
 }
 
+// GenerateVANumber is called to generate a new virtual account number or return existing va number (this is the case if the requester is a user)
+func (s *BCAService) GenerateVANumber() (string, error) {
+	return "", nil
+}
+
 func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, tx *sql.Tx) (bool, error) {
 	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
 	query := `
-	SELECT paidAmountValue,paidAmountCurrency,expired_date FROM va_request WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00' AND id_va_status = 1
+	SELECT paidAmountValue,paidAmountCurrency,expired_date 
+	FROM va_request 
+	WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00' AND id_va_status = ?
 	`
 	var amount biModels.Amount
 	expDate := ""
-	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", "")).Scan(&amount.Value, &amount.Currency, &expDate)
+	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", ""), biUtil.VAStatusPending).Scan(&amount.Value, &amount.Currency, &expDate)
 	if err == sql.ErrNoRows {
 		return true, nil
 	}
@@ -1060,4 +1085,61 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 	}
 
 	return &bca.BCABillInquiryResponseSuccess, nil
+}
+
+func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
+	query := `
+	SELECT id, expired_date 
+	FROM va_request 
+	WHERE id_va_status = ? AND id_bank = ?
+	`
+	rows, err := s.DB.QueryContext(ctx, query, biUtil.VAStatusPending, s.Config.BCAConfig.InternalBankID)
+	if err != nil {
+		return eris.Wrap(err, "querying va_request")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		obj := watcher.NewWatcher()
+		expireAt := ""
+		err = rows.Scan(&obj.IDTransaction, &expireAt)
+		if err != nil {
+			return eris.Wrap(err, "scan va_table")
+		}
+		obj.ExpireAt, err = time.Parse(time.DateTime, expireAt)
+		if err != nil {
+			slog.Error("skipping transaction due to parsing time error", "error", err, "transaction id", obj.IDTransaction)
+			continue
+		}
+
+		slog.Debug("adding watcher", "id", obj.IDTransaction, "expireAt", obj.ExpireAt)
+
+		s.Watcher.AddWatcher(obj)
+	}
+
+	return nil
+}
+
+func (s *BCAService) getInternalBankInfo() error {
+
+	statement := `
+	SELECT id, bank_name 
+	FROM authenticated_banks
+	WHERE client_id = ? AND client_secret = ? AND deleted_at IS NULL
+	LIMIT 1
+	`
+	if err := s.DB.QueryRow(statement, s.Config.BCARequestedClientCredentials.ClientID,
+		s.Config.BCARequestedClientCredentials.ClientSecret).Scan(
+		&s.Config.BCAConfig.InternalBankID, &s.Config.BCAConfig.InternalBankName); err != nil {
+		if err == sql.ErrNoRows {
+			slog.Warn("unauthorized bank credentials")
+			return eris.New("unauthorized")
+		}
+		slog.Error("error getting internal bank id of BCAService", "error", err)
+		return err
+	}
+
+	slog.Debug("internal bank info", "id", s.Config.BCAConfig.InternalBankID, "name", s.Config.BCAConfig.InternalBankName)
+
+	return nil
 }

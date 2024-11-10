@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func TestGetAccessToken(t *testing.T) {
 
 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
@@ -58,7 +59,7 @@ func TestBalanceInquiry(t *testing.T) {
 
 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
@@ -156,7 +157,7 @@ func TestInquiryVa(t *testing.T) {
 
 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
@@ -258,7 +259,7 @@ func TestGenerateAccessToken(t *testing.T) {
 
 	bcaSec := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(bcaSec),
 		request.NewBCAIngress(bcaSec),
 		cfg,
@@ -328,7 +329,7 @@ func TestValidateAccessToken(t *testing.T) {
 
 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
@@ -360,7 +361,7 @@ func TestMockRequest(t *testing.T) {
 
 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
@@ -481,7 +482,7 @@ func TestInquiryVAIntegration(t *testing.T) {
 
 	security := security.NewBCASecurity(cfg)
 
-	service := NewBCAService(
+	service, _ := NewBCAService(
 		request.NewBCAEgress(security),
 		request.NewBCAIngress(security),
 		cfg,
@@ -510,4 +511,74 @@ func TestInquiryVAIntegration(t *testing.T) {
 	}
 
 	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
+}
+
+func TestCreateVA(t *testing.T) {
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
+
+	// Load Registered Banks
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service, _ := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	// Generate CreateVA object
+	data := biModels.CreateVAReq{
+		IdUser:           12,
+		NamaUser:         "Joko Dono",
+		IdJenisPembelian: 1,
+		IdJenisUser:      1,
+		JumlahPembayaran: 100000,
+	}
+
+	err := service.CreateVA(context.Background(), &data)
+	if err != nil {
+		t.Errorf("Error bill presentment: %v", err)
+	}
+}
+
+func TestGetWatchedTransaction(t *testing.T) {
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
+	os.Setenv("TZ", "Asia/Jakarta")
+
+	// Load Registered Banks
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service, _ := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	data := service.GetWatchedTransaction(context.Background())
+	for _, watcher := range data {
+		slog.Debug("watcher", "data", watcher)
+	}
 }
