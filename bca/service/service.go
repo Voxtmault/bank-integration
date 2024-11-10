@@ -445,7 +445,7 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 		return nil
 	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
-	if getTimeNow().After(nExpDate) {
+	if time.Now().After(nExpDate) {
 		slog.Debug("va has been Expired")
 		tx.Rollback()
 		response.BCAResponse = bca.BCABillInquiryResponseVAExpired
@@ -731,7 +731,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		return nil
 	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
-	if getTimeNow().After(nExpDate) {
+	if time.Now().After(nExpDate) {
 		slog.Debug("va not found in database")
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseVAExpired
@@ -1060,10 +1060,4 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 	}
 
 	return &bca.BCABillInquiryResponseSuccess, nil
-}
-
-func getTimeNow() time.Time {
-	now := time.Now().Format(time.DateTime)
-	nNow, _ := time.Parse(time.DateTime, now)
-	return nNow
 }

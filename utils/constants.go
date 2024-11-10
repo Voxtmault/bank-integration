@@ -20,3 +20,11 @@ const (
 	VAStatusPaid    VAPaymentStatus = 2
 	VAStatusExpired VAPaymentStatus = 3
 )
+
+type TransactionWatcherStatus uint
+
+const (
+	WatcherSuccess   TransactionWatcherStatus = 1
+	WatcherFailed    TransactionWatcherStatus = 2
+	WatcherCancelled TransactionWatcherStatus = 3
+)

@@ -17,7 +17,7 @@ func expireTransaction(id int) error {
 	defer mutex.Unlock()
 	if txn, exists := transactions[id]; exists {
 		con := biStorage.GetDBConnection()
-		query := `UPDATE va_request SET id_va_status = 3 WHERE id = ?;`
+		query := `UPDATE va_request SET id_va_status = 3 WHERE id = ?;` // 3 is payment expired
 		_, err := con.Exec(query, txn.Id)
 		if err != nil {
 			return eris.Wrap(err, "Update Expired Status")

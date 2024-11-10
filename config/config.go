@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -45,6 +46,12 @@ type BCARequestedEndpoints struct {
 	PaymentFlagURL     string
 }
 
+type TransactionWatcherConfig struct {
+	MaxRetry             uint
+	DefaultRetryInternal time.Duration
+	DefaultExpireTime    time.Duration
+}
+
 // Credential DB Config
 type MariaConfig struct {
 	DBDriver             string
@@ -76,6 +83,7 @@ type BankingConfig struct {
 	MariaConfig
 	RedisConfig
 	BCAPartnerInformation
+	TransactionWatcherConfig
 	AppHost string
 	Mode    string
 }
@@ -137,6 +145,11 @@ func New(envPath string) *BankingConfig {
 			RedisPort:     getEnv("REDIS_PORT", "6378"),
 			RedisPassword: getEnv("REDIS_PASSWORD", ""),
 			RedisDBNum:    uint8(getEnvAsInt("REDIS_DB_NUM", 0)),
+		},
+		TransactionWatcherConfig: TransactionWatcherConfig{
+			MaxRetry:             uint(getEnvAsInt("WATCHER_MAX_RETRY", 10)),
+			DefaultRetryInternal: time.Duration(getEnvAsInt("WATCHER_DEFAULT_RETRY_INTERNAL", 10)) * time.Minute,
+			DefaultExpireTime:    time.Duration(getEnvAsInt("WATCHER_DEFAULT_EXPIRE_TIME", 24)) * time.Hour,
 		},
 		AppHost: getEnv("APP_HOST", ""),
 		Mode:    getEnv("MODE", "prod"),
