@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -1099,6 +1100,7 @@ func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
 	}
 	defer rows.Close()
 
+	loc, _ := time.LoadLocation(os.Getenv("TZ"))
 	for rows.Next() {
 		obj := watcher.NewWatcher()
 		expireAt := ""
@@ -1106,11 +1108,13 @@ func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
 		if err != nil {
 			return eris.Wrap(err, "scan va_table")
 		}
-		obj.ExpireAt, err = time.Parse(time.DateTime, expireAt)
+		obj.ExpireAt, err = time.ParseInLocation(time.DateTime, expireAt, loc)
 		if err != nil {
 			slog.Error("skipping transaction due to parsing time error", "error", err, "transaction id", obj.IDTransaction)
 			continue
 		}
+		obj.IDBank = s.Config.InternalBankID
+		obj.BankName = s.Config.InternalBankName
 
 		slog.Debug("adding watcher", "id", obj.IDTransaction, "expireAt", obj.ExpireAt)
 
