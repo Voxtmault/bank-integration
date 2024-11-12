@@ -581,4 +581,6 @@ func TestGetWatchedTransaction(t *testing.T) {
 	for _, watcher := range data {
 		slog.Debug("watcher", "data", watcher)
 	}
+
+	time.Sleep(60 * time.Minute)
 }

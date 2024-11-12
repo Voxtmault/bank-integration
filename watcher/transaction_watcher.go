@@ -35,7 +35,6 @@ func NewWatcher() *biModel.TransactionWatcher {
 
 func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 	s.Lock()
-	defer s.Unlock()
 
 	// Check for existing transaction ID
 	if _, ok := s.WatchedList[watcher.IDTransaction]; ok {
@@ -44,9 +43,17 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 		return
 	}
 	s.WatchedList[watcher.IDTransaction] = watcher
+	s.Unlock()
 
-	slog.Debug(time.Until(watcher.ExpireAt).String())
-	watcher.Timer = time.NewTimer(time.Until(watcher.ExpireAt))
+	// Calculate the time remaining
+	remainingTimer := time.Until(watcher.ExpireAt)
+	slog.Debug(remainingTimer.String())
+	if remainingTimer < 0 {
+		slog.Warn("remaining time is less than 0, setting to 10 seconds into the future", "remaining time", remainingTimer.String())
+		remainingTimer = time.Until(time.Now().Add(time.Second * 10))
+	}
+
+	watcher.Timer = time.NewTimer(remainingTimer)
 
 	go func(w *biModel.TransactionWatcher) {
 		select {
@@ -63,6 +70,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				s.AddWatcher(w)
 				return
 			} else {
+				slog.Debug("successfully expired transaction")
 				// No errors, add log to watcher table and remove the watcher
 				s.logWatcher(w, biConst.WatcherSuccess, "watcher successfully run")
 
@@ -126,6 +134,9 @@ func (s *TransactionWatcher) expireFunc(obj *biModel.TransactionWatcher) error {
 	// Increment the attempt
 	obj.Attempts++
 
+	// Remove from the watcher list
+	s.RemoveWatcher(obj.IDTransaction)
+
 	// Check if the transaction has been completed
 	var transactionStatus uint
 	statement := `
@@ -149,7 +160,7 @@ func (s *TransactionWatcher) expireFunc(obj *biModel.TransactionWatcher) error {
 
 	// Transaction is still on waiting, update the status to expired
 	statement = `
-	UPDATE va_reqest SET id_va_status = ?
+	UPDATE va_request SET id_va_status = ?
 	WHERE id = ?
 	`
 	tx, err := s.con.Begin()
@@ -182,7 +193,7 @@ func (s *TransactionWatcher) logWatcher(watcher *biModel.TransactionWatcher, sta
 
 	statement := `
 	INSERT INTO transaction_watcher_log (id_transaction, id_watcher_status, message, attempts, max_attempts)
-	VALUES (?, ?)
+	VALUES (?, ?, ?, ?, ?)
 	`
 	if _, err := tx.Exec(statement, watcher.IDTransaction, status, message, watcher.Attempts, watcher.MaxRetry); err != nil {
 		tx.Rollback()
