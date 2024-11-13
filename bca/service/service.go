@@ -834,6 +834,17 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		return eris.Wrap(err, "get virtual account paid total amount by inquiry request id")
 	}
 
+	if payload.PaidAmount.Value == "" || payload.PaidAmount.Value == "0.00" || payload.TotalAmount.Value == "" || payload.TotalAmount.Value == "0.00" {
+		slog.Debug("va has been paid")
+		response.BCAResponse = bca.BCAPaymentFlagResponseInvalidAmount
+		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount at Paid Amount or Total Amount"
+		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah Tidak Valid pada Jumlah Bayar atau Jumlah Total"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+		response.VirtualAccountData.PaidAmount = biModels.Amount{}
+		response.VirtualAccountData.TotalAmount = biModels.Amount{}
+		return nil
+	}
+
 	if amountPaid.Value != "" && amountPaid.Value != "0.00" {
 		slog.Debug("va has been paid")
 		response.BCAResponse = bca.BCAPaymentFlagResponseVAPaid
@@ -860,6 +871,8 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah yang dibayarkan tidak sesuai"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
+		response.VirtualAccountData.PaidAmount = biModels.Amount{}
+		response.VirtualAccountData.TotalAmount = biModels.Amount{}
 		return nil
 	}
 
