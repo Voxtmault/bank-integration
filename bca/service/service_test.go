@@ -95,6 +95,69 @@ func TestBalanceInquiryUnmarshal(t *testing.T) {
 	log.Printf("%+v\n", obj)
 }
 
+func TestBillPresentmentIntegration(t *testing.T) {
+	cfg := biConfig.New(envPath)
+	validate := biUtil.InitValidator()
+	validate.RegisterValidation("bcaPartnerServiceID", biUtil.ValidatePartnerServiceID)
+	validate.RegisterValidation("bcaVA", biUtil.ValidateBCAVirtualAccountNumber)
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service, _ := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	body := `
+	{ 
+	"partnerServiceId": "   12345", 
+	"customerNo": "123456789012345678", 
+	"virtualAccountNo": "   12345123456789012345678a",
+	"trxDateInit": "2022-02-12T17:29:57+07:00", 
+	"channelCode": 6011, 
+	"language": "", 
+	"amount": null, 
+	"hashedSourceAccountNo": "", 
+	"sourceBankCode": "014", 
+	"additionalInfo": {}, 
+	"passApp": "", 
+	"inquiryRequestId": "202202110909311234500001136962" 
+	}
+	`
+
+	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
+	if err != nil {
+		t.Errorf("Error creating mock request: %v", err)
+	}
+
+	mockRequest.Header.Set("Content-Type", "application/json")
+	mockRequest.Header.Set("X-PARTNER-ID", "15335")
+	mockRequest.Header.Set("CHANNEL-ID", "95231")
+	mockRequest.Header.Set("X-EXTERNAL-ID", "546785453654")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-31T13:34:49+07:00")
+	mockRequest.Header.Set("Authorization", "Bearer GPOGvZrlLcvs_Dhi7ju9nKkIkXlOXi-2C4Capr3PaXzCdvAsQS-OtnWgVTN04o3I")
+	mockRequest.Header.Set("X-SIGNATURE", "KraW/u8f2622zI3wrF68EIeP4Z873SzoH9zodc8NWL4uMM8VwLifNEDDBDIqNgLa8Mjesvi9uw0/AD2wn4Xgkw==")
+
+	data, err := service.BillPresentment(context.Background(), mockRequest)
+	if err != nil {
+		t.Errorf("Error getting access token: %v", err)
+	}
+
+	result, _ := json.Marshal(data)
+	fmt.Println(string(result))
+}
+
 func TestBillPresentmentCore(t *testing.T) {
 	cfg := biConfig.New(envPath)
 	biUtil.InitValidator()
@@ -143,9 +206,11 @@ func TestBillPresentmentCore(t *testing.T) {
 	fmt.Println(string(result))
 }
 
-func TestInquiryVa(t *testing.T) {
+func TestInquiryVAIntegration(t *testing.T) {
 	cfg := biConfig.New(envPath)
-	biUtil.InitValidator()
+	validate := biUtil.InitValidator()
+	validate.RegisterValidation("bcaPartnerServiceID", biUtil.ValidatePartnerServiceID)
+	validate.RegisterValidation("bcaVA", biUtil.ValidateBCAVirtualAccountNumber)
 	biStorage.InitMariaDB(&cfg.MariaConfig)
 	biStorage.InitRedis(&cfg.RedisConfig)
 
@@ -165,7 +230,40 @@ func TestInquiryVa(t *testing.T) {
 		biStorage.GetRedisInstance(),
 	)
 
-	body := `{"partnerServiceId":"   15335","customerNo":"050000000000000012","virtualAccountNo":"   15335050000000000000012","virtualAccountName":"Pemesanan-12","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"20241028345467246571256","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-31T10:27:00+07:00","referenceNo":"24657125601","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":"","freeTexts":"","additionalInfo":""}`
+	body := `
+	{
+		"partnerServiceId": "   15335",
+		"customerNo": "050000000000000012",
+		"virtualAccountNo": "   15335050000000000000012",
+		"virtualAccountName": "Pemesanan-12",
+		"virtualAccountEmail": "",
+		"virtualAccountPhone": "",
+		"trxId": "",
+		"paymentRequestId": "20241028345467246571256",
+		"channelCode": 6014,
+		"hashedSourceAccountNo": "",
+		"sourceBankCode": "014",
+		"paidAmount": {
+			"value": "15000.00",
+			"currency": "IDR"
+		},
+		"cumulativePaymentAmount": null,
+		"paidBills": "",
+		"totalAmount": {
+			"value": "15000.00",
+			"currency": "IDR"
+		},
+		"trxDateTime": "2024-10-31T10:27:00+07:00",
+		"referenceNo": "24657125601",
+		"journalNum": "",
+		"paymentType": "",
+		"flagAdvise": "N",
+		"subCompany": "00000",
+		"billDetails": "",
+		"freeTexts": "",
+		"additionalInfo": ""
+	}
+	`
 
 	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
 	if err != nil {
@@ -187,7 +285,6 @@ func TestInquiryVa(t *testing.T) {
 
 	result, _ := json.Marshal(data)
 	fmt.Println(string(result))
-
 }
 
 func TestInquiryVACore(t *testing.T) {
@@ -466,52 +563,52 @@ func TestMockRequest(t *testing.T) {
 // 	}
 // }
 
-func TestInquiryVAIntegration(t *testing.T) {
-	cfg := biConfig.New(envPath)
-	biUtil.InitValidator()
-	biStorage.InitMariaDB(&cfg.MariaConfig)
-	biStorage.InitRedis(&cfg.RedisConfig)
+// func TestInquiryVAIntegration(t *testing.T) {
+// 	cfg := biConfig.New(envPath)
+// 	biUtil.InitValidator()
+// 	biStorage.InitMariaDB(&cfg.MariaConfig)
+// 	biStorage.InitRedis(&cfg.RedisConfig)
 
-	// Load Registered Banks
+// 	// Load Registered Banks
 
-	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-	} else {
-		slog.SetLogLoggerLevel(slog.LevelInfo)
-	}
+// 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+// 		slog.SetLogLoggerLevel(slog.LevelDebug)
+// 	} else {
+// 		slog.SetLogLoggerLevel(slog.LevelInfo)
+// 	}
 
-	security := security.NewBCASecurity(cfg)
+// 	security := security.NewBCASecurity(cfg)
 
-	service, _ := NewBCAService(
-		request.NewBCAEgress(security),
-		request.NewBCAIngress(security),
-		cfg,
-		biStorage.GetDBConnection(),
-		biStorage.GetRedisInstance(),
-	)
+// 	service, _ := NewBCAService(
+// 		request.NewBCAEgress(security),
+// 		request.NewBCAIngress(security),
+// 		cfg,
+// 		biStorage.GetDBConnection(),
+// 		biStorage.GetRedisInstance(),
+// 	)
 
-	// Generate the mock http request
-	body := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
+// 	// Generate the mock http request
+// 	body := `{"partnerServiceId":"   12345","customerNo":"123456789012345678","virtualAccountNo":"   12345123456789012345678","virtualAccountName":"Jokul Doe","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"202202111031031234500001136962","channelCode":6011,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"100000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"100000.00","currency":"IDR"},"trxDateTime":"2022-02-12T17:29:57+07:00","referenceNo":"00113696201","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":[{"billCode":"","billNo":"123456789012345678","billName":"","billShortName":"","billDescription":{"english":"Maintenance","indonesia":"Pemeliharaan"},"billSubCompany":"00000","billAmount":{"value":"100000.00","currency":"IDR"},"additionalInfo":{},"billReferenceNo":"00113696201"}],"freeTexts":[],"additionalInfo":{}}`
 
-	// payload, _ := json.Marshal(jsonData)
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
-	if err != nil {
-		t.Errorf("Error creating mock request: %v", err)
-	}
+// 	// payload, _ := json.Marshal(jsonData)
+// 	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodPost, cfg.BaseURL+cfg.BCARequestedEndpoints.PaymentFlagURL, bytes.NewBuffer([]byte(body)))
+// 	if err != nil {
+// 		t.Errorf("Error creating mock request: %v", err)
+// 	}
 
-	mockRequest.Header.Set("Content-Type", "application/json")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T15:42:48+07:00")
-	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
-	mockRequest.Header.Set("X-SIGNATURE", "T2kXLJDL5pAuPyYPueGF5p4XDjNTAlDTRCaLiXPjuUqB3vEbE3r1TSypbb9Vp73CSPHIRX+LvHokG50WrJGvdg==")
-	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
+// 	mockRequest.Header.Set("Content-Type", "application/json")
+// 	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-22T15:42:48+07:00")
+// 	mockRequest.Header.Set("Authorization", "PkEA2fLzAhkTEmUDdmG4eMcKNronHi8US-p5cGT_YMoqTqwwcNw9rizl57bvaMmk")
+// 	mockRequest.Header.Set("X-SIGNATURE", "T2kXLJDL5pAuPyYPueGF5p4XDjNTAlDTRCaLiXPjuUqB3vEbE3r1TSypbb9Vp73CSPHIRX+LvHokG50WrJGvdg==")
+// 	mockRequest.Header.Set("X-EXTERNAL-ID", "765443")
 
-	result, err := service.InquiryVA(context.Background(), mockRequest)
-	if err != nil {
-		t.Errorf("Error bill presentment: %v", err)
-	}
+// 	result, err := service.InquiryVA(context.Background(), mockRequest)
+// 	if err != nil {
+// 		t.Errorf("Error bill presentment: %v", err)
+// 	}
 
-	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
-}
+// 	slog.Debug("response", "data", fmt.Sprintf("%+v", result))
+// }
 
 func TestCreateVA(t *testing.T) {
 	cfg := biConfig.New(envPath)

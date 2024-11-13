@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/bca"
@@ -383,6 +384,24 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		return &response, nil
 	}
 
+	// Validate the received payload
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		for _, item := range err.(validator.ValidationErrors) {
+			slog.Warn("error validating struct field", "field", item.Field(), "tag", item.Tag())
+			if item.Tag() == "required" || item.Tag() == "min" {
+				response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
+				response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {" + item.Field() + "}"
+
+				return &response, nil
+			} else {
+				response.BCAResponse = bca.BCABillInquiryResponseInvalidFieldFormat
+				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
+
+				return &response, nil
+			}
+		}
+	}
+
 	// Set the default value of response
 	response.VirtualAccountData = biModels.VABCAResponseData{}.Default()
 
@@ -621,6 +640,24 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		response.BCAResponse = bca.BCAPaymentFlagResponseRequestParseError
 
 		return &response, nil
+	}
+
+	// Validate the received payload
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		for _, item := range err.(validator.ValidationErrors) {
+			slog.Warn("error validating struct field", "field", item.Field(), "tag", item.Tag())
+			if item.Tag() == "required" || item.Tag() == "min" {
+				response.BCAResponse = bca.BCAPaymentFlagResponseMissingMandatoryField
+				response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {" + item.Field() + "}"
+
+				return &response, nil
+			} else {
+				response.BCAResponse = bca.BCAPaymentFlagResponseInvalidFieldFormat
+				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
+
+				return &response, nil
+			}
+		}
 	}
 
 	// Validate Auth related header
