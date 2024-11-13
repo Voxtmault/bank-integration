@@ -232,7 +232,7 @@ func TestInquiryVAIntegration(t *testing.T) {
 
 	body := `
 	{
-		"partnerServiceId": "   15335",
+		"partnerServiceId": "  a15335",
 		"customerNo": "050000000000000012",
 		"virtualAccountNo": "   15335050000000000000012",
 		"virtualAccountName": "Pemesanan-12",
