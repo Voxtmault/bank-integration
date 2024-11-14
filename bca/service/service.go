@@ -816,7 +816,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	return &response, nil
 }
 func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAInquiryVAResponse, payload *biModels.BCAInquiryRequest) error {
-
+	response.VirtualAccountData.PaidAmount = payload.PaidAmount
+	response.VirtualAccountData.TotalAmount = payload.TotalAmount
 	amountPaid, amountTotal, expDate, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, strings.ReplaceAll(payload.VirtualAccountNo, " ", ""))
 	if eris.Cause(err) == sql.ErrNoRows {
 
@@ -840,8 +841,6 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount at Paid Amount or Total Amount"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah Tidak Valid pada Jumlah Bayar atau Jumlah Total"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
-		response.VirtualAccountData.PaidAmount = biModels.Amount{}
-		response.VirtualAccountData.TotalAmount = biModels.Amount{}
 		return nil
 	}
 
@@ -871,8 +870,6 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah yang dibayarkan tidak sesuai"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
-		response.VirtualAccountData.PaidAmount = biModels.Amount{}
-		response.VirtualAccountData.TotalAmount = biModels.Amount{}
 		return nil
 	}
 
