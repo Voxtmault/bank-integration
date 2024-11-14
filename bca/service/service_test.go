@@ -123,7 +123,7 @@ func TestBillPresentmentIntegration(t *testing.T) {
 	{ 
 	"partnerServiceId": "   12345", 
 	"customerNo": "123456789012345678", 
-	"virtualAccountNo": "   12345123456789012345678a",
+	"virtualAccountNo": "   ",
 	"trxDateInit": "2022-02-12T17:29:57+07:00", 
 	"channelCode": 6011, 
 	"language": "", 
@@ -234,7 +234,7 @@ func TestInquiryVAIntegration(t *testing.T) {
 	{
 		"partnerServiceId": "   15335",
 		"customerNo": "050000000000000012",
-		"virtualAccountNo": "   15335050000000000000012",
+		"virtualAccountNo": "   ",
 		"virtualAccountName": "Pemesanan-12",
 		"virtualAccountEmail": "",
 		"virtualAccountPhone": "",
