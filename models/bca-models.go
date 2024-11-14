@@ -343,6 +343,7 @@ func (r VirtualAccountDataInquiry) Default() *VirtualAccountDataInquiry {
 		FreeTexts:         []FreeText{},
 		PaidAmount:        Amount{},
 		TotalAmount:       Amount{},
+		FlagAdvise:        "N",
 	}
 
 	return data

@@ -384,26 +384,36 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		return &response, nil
 	}
 
+	// Set the default value of response
+	response.VirtualAccountData = biModels.VABCAResponseData{}.Default()
+
 	// Validate the received payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		response.VirtualAccountData.InquiryStatus = "01"
+		response.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+		response.VirtualAccountData.CustomerNo = payload.CustomerNo
+		response.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
+		response.VirtualAccountData.InquiryRequestID = payload.InquiryRequestID
+
 		for _, item := range err.(validator.ValidationErrors) {
 			slog.Warn("error validating struct field", "field", item.Field(), "tag", item.Tag())
 			if item.Tag() == "required" || item.Tag() == "min" {
 				response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 				response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.English = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.Indonesia = "Field Wajib Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			} else {
 				response.BCAResponse = bca.BCABillInquiryResponseInvalidFieldFormat
 				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.English = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.Indonesia = "Format Field Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			}
 		}
 	}
-
-	// Set the default value of response
-	response.VirtualAccountData = biModels.VABCAResponseData{}.Default()
 
 	// Validate Auth related header, this function will also be validating for duplicate X-EXTERNAL-ID
 	result, authResponse := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
@@ -642,18 +652,41 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		return &response, nil
 	}
 
+	// Set the default value of response
+	response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+	response.VirtualAccountData.BillDetails = payload.BillDetails
+	response.VirtualAccountData.FreeTexts = payload.FreeTexts
+	response.AdditionalInfo = payload.AdditionalInfo
+
 	// Validate the received payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		response.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+		response.VirtualAccountData.CustomerNo = payload.CustomerNo
+		response.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
+		response.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
+		response.VirtualAccountData.VirtualAccountName = payload.VirtualAccountName
+		response.VirtualAccountData.VirtualAccountEmail = payload.VirtualAccountEmail
+		response.VirtualAccountData.VirtualAccountPhone = payload.VirtualAccountPhone
+		response.VirtualAccountData.TrxID = payload.TrxID
+		response.VirtualAccountData.TrxDateTime = payload.TrxDateTime
+		response.VirtualAccountData.ReferenceNo = payload.ReferenceNo
+		response.VirtualAccountData.FlagAdvise = "N"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+
 		for _, item := range err.(validator.ValidationErrors) {
 			slog.Warn("error validating struct field", "field", item.Field(), "tag", item.Tag())
 			if item.Tag() == "required" || item.Tag() == "min" {
 				response.BCAResponse = bca.BCAPaymentFlagResponseMissingMandatoryField
 				response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.English = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.Indonesia = "Field Wajib Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			} else {
 				response.BCAResponse = bca.BCAPaymentFlagResponseInvalidFieldFormat
 				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.English = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.Indonesia = "Format Field Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			}
@@ -685,12 +718,6 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 
 		return &response, nil
 	}
-
-	// Set the default value of response
-	response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
-	response.VirtualAccountData.BillDetails = payload.BillDetails
-	response.VirtualAccountData.FreeTexts = payload.FreeTexts
-	response.AdditionalInfo = payload.AdditionalInfo
 
 	// Validate X-EXTERNAL-ID and paymentRequestID is not already stored in redis
 	key := request.Header.Get("X-EXTERNAL-ID") + ":" + payload.PaymentRequestID
