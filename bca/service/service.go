@@ -181,6 +181,51 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 	return &obj, nil
 }
 
+func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BCATransferIntraBankReq) (*biModels.BCAResponseTransferIntraBank, error) {
+
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	baseUrl := s.Config.BCAConfig.BaseURL + s.Config.BCAURLEndpoints.TransferIntraBankURL
+	method := http.MethodPost
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.Config, payload, s.Config.BCAURLEndpoints.TransferIntraBankURL, s.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	response, err := s.RequestHandler(ctx, request)
+	if err != nil {
+		if response != "" {
+			return nil, eris.Wrap(eris.New(response), "sending request")
+		} else {
+			return nil, eris.Wrap(err, "sending request")
+		}
+	}
+
+	var obj biModels.BCAResponseTransferIntraBank
+	if err = json.Unmarshal([]byte(response), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if obj.ResponseCode != "2001700" {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	return &obj, nil
+}
+
 func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
 	partnerId := "   " + s.Config.BCAPartnerInformation.BCAPartnerId
 	query := `
@@ -863,7 +908,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	if payload.PaidAmount.Value == "" || payload.PaidAmount.Value == "0.00" || payload.TotalAmount.Value == "" || payload.TotalAmount.Value == "0.00" {
-		slog.Debug("va has been paid")
+		slog.Debug("Invalid amount")
 		response.BCAResponse = bca.BCAPaymentFlagResponseInvalidAmount
 		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount at Paid Amount or Total Amount"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah Tidak Valid pada Jumlah Bayar atau Jumlah Total"
@@ -881,14 +926,14 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
 	if time.Now().After(nExpDate) {
-		slog.Debug("va not found in database")
+		slog.Debug("va is expired")
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseVAExpired
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill has been expired"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan sudah kadarluasa"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
 
-		return eris.Wrap(err, "va not found")
+		return eris.Wrap(err, "va is expired")
 	}
 
 	if amountTotal.Value != payload.PaidAmount.Value {

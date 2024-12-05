@@ -154,6 +154,34 @@ type BCABalanceInquiry struct {
 	BalanceTypes []string `json:"balanceTypes"`
 }
 
+// Transfer Intra Model
+type BCATransferIntraBankReq struct {
+	PartnerReferenceNumber string `json:"partnerReferenceNo" validate:"required,max=64"`
+	Amount                 Amount `json:"amount" validate:"required"`
+	BeneficiaryAccountNo   string `json:"beneficiaryAccountNo" validate:"required,max=34"`
+	SourceAccountNo        string `json:"sourceAccountNo" validate:"required"`
+	TransactionDate        string `json:"transactionDate" validate:"required"`
+}
+
+type AdditionalInfoTransfer struct {
+	EconomicActivity   string `json:"economicActivity"`
+	TransactionPurpose string `json:"transactionPurpose"`
+}
+
+type BCAResponseTransferIntraBank struct {
+	ResponseCode         string                 `json:"responseCode"`
+	ResponseMessage      string                 `json:"responseMessage"`
+	ReferenceNo          string                 `json:"referenceNo"`
+	PartnerReferenceNo   string                 `json:"partnerReferenceNo"`
+	Amount               Amount                 `json:"amount"`
+	BeneficiaryAccountNo string                 `json:"beneficiaryAccountNo"`
+	Currency             string                 `json:"currency"`
+	CustomerReference    string                 `json:"customerReference"`
+	SourceAccountNo      string                 `json:"sourceAccountNo"`
+	TransactionDate      string                 `json:"transactionDate"`
+	AdditionalInfo       AdditionalInfoTransfer `json:"additionalInfo"`
+}
+
 // Used to parse Bill Inquiry request body sent by BCA
 type BCAVARequestPayload struct {
 	PartnerServiceID string `json:"partnerServiceId" validate:"required,min=4,max=8,startswith=   ,bcaPartnerServiceID"` // Derived from X-PARTNER-ID

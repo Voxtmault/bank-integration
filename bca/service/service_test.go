@@ -233,13 +233,13 @@ func TestInquiryVAIntegration(t *testing.T) {
 	body := `
 	{
 		"partnerServiceId": "   15335",
-		"customerNo": "050000000000000012",
-		"virtualAccountNo": "   ",
-		"virtualAccountName": "Pemesanan-12",
+		"customerNo": "112233445566778899",
+		"virtualAccountNo": "   15335112233445566778899",
+		"virtualAccountName": "Budi Sujipto",
 		"virtualAccountEmail": "",
 		"virtualAccountPhone": "",
 		"trxId": "",
-		"paymentRequestId": "20241028345467246571256",
+		"paymentRequestId": "202411141539271533500047652186",
 		"channelCode": 6014,
 		"hashedSourceAccountNo": "",
 		"sourceBankCode": "014",
@@ -253,7 +253,7 @@ func TestInquiryVAIntegration(t *testing.T) {
 			"value": "15000.00",
 			"currency": "IDR"
 		},
-		"trxDateTime": "2024-10-31T10:27:00+07:00",
+		"trxDateTime": "2024-11-30T10:27:00+07:00",
 		"referenceNo": "24657125601",
 		"journalNum": "",
 		"paymentType": "",
@@ -261,7 +261,7 @@ func TestInquiryVAIntegration(t *testing.T) {
 		"subCompany": "00000",
 		"billDetails": "",
 		"freeTexts": "",
-		"additionalInfo": ""
+		"additionalInfo": {}
 	}
 	`
 
@@ -274,9 +274,9 @@ func TestInquiryVAIntegration(t *testing.T) {
 	mockRequest.Header.Set("X-PARTNER-ID", "15335")
 	mockRequest.Header.Set("CHANNEL-ID", "95231")
 	mockRequest.Header.Set("X-EXTERNAL-ID", "546785453654")
-	mockRequest.Header.Set("X-TIMESTAMP", "2024-10-31T13:34:49+07:00")
-	mockRequest.Header.Set("Authorization", "Bearer GPOGvZrlLcvs_Dhi7ju9nKkIkXlOXi-2C4Capr3PaXzCdvAsQS-OtnWgVTN04o3I")
-	mockRequest.Header.Set("X-SIGNATURE", "KraW/u8f2622zI3wrF68EIeP4Z873SzoH9zodc8NWL4uMM8VwLifNEDDBDIqNgLa8Mjesvi9uw0/AD2wn4Xgkw==")
+	mockRequest.Header.Set("X-TIMESTAMP", "2024-11-30T15:26:39+07:00")
+	mockRequest.Header.Set("Authorization", "Bearer B9njeONWOirGwBce05lU6CLZn6tL1g8gqvO194zTBVfEL107RSsRjNMdvJOqiXcc")
+	mockRequest.Header.Set("X-SIGNATURE", "FvjgnqcharXlNjI8ZvRywF44smfbYI/mIGr3JBH5QrLSZhIckV+VE5Ipaifir7isilUE/xVGQaEHWu6+e54X/g==")
 
 	data, err := service.InquiryVA(context.Background(), mockRequest)
 	if err != nil {
@@ -300,7 +300,38 @@ func TestInquiryVACore(t *testing.T) {
 
 	s := BCAService{DB: biStorage.GetDBConnection()}
 
-	bodyReq := `{"partnerServiceId":"   15335","customerNo":"050000000000000012","virtualAccountNo":"   15335123456789012345678","virtualAccountName":"Pemesanan-12","virtualAccountEmail":"","virtualAccountPhone":"","trxId":"","paymentRequestId":"242222255744455000290","channelCode":6014,"hashedSourceAccountNo":"","sourceBankCode":"014","paidAmount":{"value":"15000.00","currency":"IDR"},"cumulativePaymentAmount":null,"paidBills":"","totalAmount":{"value":"15000.00","currency":"IDR"},"trxDateTime":"2024-10-31T10:27:00+07:00","referenceNo":"24657125601","journalNum":"","paymentType":"","flagAdvise":"N","subCompany":"00000","billDetails":"","freeTexts":"","additionalInfo":""}`
+	bodyReq := `{
+		"partnerServiceId": "   15335",
+		"customerNo": "112233445566778899",
+		"virtualAccountNo": "   15335112233445566778899",
+		"virtualAccountName": "Budi Sujipto",
+		"virtualAccountEmail": "",
+		"virtualAccountPhone": "",
+		"trxId": "",
+		"paymentRequestId": "202411141539271533500047652186",
+		"channelCode": 6014,
+		"hashedSourceAccountNo": "",
+		"sourceBankCode": "014",
+		"paidAmount": {
+			"value": "15000.00",
+			"currency": "IDR"
+		},
+		"cumulativePaymentAmount": null,
+		"paidBills": "",
+		"totalAmount": {
+			"value": "15000.00",
+			"currency": "IDR"
+		},
+		"trxDateTime": "2024-11-30T10:27:00+07:00",
+		"referenceNo": "24657125601",
+		"journalNum": "",
+		"paymentType": "",
+		"flagAdvise": "N",
+		"subCompany": "00000",
+		"billDetails": "",
+		"freeTexts": "",
+		"additionalInfo": {}
+	}`
 	var obj biModels.BCAInquiryRequest
 	if err := json.Unmarshal([]byte(bodyReq), &obj); err != nil {
 		t.Errorf("Error unmarshalling: %v", err)
