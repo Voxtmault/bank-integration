@@ -768,6 +768,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	key := request.Header.Get("X-EXTERNAL-ID") + ":" + payload.PaymentRequestID
 	val, err := s.RDB.RDB.Get(ctx, key).Result()
 	if err == nil && len(val) > 0 {
+		slog.Warn("X-EXTERNAL-ID and paymentRequestID already stored in redis")
 		// Meaning that a system error has occurred at BCA side causing double flagging request with the same X-EXTERNAL-ID and paymentRequestId
 		uncompressedResponse, err := biUtil.DecompressData([]byte(val))
 		if err != nil {
