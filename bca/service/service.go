@@ -181,6 +181,51 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 	return &obj, nil
 }
 
+func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BCATransferIntraBankReq) (*biModels.BCAResponseTransferIntraBank, error) {
+
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	baseUrl := s.Config.BCAConfig.BaseURL + s.Config.BCAURLEndpoints.TransferIntraBankURL
+	method := http.MethodPost
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.Config, payload, s.Config.BCAURLEndpoints.TransferIntraBankURL, s.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	response, err := s.RequestHandler(ctx, request)
+	if err != nil {
+		if response != "" {
+			return nil, eris.Wrap(eris.New(response), "sending request")
+		} else {
+			return nil, eris.Wrap(err, "sending request")
+		}
+	}
+
+	var obj biModels.BCAResponseTransferIntraBank
+	if err = json.Unmarshal([]byte(response), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if obj.ResponseCode != "2001700" {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	return &obj, nil
+}
+
 func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
 	partnerId := "   " + s.Config.BCAPartnerInformation.BCAPartnerId
 	query := `
@@ -384,26 +429,36 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		return &response, nil
 	}
 
+	// Set the default value of response
+	response.VirtualAccountData = biModels.VABCAResponseData{}.Default()
+
 	// Validate the received payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		response.VirtualAccountData.InquiryStatus = "01"
+		response.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+		response.VirtualAccountData.CustomerNo = payload.CustomerNo
+		response.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
+		response.VirtualAccountData.InquiryRequestID = payload.InquiryRequestID
+
 		for _, item := range err.(validator.ValidationErrors) {
 			slog.Warn("error validating struct field", "field", item.Field(), "tag", item.Tag())
 			if item.Tag() == "required" || item.Tag() == "min" {
 				response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 				response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.English = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.Indonesia = "Field Wajib Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			} else {
 				response.BCAResponse = bca.BCABillInquiryResponseInvalidFieldFormat
 				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.English = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.InquiryReason.Indonesia = "Format Field Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			}
 		}
 	}
-
-	// Set the default value of response
-	response.VirtualAccountData = biModels.VABCAResponseData{}.Default()
 
 	// Validate Auth related header, this function will also be validating for duplicate X-EXTERNAL-ID
 	result, authResponse := s.Ingress.VerifySymmetricSignature(ctx, request, s.RDB, bodyBytes)
@@ -642,18 +697,41 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		return &response, nil
 	}
 
+	// Set the default value of response
+	response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
+	response.VirtualAccountData.BillDetails = payload.BillDetails
+	response.VirtualAccountData.FreeTexts = payload.FreeTexts
+	response.AdditionalInfo = payload.AdditionalInfo
+
 	// Validate the received payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		response.VirtualAccountData.PartnerServiceID = payload.PartnerServiceID
+		response.VirtualAccountData.CustomerNo = payload.CustomerNo
+		response.VirtualAccountData.VirtualAccountNo = payload.VirtualAccountNo
+		response.VirtualAccountData.PaymentRequestID = payload.PaymentRequestID
+		response.VirtualAccountData.VirtualAccountName = payload.VirtualAccountName
+		response.VirtualAccountData.VirtualAccountEmail = payload.VirtualAccountEmail
+		response.VirtualAccountData.VirtualAccountPhone = payload.VirtualAccountPhone
+		response.VirtualAccountData.TrxID = payload.TrxID
+		response.VirtualAccountData.TrxDateTime = payload.TrxDateTime
+		response.VirtualAccountData.ReferenceNo = payload.ReferenceNo
+		response.VirtualAccountData.FlagAdvise = "N"
+		response.VirtualAccountData.PaymentFlagStatus = "01"
+
 		for _, item := range err.(validator.ValidationErrors) {
 			slog.Warn("error validating struct field", "field", item.Field(), "tag", item.Tag())
 			if item.Tag() == "required" || item.Tag() == "min" {
 				response.BCAResponse = bca.BCAPaymentFlagResponseMissingMandatoryField
 				response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.English = "Invalid Mandatory Field {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.Indonesia = "Field Wajib Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			} else {
 				response.BCAResponse = bca.BCAPaymentFlagResponseInvalidFieldFormat
 				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.English = "Invalid Field Format {" + item.Field() + "}"
+				response.VirtualAccountData.PaymentFlagReason.Indonesia = "Format Field Tidak Valid {" + item.Field() + "}"
 
 				return &response, nil
 			}
@@ -686,16 +764,11 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		return &response, nil
 	}
 
-	// Set the default value of response
-	response.VirtualAccountData = biModels.VirtualAccountDataInquiry{}.Default()
-	response.VirtualAccountData.BillDetails = payload.BillDetails
-	response.VirtualAccountData.FreeTexts = payload.FreeTexts
-	response.AdditionalInfo = payload.AdditionalInfo
-
 	// Validate X-EXTERNAL-ID and paymentRequestID is not already stored in redis
 	key := request.Header.Get("X-EXTERNAL-ID") + ":" + payload.PaymentRequestID
 	val, err := s.RDB.RDB.Get(ctx, key).Result()
 	if err == nil && len(val) > 0 {
+		slog.Warn("X-EXTERNAL-ID and paymentRequestID already stored in redis")
 		// Meaning that a system error has occurred at BCA side causing double flagging request with the same X-EXTERNAL-ID and paymentRequestId
 		uncompressedResponse, err := biUtil.DecompressData([]byte(val))
 		if err != nil {
@@ -816,7 +889,8 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	return &response, nil
 }
 func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAInquiryVAResponse, payload *biModels.BCAInquiryRequest) error {
-
+	response.VirtualAccountData.PaidAmount = payload.PaidAmount
+	response.VirtualAccountData.TotalAmount = payload.TotalAmount
 	amountPaid, amountTotal, expDate, err := s.GetVirtualAccountPaidTotalAmountByInquiryRequestId(ctx, strings.ReplaceAll(payload.VirtualAccountNo, " ", ""))
 	if eris.Cause(err) == sql.ErrNoRows {
 
@@ -835,13 +909,11 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	if payload.PaidAmount.Value == "" || payload.PaidAmount.Value == "0.00" || payload.TotalAmount.Value == "" || payload.TotalAmount.Value == "0.00" {
-		slog.Debug("va has been paid")
+		slog.Debug("Invalid amount")
 		response.BCAResponse = bca.BCAPaymentFlagResponseInvalidAmount
 		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount at Paid Amount or Total Amount"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah Tidak Valid pada Jumlah Bayar atau Jumlah Total"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
-		response.VirtualAccountData.PaidAmount = biModels.Amount{}
-		response.VirtualAccountData.TotalAmount = biModels.Amount{}
 		return nil
 	}
 
@@ -855,14 +927,14 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 	nExpDate, _ := time.Parse(time.DateTime, expDate)
 	if time.Now().After(nExpDate) {
-		slog.Debug("va not found in database")
+		slog.Debug("va is expired")
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseVAExpired
 		response.VirtualAccountData.PaymentFlagReason.English = "Bill has been expired"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Tagihan sudah kadarluasa"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
 
-		return eris.Wrap(err, "va not found")
+		return eris.Wrap(err, "va is expired")
 	}
 
 	if amountTotal.Value != payload.PaidAmount.Value {
@@ -871,8 +943,6 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		response.VirtualAccountData.PaymentFlagReason.English = "Invalid Amount"
 		response.VirtualAccountData.PaymentFlagReason.Indonesia = "Jumlah yang dibayarkan tidak sesuai"
 		response.VirtualAccountData.PaymentFlagStatus = "01"
-		response.VirtualAccountData.PaidAmount = biModels.Amount{}
-		response.VirtualAccountData.TotalAmount = biModels.Amount{}
 		return nil
 	}
 

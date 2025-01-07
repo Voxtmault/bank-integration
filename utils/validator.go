@@ -2,6 +2,8 @@ package bank_integration_utils
 
 import (
 	"context"
+	"reflect"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -10,6 +12,7 @@ var validate *validator.Validate
 
 func InitValidator() *validator.Validate {
 	validate = validator.New()
+	validate.RegisterTagNameFunc(RegisterJSONTagNameFunc)
 
 	return validate
 }
@@ -61,4 +64,12 @@ func ValidateBCAVirtualAccountNumber(fl validator.FieldLevel) bool {
 	}
 
 	return true
+}
+
+func RegisterJSONTagNameFunc(fld reflect.StructField) string {
+	name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+	if name == "-" {
+		return ""
+	}
+	return name
 }

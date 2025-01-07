@@ -26,7 +26,13 @@ func InitBankAPI(envPath, timezone string) error {
 
 	// Load Configs
 	cfg := biConfig.New(envPath)
-	biUtil.InitValidator()
+
+	// Init Validator
+	validate := biUtil.InitValidator()
+
+	// Register custom validator func if any
+	validate.RegisterValidation("bcaPartnerServiceID", biUtil.ValidatePartnerServiceID)
+	validate.RegisterValidation("bcaVA", biUtil.ValidateBCAVirtualAccountNumber)
 
 	// Init storage connections
 	if err := biStorage.InitMariaDB(&cfg.MariaConfig); err != nil {

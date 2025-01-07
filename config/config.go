@@ -38,9 +38,10 @@ type BCAPartnerInformation struct {
 }
 
 type BCAURLEndpoints struct {
-	AccessTokenURL    string
-	BalanceInquiryURL string
-	PaymentFlagURL    string
+	AccessTokenURL       string
+	BalanceInquiryURL    string
+	PaymentFlagURL       string
+	TransferIntraBankURL string
 }
 type BCARequestedEndpoints struct {
 	AuthURL            string
@@ -117,8 +118,9 @@ func New(envPath string) *BankingConfig {
 			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_REQ_ACCESS_TOKEN_EXPIRATION", 0)),
 		},
 		BCAURLEndpoints: BCAURLEndpoints{
-			AccessTokenURL:    getEnv("BCA_ACCESS_TOKEN_URL", ""),
-			BalanceInquiryURL: getEnv("BCA_BALANCE_INQUIRY_URL", ""),
+			AccessTokenURL:       getEnv("BCA_ACCESS_TOKEN_URL", ""),
+			BalanceInquiryURL:    getEnv("BCA_BALANCE_INQUIRY_URL", ""),
+			TransferIntraBankURL: getEnv("BCA_TRANSFER_INTRABANK_URL", ""),
 		},
 		BCARequestedEndpoints: BCARequestedEndpoints{
 			AuthURL:            getEnv("BCA_REQ_OAUTH2_URL", "/payment-api/v1.0/access-token/b2b"),

@@ -26,8 +26,8 @@ func TestCreateAsymmetricSignature(t *testing.T) {
 		cfg,
 	)
 
-	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
-	security.ClientID = ""
+	security.PrivateKeyPath = "../../private-key.pem"
+	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
 
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateAsymmetricSignature(context.Background(), timestamp)
@@ -51,50 +51,50 @@ func TestCreateSymmetricSignature(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
-	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/mock_private.pem"
-	security.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/mock_public.pub"
-	security.ClientID = cfg.BCARequestedClientCredentials.ClientID
-	security.ClientSecret = cfg.BCARequestedClientCredentials.ClientSecret
+	security.PrivateKeyPath = "../../private-key.pem"
+	security.BCAPublicKeyPath = "../../public-key.pem"
+	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
+	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
 
 	inputJSON := `{
-    "partnerServiceId": "   15335",
-    "customerNo": "050000000000000012",
-    "virtualAccountNo": "   15335050000000000000012",
-    "virtualAccountName": "Pemesanan-12",
-    "virtualAccountEmail": "",
-    "virtualAccountPhone": "",
-    "trxId": "",
-    "paymentRequestId": "20241028345467246571256",
-    "channelCode": 6014,
-    "hashedSourceAccountNo": "",
-    "sourceBankCode": "014",
-    "paidAmount": {
-        "value": "15000.00",
-        "currency": "IDR"
-    },
-    "cumulativePaymentAmount": null,
-    "paidBills": "",
-    "totalAmount": {
-        "value": "15000.00",
-        "currency": "IDR"
-    },
-    "trxDateTime": "2024-10-31T10:27:00+07:00",
-    "referenceNo": "24657125601",
-    "journalNum": "",
-    "paymentType": "",
-    "flagAdvise": "N",
-    "subCompany": "00000",
-    "billDetails": "",
-    "freeTexts": "",
-    "additionalInfo": ""
-}`
+		"partnerServiceId": "   15335",
+		"customerNo": "112233445566778899",
+		"virtualAccountNo": "   15335112233445566778899",
+		"virtualAccountName": "Budi Sujipto",
+		"virtualAccountEmail": "",
+		"virtualAccountPhone": "",
+		"trxId": "",
+		"paymentRequestId": "202411141539271533500047652186",
+		"channelCode": 6014,
+		"hashedSourceAccountNo": "",
+		"sourceBankCode": "014",
+		"paidAmount": {
+			"value": "15000.00",
+			"currency": "IDR"
+		},
+		"cumulativePaymentAmount": null,
+		"paidBills": "",
+		"totalAmount": {
+			"value": "15000.00",
+			"currency": "IDR"
+		},
+		"trxDateTime": "2024-11-30T10:27:00+07:00",
+		"referenceNo": "24657125601",
+		"journalNum": "",
+		"paymentType": "",
+		"flagAdvise": "N",
+		"subCompany": "00000",
+		"billDetails": "",
+		"freeTexts": "",
+		"additionalInfo": {}
+	}`
 	fmt.Println(cfg.BCARequestedClientCredentials.ClientID)
 
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateSymmetricSignature(context.Background(), &biModels.SymmetricSignatureRequirement{
 		HTTPMethod:  http.MethodPost,
-		AccessToken: "Q8W8oiCXUFNyQNrdkBrhSPLVkpSZW92BO03P4qArJpqIKXSM__yeQ9ZpqXhRsU8N",
-		Timestamp:   time.Now().Format(time.RFC3339),
+		AccessToken: "trWIaRJ7Kk6ZrLqtZdja-XDq1lia1PideqpggT-BEQzCLxbp4vXRBsibNnhjvGKF",
+		Timestamp:   "2024-11-30T16:17:54+07:00",
 		RequestBody: []byte(inputJSON),
 		RelativeURL: cfg.BCARequestedEndpoints.PaymentFlagURL,
 	})
@@ -114,7 +114,7 @@ func TestVerifyAsymmetricSignature(t *testing.T) {
 
 	timeStamp := "2024-10-23T15:15:42+07:00"
 	clientID := cfg.BCARequestedClientCredentials.ClientID
-	signature := "oTNgXCLPXEkiqV1UVV9qRodxukUHhcixToOqfdWhWkfFrygOFjjmPtzG/ec2ZZrVLCGtIHoQUwf9FmKNvh7WvVddAqLa08zvPvzrkWWBPEYcOrJgtmrQbmWOk+CTMEcO9CDHHbz7NfwXQwnj2gEz2oeSWj0yadZxjbhv1ar578ukQ8hxiItk0bHdAnc+M2OtTl3fK8NaADpaZg+7ZOdNh4uiF4jxlNEVqQ0F9+MgIW+pbP73ynMC+WaJ17f4O/k8nUuB81sekeqpd9hSG6gJvx/DF4D9NCbzn3Ty5p+c4t0AUJh5WzEowBJ7l0WwTVHQJr+/IjV98HANMklqVwaU7Q=="
+	signature := "F7Tbk9w42OTYKc2TtEypdIkzhAt56ieIxKFFwNLHIu5ItEbzYTsVpuhSrYJmtwFagqN6Jci6eyvkmnG6qRh0LCzB5yVlizN434LzxkJkH2Ug1EcRQzKl5APVXKYb/fybFDVJMV4BbvBA6lgerhL9AxJG2yHoLCOyr3CH+BjiNJF2tXLYi18jwcJKToBK0GY/POU8z16ykaAageqrAzFucuBq6cRq28Y99DSdFTAOrBysniCLY0I1TguVyJjXPIJEn7UJEqc2ZD7lYpS/g//bEfHeVsB01xzyuyuRWTXLL9KEFVqPRtaI3oUg3rZypTwpOUjiJZpBJJBAym/DGgjepQ=="
 	result, err := security.VerifyAsymmetricSignature(context.Background(), timeStamp, clientID, signature)
 	if err != nil {
 		t.Error(err)
