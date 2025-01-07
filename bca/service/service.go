@@ -227,31 +227,31 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 }
 
 func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
-	partnerId := "   " + s.Config.BCAPartnerInformation.BCAPartnerId
+	partnerId := s.padPartnerServiceId(s.Config.BCAPartnerInformation.BCAPartnerId)
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
-				   			virtualAccountName, id_user, owner_table,expired_date, id_bank)
-	VALUES(?,?,?,?,?,?,?,?,?)
+				   			virtualAccountName,expired_date, id_bank, id_wallet)
+	VALUES(?,?,?,?,?,?,?,?)
 	`
 	var id int64
 	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Debug("error beginning transaction", "error", err)
-		tx.Rollback()
 		return eris.Wrap(err, "beginning transaction")
 	}
 
-	numVA, customerNo := s.BuildNumVA(payload.IdUser, payload.IdJenisUser, partnerId)
-	cekpaid, err := s.CheckVAPaid(ctx, numVA, tx)
+	vaNumber := partnerId + payload.CustomerNo
+	checkPaid, err := s.CheckVAPaid(ctx, tx, vaNumber)
 	if err != nil {
-		return eris.Wrap(err, "querying va_table")
+		tx.Rollback()
+		return eris.Wrap(err, "check va paid")
 	}
-	if cekpaid {
-		// Meaning all previous VA with the same VA Number has been paid or cancelled
-		result, err := tx.ExecContext(ctx, query, partnerId, customerNo, numVA, payload.JumlahPembayaran,
-			payload.NamaUser, payload.IdUser, payload.IdJenisUser, expiredTime.Format(time.DateTime),
-			s.Config.BCAConfig.InternalBankID)
+
+	if checkPaid {
+		// Meaning no active VA Payment Request
+		result, err := tx.ExecContext(ctx, query, partnerId, payload.CustomerNo, vaNumber, strconv.Itoa(payload.JumlahPembayaran)+".00",
+			payload.NamaUser, expiredTime.Format(time.DateTime), s.Config.BCAConfig.InternalBankID, payload.WalletID)
 		if err != nil {
 			tx.Rollback()
 			return eris.Wrap(err, "querying va_table")
@@ -1041,6 +1041,7 @@ func (s *BCAService) GetWatchedTransaction(ctx context.Context) []*biModels.Tran
 }
 
 // Service Utils
+
 func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) (string, error) {
 
 	client := &http.Client{}
@@ -1094,27 +1095,41 @@ func (s *BCAService) GenerateVANumber() (string, error) {
 	return "", nil
 }
 
-func (s *BCAService) CheckVAPaid(ctx context.Context, virtualAccountNum string, tx *sql.Tx) (bool, error) {
-	// partnerId := s.Config.BCAPartnerId.BCAPartnerId
+// CheckVAPaid checks the DB for VA Payment Request under the VA Number. If an active request if found then
+// return true, else return false.
+func (s *BCAService) CheckVAPaid(ctx context.Context, tx *sql.Tx, virtualAccountNum string) (bool, error) {
 	query := `
-	SELECT paidAmountValue,paidAmountCurrency,expired_date 
+	SELECT paidAmountValue, paidAmountCurrency, expired_date 
 	FROM va_request 
 	WHERE TRIM(virtualAccountNo) = ? AND paidAmountValue = '0.00' AND id_va_status = ?
 	`
 	var amount biModels.Amount
-	expDate := ""
-	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", ""), biUtil.VAStatusPending).Scan(&amount.Value, &amount.Currency, &expDate)
-	if err == sql.ErrNoRows {
-		return true, nil
-	}
+	var expDate string
+
+	err := tx.QueryRowContext(ctx, query, strings.ReplaceAll(virtualAccountNum, " ", ""), biUtil.VAStatusPending).Scan(
+		&amount.Value, &amount.Currency, &expDate,
+	)
 	if err != nil {
-		tx.Rollback()
-		return false, eris.Wrap(err, "querying va_table")
+		if err == sql.ErrNoRows {
+			return true, nil
+		} else {
+			return false, eris.Wrap(err, "querying va_request")
+		}
 	}
-	nExp, _ := time.Parse(time.DateTime, expDate)
+
+	// Also get the expire date of the said transaction as a counter measure when Transaction Watcher
+	// fails to update the status of the transaction for some reason
+	nExp, err := time.Parse(time.DateTime, expDate)
+	if err != nil {
+		slog.Error("error parsing expire date time", "reason", err)
+		return false, eris.Wrap(err, "parsing expire date time")
+	}
+
 	if time.Now().After(nExp) {
 		return true, nil
 	}
+
+	// Meaning that the VA Payment Request is still valid and active
 	return false, nil
 }
 func (s *BCAService) GetVirtualAccountPaidAmountByInquiryRequestId(ctx context.Context, inquiryRequestId string) (*biModels.Amount, error) {
@@ -1266,4 +1281,13 @@ func (s *BCAService) getInternalBankInfo() error {
 	slog.Debug("internal bank info", "id", s.Config.BCAConfig.InternalBankID, "name", s.Config.BCAConfig.InternalBankName)
 
 	return nil
+}
+
+func (s *BCAService) padPartnerServiceId(id string) string {
+	// For BCA, required partner service id is 8 digits, pad with " " at the front if the length is less than 8
+	for len(id) < 8 {
+		id = " " + id
+	}
+
+	return id
 }

@@ -75,14 +75,19 @@ type SNAP interface {
 
 	// Used to get the information regarding the account balance and other informations.
 	BalanceInquiry(ctx context.Context, payload *biModel.BCABalanceInquiry) (*biModel.BCAAccountBalance, error)
-	
+
 	TransferIntraBank(ctx context.Context, payload *biModel.BCATransferIntraBankReq) (*biModel.BCAResponseTransferIntraBank, error)
 
+	// BillPresentment returns the bill information and the payment code.
+	// Generally called by Bank API
 	BillPresentment(ctx context.Context, request *http.Request) (*biModel.VAResponsePayload, error)
 
+	// InquiryVA updates the VA Payment Request status based on the bank's request.
+	// Generally called by Bank API
 	InquiryVA(ctx context.Context, request *http.Request) (*biModel.BCAInquiryVAResponse, error)
 
-	// CreateVA is used in tandem with order creation when VA Payment is chosen as the payment method.
+	// CreateVA creates a new VA Payment Request for the user to pay. It will not, however, create a new VA Number.
+	// VA number is created upon user registration
 	CreateVA(ctx context.Context, payload *biModel.CreateVAReq) error
 
 	// GetAllVAWaitingPayment is called upon program startup to populate transaction watcher

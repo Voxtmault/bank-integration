@@ -21,7 +21,6 @@ import (
 	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
-// var envPath = "/home/andy/go-projects/github.com/voxtmault/bank-integration/.env"
 var envPath = "../../.env"
 
 func TestGetAccessToken(t *testing.T) {
@@ -667,10 +666,8 @@ func TestCreateVA(t *testing.T) {
 
 	// Generate CreateVA object
 	data := biModels.CreateVAReq{
-		IdUser:           12,
 		NamaUser:         "Joko Dono",
 		IdJenisPembelian: 1,
-		IdJenisUser:      1,
 		JumlahPembayaran: 100000,
 	}
 

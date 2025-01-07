@@ -383,10 +383,10 @@ type AdditionalInfo struct {
 }
 
 type CreateVAReq struct {
-	IdUser           int    `json:"id_user"`
 	NamaUser         string `json:"nama_user"`
 	IdJenisPembelian int    `json:"id_jenis_pembelian"`
-	IdJenisUser      int    `json:"id_jenis_user"`
 	JumlahPembayaran int    `json:"jumlah_pembayaran"`
+	CustomerNo       string `json:"customer_number"`
+	WalletID         uint   `json:"wallet_id"`
 	// TotalAmount      Amount `json:"total_amaount"`
 }
