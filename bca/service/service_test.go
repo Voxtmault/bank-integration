@@ -403,7 +403,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	mockSecurity.ClientSecret = cfg.BCARequestedClientCredentials.ClientSecret
 
 	// Generate the mock signature
-	timeStamp := "2024-10-23T15:15:42+07:00"
+	timeStamp := "2025-01-07T22:31:41+07:00"
 	mockSignature, err := mockSecurity.CreateAsymmetricSignature(context.Background(), timeStamp)
 	if err != nil {
 		t.Errorf("Error generating mock signature: %v", err)
@@ -426,7 +426,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	mockRequest.Header.Set("Content-Type", "application/json")
 	mockRequest.Header.Set("X-TIMESTAMP", timeStamp)
 	mockRequest.Header.Set("X-CLIENT-KEY", mockSecurity.ClientID)
-	mockRequest.Header.Set("X-SIGNATURE", "oTNgXCLPXEkiqV1UVV9qRodxukUHhcixToOqfdWhWkfFrygOFjjmPtzG/ec2ZZrVLCGtIHoQUwf9FmKNvh7WvVddAqLa08zvPvzrkWWBPEYcOrJgtmrQbmWOk+CTMEcO9CDHHbz7NfwXQwnj2gEz2oeSWj0yadZxjbhv1ar578ukQ8hxiItk0bHdAnc+M2OtTl3fK8NaADpaZg+7ZOdNh4uiF4jxlNEVqQ0F9+MgIW+pbP73ynMC+WaJ17f4O/k8nUuB81sekeqpd9hSG6gJvx/DF4D9NCbzn3Ty5p+c4t0AUJh5WzEowBJ7l0WwTVHQJr+/IjV98HANMklqVwaU7Q==")
+	mockRequest.Header.Set("X-SIGNATURE", "dFJb22HsoPWKA2zrof61vfshW+QQzjPro9/e1S13aWbBpNqYL/UWNCGaGzqvX8QicNY5SvHjOSN6GfhBCTxRy6o2zRvlWpEUDn3PTxS832JSVuABkWmUehAHZJjjXWBLR4xU0dagG2A0zSt9ULCkkYlJ4y1ByFID2mYHmFfIc/P3akyMb3RXjn3jtApk0NohLT81irlCeEZxo2xYsTjt8oxXDnEHm4TVJA7gOWL5TtpxA60Ux6GGRw5dbAinBZIhKgaOIkyC9TWEa4EwxMZfCkPFUjdn+MVhbaq0MA6jgdmwOibTkQ/3L3pdF34lUs1WkrUraQjnmOvlEAKrsDEpDA==")
 
 	// Call the Generate Access Token function
 	data, err := service.GenerateAccessToken(context.Background(), mockRequest)

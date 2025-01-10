@@ -1,0 +1,5 @@
+databaseChangeLog:
+- include:
+    file: db/changelog/bank_ingress.sql
+- include:
+    file: db/changelog/bank_egress.sql

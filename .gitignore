@@ -1,1 +1,9 @@
 *.env
+*.pub
+*.log
+*.log
+*.key
+*.pem
+*.txt
+*.json
+*.properties
