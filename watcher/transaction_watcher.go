@@ -61,7 +61,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 		case <-w.Timer.C:
 			if err := s.expireFunc(w); err != nil {
 				slog.Error("error while expiring transaction", "error", err)
-				watcher.ExpireAt = watcher.ExpireAt.Add(biConfig.GetConfig().TransactionWatcherConfig.DefaultRetryInternal)
+				watcher.ExpireAt = watcher.ExpireAt.Add(biConfig.GetConfig().TransactionWatcherConfig.DefaultRetryInterval)
 
 				// Log error
 				s.logWatcher(w, biConst.WatcherFailed, err.Error())

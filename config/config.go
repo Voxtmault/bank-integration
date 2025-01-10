@@ -51,7 +51,7 @@ type BCARequestedEndpoints struct {
 
 type TransactionWatcherConfig struct {
 	MaxRetry             uint
-	DefaultRetryInternal time.Duration
+	DefaultRetryInterval time.Duration
 	DefaultExpireTime    time.Duration
 }
 
@@ -152,7 +152,7 @@ func New(envPath string) *BankingConfig {
 		},
 		TransactionWatcherConfig: TransactionWatcherConfig{
 			MaxRetry:             uint(getEnvAsInt("WATCHER_MAX_RETRY", 10)),
-			DefaultRetryInternal: time.Duration(getEnvAsInt("WATCHER_DEFAULT_RETRY_INTERNAL", 10)) * time.Minute,
+			DefaultRetryInterval: time.Duration(getEnvAsInt("WATCHER_DEFAULT_RETRY_INTERVAL", 10)) * time.Minute,
 			DefaultExpireTime:    time.Duration(getEnvAsInt("WATCHER_DEFAULT_EXPIRE_TIME", 24)) * time.Hour,
 		},
 		AppHost: getEnv("APP_HOST", ""),

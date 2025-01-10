@@ -20,6 +20,7 @@ import (
 	"github.com/voxtmault/bank-integration/bca"
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	biLogger "github.com/voxtmault/bank-integration/logger"
 	biModels "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
 
@@ -310,35 +311,94 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// 7. Save the Access Token along with client secret to redis
 	// 8. Return to caller
 
+	logMessage := biModels.BankLog{
+		ClientIP:   request.RemoteAddr,
+		HTTPMethod: request.Method,
+		Protocol:   request.Proto,
+		URI:        request.RequestURI,
+	}
+
+	reqParam, _ := json.Marshal(request.URL.Query())
+	logMessage.RequestParameter = string(reqParam)
+
+	ctx = context.WithValue(ctx, biLogger.BankLogCtxKey, &logMessage)
+
+	bodyBytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		response := biModels.AccessTokenResponse{
+			BCAResponse: &bca.BCAAuthGeneralError,
+		}
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, eris.Wrap(err, "reading request body")
+	}
+	defer request.Body.Close()
+
+	// returns the request body value to be used down the function flow
+	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	logMessage.RequestBody = string(bodyBytes)
+
 	// Parse the request body
 	var body biModels.GrantType
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
-		return &biModels.AccessTokenResponse{
+		slog.Debug("failed to decode request body", "reason", err)
+		response := biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
-		}, eris.Wrap(err, "decoding request body")
+		}
+
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, eris.Wrap(err, "decoding request body")
 	}
 
 	// Validate the received struct
 	if err := biUtil.ValidateStruct(ctx, body); err != nil {
 		slog.Debug("error validating request body", "error", err)
-
-		return &biModels.AccessTokenResponse{
+		response := biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthInvalidFieldFormatClient,
-		}, nil
+		}
+
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, nil
 	}
 
 	// Verify Asymmetric Signature
 	result, response, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
 	if response != nil {
-		return &biModels.AccessTokenResponse{
+		response := biModels.AccessTokenResponse{
 			BCAResponse: response,
-		}, nil
+		}
+
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, nil
 	}
 
 	if !result {
-		return &biModels.AccessTokenResponse{
+		response := biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthUnauthorizedSignature,
-		}, nil
+		}
+
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, nil
 	}
 
 	slog.Debug("received client secret", "clientSecret", clientSecret)
@@ -346,28 +406,52 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// Generate the access token
 	token, err := s.GeneralSecurity.GenerateAccessToken(ctx)
 	if err != nil {
-		slog.Debug("error generating access token", "error", err)
-		return nil, eris.Wrap(err, "generating access token")
+		slog.Debug("error generating access token", "reason", err)
+		response := biModels.AccessTokenResponse{
+			BCAResponse: &bca.BCAAuthGeneralError,
+		}
+
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, eris.Wrap(err, "generating access token")
 	}
 	slog.Debug("generated token", "token", token)
 
 	// Save the access token to redis along with the configured client secret & expiration time
 	key := fmt.Sprintf("%s:%s", biUtil.AccessTokenRedis, token)
 	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.Config.BCARequestedClientCredentials.AccessTokenExpirationTime)).Err(); err != nil {
-		return &biModels.AccessTokenResponse{
+		slog.Debug("error saving access token to redis", "reason", err)
+		response := biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
-		}, eris.Wrap(err, "saving access token to redis")
+		}
+
+		responseStr, _ := json.Marshal(response)
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
+		logMessage.ResponseContent = string(responseStr)
+
+		return &response, eris.Wrap(err, "saving access token to redis")
 	}
 
 	bcaResponse := bca.BCAAuthResponseSuccess
 	bcaResponse.ResponseMessage = "Successful"
 
-	return &biModels.AccessTokenResponse{
+	reqResponse := biModels.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
 		ExpiresIn:   strconv.Itoa(int(s.Config.BCARequestedClientCredentials.AccessTokenExpirationTime)),
 		BCAResponse: &bcaResponse,
-	}, nil
+	}
+
+	responseStr, _ := json.Marshal(reqResponse)
+	logMessage.ResponseCode = uint(reqResponse.BCAResponse.HTTPStatusCode)
+	logMessage.ResponseMessage = reqResponse.BCAResponse.ResponseMessage
+	logMessage.ResponseContent = string(responseStr)
+
+	return &reqResponse, nil
 }
 
 func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request) (*biModels.VAResponsePayload, error) {
