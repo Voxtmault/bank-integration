@@ -154,7 +154,7 @@ func (s *TransactionWatcher) expireFunc(obj *biModel.TransactionWatcher) error {
 	}
 
 	if transactionStatus == uint(biConst.VAStatusPaid) || transactionStatus == uint(biConst.VAStatusCancelled) {
-		slog.Info("current transaction not according to plan, killing watcher", "current status", transactionStatus)
+		slog.Info("current transaction is either already paid or cancelled, killing watcher", "current status", transactionStatus)
 		return nil
 	}
 

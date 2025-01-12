@@ -90,6 +90,8 @@ type SNAP interface {
 	// VA number is created upon user registration
 	CreateVA(ctx context.Context, payload *biModel.CreateVAReq) error
 
+	CreateVAV2(ctx context.Context, payload *biModel.CreatePaymentVARequestV2) error
+
 	// GetAllVAWaitingPayment is called upon program startup to populate transaction watcher
 	GetAllVAWaitingPayment(ctx context.Context) error
 

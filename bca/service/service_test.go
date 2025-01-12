@@ -16,6 +16,7 @@ import (
 	request "github.com/voxtmault/bank-integration/bca/request"
 	security "github.com/voxtmault/bank-integration/bca/security"
 	biConfig "github.com/voxtmault/bank-integration/config"
+	biLogger "github.com/voxtmault/bank-integration/logger"
 	biModels "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
 	biUtil "github.com/voxtmault/bank-integration/utils"
@@ -376,6 +377,8 @@ func TestGenerateAccessToken(t *testing.T) {
 	biStorage.InitMariaDB(&cfg.MariaConfig)
 	biStorage.InitRedis(&cfg.RedisConfig)
 
+	ctx := context.Background()
+
 	// Load Registered Banks
 
 	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
@@ -404,7 +407,7 @@ func TestGenerateAccessToken(t *testing.T) {
 
 	// Generate the mock signature
 	timeStamp := "2025-01-07T22:31:41+07:00"
-	mockSignature, err := mockSecurity.CreateAsymmetricSignature(context.Background(), timeStamp)
+	mockSignature, err := mockSecurity.CreateAsymmetricSignature(ctx, timeStamp)
 	if err != nil {
 		t.Errorf("Error generating mock signature: %v", err)
 	}
@@ -418,7 +421,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error marshalling body: %v", err)
 	}
-	mockRequest, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "", bytes.NewBuffer(jsonBody))
+	mockRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		t.Errorf("Error creating mock request: %v", err)
 	}
@@ -429,7 +432,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	mockRequest.Header.Set("X-SIGNATURE", "dFJb22HsoPWKA2zrof61vfshW+QQzjPro9/e1S13aWbBpNqYL/UWNCGaGzqvX8QicNY5SvHjOSN6GfhBCTxRy6o2zRvlWpEUDn3PTxS832JSVuABkWmUehAHZJjjXWBLR4xU0dagG2A0zSt9ULCkkYlJ4y1ByFID2mYHmFfIc/P3akyMb3RXjn3jtApk0NohLT81irlCeEZxo2xYsTjt8oxXDnEHm4TVJA7gOWL5TtpxA60Ux6GGRw5dbAinBZIhKgaOIkyC9TWEa4EwxMZfCkPFUjdn+MVhbaq0MA6jgdmwOibTkQ/3L3pdF34lUs1WkrUraQjnmOvlEAKrsDEpDA==")
 
 	// Call the Generate Access Token function
-	data, err := service.GenerateAccessToken(context.Background(), mockRequest)
+	data, err := service.GenerateAccessToken(ctx, mockRequest)
 	if err != nil {
 		t.Errorf("Error generating access token: %v", err)
 	}
@@ -438,6 +441,9 @@ func TestGenerateAccessToken(t *testing.T) {
 	slog.Debug("signature", "data", mockSignature)
 	marshalled, _ := json.Marshal(data)
 	slog.Debug("response", "data", marshalled)
+
+	logMessage := ctx.Value(biLogger.BankLogCtxKey)
+	slog.Debug("logMessage", "data", logMessage)
 }
 
 func TestValidateAccessToken(t *testing.T) {

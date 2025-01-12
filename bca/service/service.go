@@ -281,6 +281,68 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 	return nil
 }
 
+func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePaymentVARequestV2) error {
+	// Validate payload
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return eris.Wrap(err, "validating payload")
+	}
+
+	// Make sure that the total billed ammount ends in .00
+	if !strings.HasSuffix(payload.TotalAmount, ".00") {
+		payload.TotalAmount += ".00"
+	}
+
+	partnerId := s.padPartnerServiceId(s.Config.BCAPartnerInformation.BCAPartnerId)
+	query := `
+	INSERT INTO va_request (id_bank, id_wallet, id_transaction, expired_date, partnerServiceId, customerNo,
+							virtualAccountNo, totalAmountValue, virtualAccountName)
+	VALUES(?,?,?,?,?,?,?,?,?)
+	`
+	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Debug("error beginning transaction", "error", err)
+		return eris.Wrap(err, "beginning transaction")
+	}
+
+	vaNumber := partnerId + payload.CustomerNo
+	checkPaid, err := s.CheckVAPaid(ctx, tx, vaNumber)
+	if err != nil {
+		tx.Rollback()
+		return eris.Wrap(err, "check va paid")
+	}
+
+	if !checkPaid {
+		// Meaning there is still a VA with the same VA Number that is still waiting for payment
+		tx.Rollback()
+		return eris.Wrap(err, "Va Not Paid")
+	}
+
+	// No active billing for the said VA Number
+	result, err := tx.ExecContext(ctx, query, s.Config.BCAConfig.InternalBankID, payload.IDWallet, payload.IDTransaction, expiredTime,
+		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName)
+	if err != nil {
+		tx.Rollback()
+		return eris.Wrap(err, "querying va_table")
+	}
+	id, _ := result.LastInsertId()
+
+	if err = tx.Commit(); err != nil {
+		slog.Debug("error committing transaction", "error", err)
+		tx.Rollback()
+		return eris.Wrap(err, "committing transaction")
+	}
+
+	// Create Transaction Watcher after successfull transaction commit
+	watchedTransaction := watcher.NewWatcher()
+	watchedTransaction.IDTransaction = uint(id)
+	watchedTransaction.ExpireAt = expiredTime.Local()
+
+	s.Watcher.AddWatcher(watchedTransaction)
+
+	return nil
+}
+
 // ChecksAccessToken is an exclusive function to renew the access token if it is expired or if it's empty.
 func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 	if s.AccessToken == "" {
