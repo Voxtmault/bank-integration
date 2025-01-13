@@ -319,7 +319,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 		slog.Debug("va number has not been paid yet")
 		// Meaning there is still a VA with the same VA Number that is still waiting for payment
 		tx.Rollback()
-		return eris.Wrap(err, "Va Not Paid")
+		return eris.New("previous va number has not been paid yet")
 	}
 
 	// No active billing for the said VA Number
