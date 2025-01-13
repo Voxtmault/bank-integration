@@ -26,8 +26,8 @@ func TestCreateAsymmetricSignature(t *testing.T) {
 		cfg,
 	)
 
-	security.PrivateKeyPath = "../../private-key.pem"
-	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
+	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/testing/private-key.pem"
+	security.ClientID = "63b603bf-3ff4-4169-9b48-bac6a3e02326"
 
 	timestamp := time.Now().Format(time.RFC3339)
 	signature, err := security.CreateAsymmetricSignature(context.Background(), timestamp)
@@ -51,43 +51,25 @@ func TestCreateSymmetricSignature(t *testing.T) {
 		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 
-	security.PrivateKeyPath = "../../private-key.pem"
-	security.BCAPublicKeyPath = "../../public-key.pem"
-	security.ClientID = "c3e7fe0d-379c-4ce2-ad85-372fea661aa0"
-	security.ClientSecret = "3fd9d63c-f4f1-4c26-8886-fecca45b1053"
+	security.PrivateKeyPath = "/home/andy/ssl/shifter-wallet/testing/private-key.pem"
+	security.BCAPublicKeyPath = "/home/andy/ssl/shifter-wallet/testing/public-key.pem"
+	security.ClientID = "63b603bf-3ff4-4169-9b48-bac6a3e02326"
+	security.ClientSecret = "1660d812-9cae-4523-9d54-5ed0e5675ae0"
 
 	inputJSON := `{
-		"partnerServiceId": "   15335",
-		"customerNo": "112233445566778899",
-		"virtualAccountNo": "   15335112233445566778899",
-		"virtualAccountName": "Budi Sujipto",
-		"virtualAccountEmail": "",
-		"virtualAccountPhone": "",
-		"trxId": "",
-		"paymentRequestId": "202411141539271533500047652186",
-		"channelCode": 6014,
-		"hashedSourceAccountNo": "",
-		"sourceBankCode": "014",
-		"paidAmount": {
-			"value": "15000.00",
-			"currency": "IDR"
-		},
-		"cumulativePaymentAmount": null,
-		"paidBills": "",
-		"totalAmount": {
-			"value": "15000.00",
-			"currency": "IDR"
-		},
-		"trxDateTime": "2024-11-30T10:27:00+07:00",
-		"referenceNo": "24657125601",
-		"journalNum": "",
-		"paymentType": "",
-		"flagAdvise": "N",
-		"subCompany": "00000",
-		"billDetails": "",
-		"freeTexts": "",
-		"additionalInfo": {}
-	}`
+    "partnerServiceId": "   15335",
+    "customerNo": "00100001010000000042",
+    "virtualAccountNo": "   1533500100001010000000042",
+    "trxDateInit": "2024-10-24T11:31:00+07:00",
+    "channelCode": 6011,
+    "language": "",
+    "amount": {},
+    "hashedSourceAccountNo": "",
+    "sourceBankCode": "014",
+    "additionalInfo": {},
+    "passApp": "",
+    "inquiryRequestId": "202411141537491533500047652185"
+}`
 	fmt.Println(cfg.BCARequestedClientCredentials.ClientID)
 
 	timestamp := time.Now().Format(time.RFC3339)

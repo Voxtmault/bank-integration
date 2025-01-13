@@ -12,6 +12,7 @@ import (
 	bcaService "github.com/voxtmault/bank-integration/bca/service"
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
+	bank_integration_internal "github.com/voxtmault/bank-integration/internal"
 	management "github.com/voxtmault/bank-integration/management"
 	biStorage "github.com/voxtmault/bank-integration/storage"
 	biUtil "github.com/voxtmault/bank-integration/utils"
@@ -87,6 +88,16 @@ func InitBCAService() (biInterfaces.SNAP, error) {
 func InitManagementService() biInterfaces.Management {
 
 	service := management.NewBankIntegrationManagement(
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	return service
+}
+
+func InitInternalService() biInterfaces.Internal {
+	service, _ := bank_integration_internal.NewInternalService(
+		biConfig.GetConfig(),
 		biStorage.GetDBConnection(),
 		biStorage.GetRedisInstance(),
 	)

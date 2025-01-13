@@ -109,5 +109,8 @@ type Management interface {
 	RevokeRegisteredBank(ctx context.Context) error
 }
 
+type Internal interface {
+	GetOrderVAInformation(ctx context.Context, idOrder uint) (*biModel.InternalVAInformation, error)
+}
 type Timer interface {
 }
