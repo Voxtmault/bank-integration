@@ -298,8 +298,8 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	partnerId := s.padPartnerServiceId(s.Config.BCAPartnerInformation.BCAPartnerId)
 	query := `
 	INSERT INTO va_request (id_bank, id_wallet, id_transaction, expired_date, partnerServiceId, customerNo,
-							virtualAccountNo, totalAmountValue, virtualAccountName)
-	VALUES(?,NULLIF(?,0),NULLIF(?,0),?,?,?,?,?,?)
+							virtualAccountNo, totalAmountValue, virtualAccountName, id_order)
+	VALUES(?,NULLIF(?,0),NULLIF(?,0),?,?,?,?,?,?,NULLIF(?,0))
 	`
 	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
 	tx, err := s.DB.BeginTx(ctx, nil)
@@ -323,7 +323,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 
 	// No active billing for the said VA Number
 	result, err := tx.ExecContext(ctx, query, payload.IDBank, payload.IDWallet, payload.IDTransaction, expiredTime,
-		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName)
+		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName, payload.IDOrder)
 	if err != nil {
 		tx.Rollback()
 		return eris.Wrap(err, "inserting into va_request")
