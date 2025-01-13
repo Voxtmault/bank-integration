@@ -316,6 +316,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	}
 
 	if !checkPaid {
+		slog.Debug("va number has not been paid yet")
 		// Meaning there is still a VA with the same VA Number that is still waiting for payment
 		tx.Rollback()
 		return eris.Wrap(err, "Va Not Paid")
@@ -1244,7 +1245,7 @@ func (s *BCAService) GenerateVANumber() (string, error) {
 	return "", nil
 }
 
-// CheckVAPaid checks the DB for VA Payment Request under the VA Number. If an active request if found then
+// CheckVAPaid checks the DB for VA Payment Request under the VA Number. If no active request is found then
 // return true, else return false.
 func (s *BCAService) CheckVAPaid(ctx context.Context, tx *sql.Tx, virtualAccountNum string) (bool, error) {
 	query := `
