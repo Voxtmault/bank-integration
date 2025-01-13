@@ -282,6 +282,9 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 }
 
 func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePaymentVARequestV2) error {
+	// Override the bank code to BCA
+	payload.IDBank = s.Config.BCAConfig.InternalBankID
+
 	// Validate payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
 		return eris.Wrap(err, "validating payload")
@@ -319,7 +322,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	}
 
 	// No active billing for the said VA Number
-	result, err := tx.ExecContext(ctx, query, s.Config.BCAConfig.InternalBankID, payload.IDWallet, payload.IDTransaction, expiredTime,
+	result, err := tx.ExecContext(ctx, query, payload.IDBank, payload.IDWallet, payload.IDTransaction, expiredTime,
 		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName)
 	if err != nil {
 		tx.Rollback()

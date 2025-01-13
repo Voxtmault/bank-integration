@@ -393,9 +393,10 @@ type CreateVAReq struct {
 
 type CreatePaymentVARequestV2 struct {
 	IDWallet      uint   `json:"id_wallet" validate:"required,number,gte=1,min=1"`
-	IDTransaction uint   `json:"id_transaction" validate:"required,number,gte=1,min=1"`
+	IDTransaction uint   `json:"id_transaction" validate:"omitempty,number,gte=1,min=1"`
 	IDBank        uint   `json:"id_bank" validate:"required,number,gte=1,min=1"`
 	IDService     uint   `json:"id_service" validate:"required,number,gte=1,min=1"`
+	IDOrder       uint   `json:"id_order" validate:"required,number,gte=1,min=1"`
 	CustomerNo    string `json:"customer_no" validate:"required,number,max=20"`
 	AccountName   string `json:"account_name" validate:"required,max=255"`
 	TotalAmount   string `json:"total_amount" validate:"required,number"`
