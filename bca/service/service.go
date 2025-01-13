@@ -299,7 +299,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	query := `
 	INSERT INTO va_request (id_bank, id_wallet, id_transaction, expired_date, partnerServiceId, customerNo,
 							virtualAccountNo, totalAmountValue, virtualAccountName)
-	VALUES(?,?,?,?,?,?,?,?,?)
+	VALUES(?,NULLIF(?,""),NULLIF(?,""),?,?,?,?,?,?)
 	`
 	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
 	tx, err := s.DB.BeginTx(ctx, nil)
