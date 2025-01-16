@@ -66,6 +66,9 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				// Log error
 				s.logWatcher(w, biConst.WatcherFailed, err.Error())
 
+				// Remove the current watcher
+				s.RemoveWatcher(w.IDTransaction)
+
 				// Add another attempt
 				s.AddWatcher(w)
 				return
@@ -75,9 +78,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				s.logWatcher(w, biConst.WatcherSuccess, "watcher successfully run")
 
 				// Make sure this is thread safe
-				s.Lock()
-				delete(s.WatchedList, w.IDTransaction)
-				s.Unlock()
+				s.RemoveWatcher(w.IDTransaction)
 				return
 			}
 		case paymentStatus := <-w.PaymentStatus:
@@ -86,6 +87,9 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				<-w.Timer.C // If an error occurs, drain the channel
 			}
 
+			// Notify external channel
+			w.ExternalChannel <- uint(paymentStatus)
+
 			if paymentStatus == biConst.VAStatusPaid {
 				s.logWatcher(w, biConst.WatcherCancelled, "transaction has been paid")
 
@@ -93,6 +97,8 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				// This else is for when the transaction is cancelled
 				s.logWatcher(w, biConst.WatcherCancelled, "transaction has been cancelled")
 			}
+
+			s.RemoveWatcher(w.IDTransaction)
 			return
 		}
 	}(watcher)

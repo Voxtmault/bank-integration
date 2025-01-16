@@ -341,6 +341,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	watchedTransaction := watcher.NewWatcher()
 	watchedTransaction.IDTransaction = uint(id)
 	watchedTransaction.ExpireAt = expiredTime.Local()
+	watchedTransaction.ExternalChannel = payload.ExternalChannel
 
 	s.Watcher.AddWatcher(watchedTransaction)
 
@@ -1125,9 +1126,10 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		return eris.Wrap(err, "updating va_request")
 	}
 
+	var vaRequestId uint
 	statement = `
 	SELECT  partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
-			totalAmountCurrency
+			totalAmountCurrency, id
 	FROM va_request 
 	WHERE inquiryRequestId = ?
 	LIMIT 1
@@ -1139,6 +1141,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		&response.VirtualAccountData.VirtualAccountName,
 		&response.VirtualAccountData.TotalAmount.Value,
 		&response.VirtualAccountData.TotalAmount.Currency,
+		&vaRequestId,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			// fmt.Println("masuk sini")
@@ -1181,6 +1184,9 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 
 		return eris.Wrap(err, "committing transaction")
 	}
+
+	// Update the watcher
+	s.Watcher.TransactionPaid(vaRequestId)
 
 	return nil
 }

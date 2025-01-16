@@ -14,15 +14,16 @@ type TimerPayment struct {
 }
 
 type TransactionWatcher struct {
-	IDTransaction uint                         // Identifier
-	IDBank        uint                         // Bank who owns the transaction
-	BankName      string                       // Bank name
-	Location      *time.Location               // Timezone
-	ExpireAt      time.Time                    // Time of expiration
-	PaymentStatus chan biConst.VAPaymentStatus // Controlls the watcher behavior
-	MaxRetry      uint                         // Maximum number of retries
-	Attempts      uint                         // Current retry count
-	Timer         *time.Timer                  // Timer for the watcher
+	IDTransaction   uint                         // Identifier
+	IDBank          uint                         // Bank who owns the transaction
+	BankName        string                       // Bank name
+	Location        *time.Location               // Timezone
+	ExpireAt        time.Time                    // Time of expiration
+	PaymentStatus   chan biConst.VAPaymentStatus // Controlls the watcher behavior
+	ExternalChannel chan uint                    // Inject other channel, probably from importer
+	MaxRetry        uint                         // Maximum number of retries
+	Attempts        uint                         // Current retry count
+	Timer           *time.Timer                  // Timer for the watcher
 }
 
 type TransactionWatcherPublic struct {
