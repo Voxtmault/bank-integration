@@ -68,3 +68,38 @@ func (i *InternalService) GetOrderVAInformation(ctx context.Context, idOrder uin
 
 	return &obj, nil
 }
+
+func (i *InternalService) GetTopUpVAInformation(ctx context.Context, trxId uint) (*biModels.InternalVAInformation, error) {
+	var err error
+	var obj biModels.InternalVAInformation
+	statement := `
+	SELECT id_bank, virtualAccountNo, virtualAccountName, totalAmountValue, expired_date
+	FROM va_request
+	WHERE id_transaction = ? AND id_va_status = ?
+	ORDER BY created_at DESC
+	LIMIT 1
+	`
+	if err = i.DB.QueryRowContext(ctx, statement, trxId, biUtil.VAStatusPending).Scan(
+		&obj.IDBank,
+		&obj.VANumber,
+		&obj.VAAccountName,
+		&obj.TotalAmount,
+		&obj.ExpiredAt,
+	); err != nil {
+		return nil, eris.Wrap(err, "querying va request")
+	}
+
+	// Get the bank name from redis
+	obj.BankName, err = i.RDB.RDB.HGet(ctx, biUtil.AuthenticatedBankNameRedis, strconv.Itoa(int(obj.IDBank))).Result()
+	if err != nil {
+		obj.BankName = ""
+	}
+
+	// Get the bank icon logo from redis
+	obj.BankIconLink, err = i.RDB.RDB.HGet(ctx, biUtil.VendorsLogoRedis, strconv.Itoa(int(obj.IDBank))).Result()
+	if err != nil {
+		obj.BankIconLink = ""
+	}
+
+	return &obj, nil
+}

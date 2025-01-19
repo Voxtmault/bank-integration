@@ -111,6 +111,7 @@ type Management interface {
 
 type Internal interface {
 	GetOrderVAInformation(ctx context.Context, idOrder uint) (*biModel.InternalVAInformation, error)
+	GetTopUpVAInformation(ctx context.Context, trxId uint) (*biModel.InternalVAInformation, error)
 }
 type Timer interface {
 }
