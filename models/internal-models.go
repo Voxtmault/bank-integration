@@ -1,6 +1,7 @@
 package bank_integration_models
 
 type InternalVAInformation struct {
+	TrxID         string `json:"trx_id"`
 	IDBank        uint   `json:"id_bank"`
 	BankName      string `json:"bank_name"`
 	BankIconLink  string `json:"bank_icon_link"`
