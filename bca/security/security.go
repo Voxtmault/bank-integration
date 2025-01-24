@@ -28,32 +28,37 @@ import (
 )
 
 type BCASecurity struct {
-	// Partner Keys
-	PrivateKeyPath string
-
-	// Client keys given by BCA
-	ClientID     string
-	ClientSecret string
-
-	// BCA's submitted public key, used to verify the signature sent by BCA API
-	BCAPublicKeyPath string
+	// Banking Instance
+	bankConfig *biConfig.BankConfig
 
 	// Variables loaded on runtime
 
-	privateKey   *rsa.PrivateKey // privateKey is used to generate and sign signatures that is to be verified by BCA API
-	bcaPublicKey *rsa.PublicKey  // bcaPublicKey is used to verify the signature sent by BCA API
+	privateKey    *rsa.PrivateKey // privateKey is used to generate and sign signatures that is to be verified by BCA API
+	bankPublicKey *rsa.PublicKey  // bcaPublicKey is used to verify the signature sent by BCA API
 }
 
 // BCA Security implements the Security interface
 var _ biInterfaces.Security = &BCASecurity{}
 
-func NewBCASecurity(cfg *biConfig.BankingConfig) *BCASecurity {
-	return &BCASecurity{
-		PrivateKeyPath:   cfg.Keys.PrivateKeyPath,
-		ClientID:         cfg.BCAConfig.ClientID,
-		ClientSecret:     cfg.BCAConfig.ClientSecret,
-		BCAPublicKeyPath: cfg.Keys.BCAPublicKeyPath,
+func NewBCASecurity(cfg *biConfig.InternalConfig, bCfg *biConfig.BankConfig) (*BCASecurity, error) {
+	obj := &BCASecurity{
+		bankConfig: bCfg,
 	}
+
+	var err error
+	obj.privateKey, err = loadPrivateKey(cfg.PrivateKeyPath)
+	if err != nil {
+		slog.Error("error loading private key", "error", err)
+		return nil, eris.Wrap(err, "loading private key")
+	}
+
+	obj.bankPublicKey, err = loadPublicKey(bCfg.PublicKeyPath)
+	if err != nil {
+		slog.Error("error loading public key", "error", err)
+		return nil, eris.Wrap(err, "loading public key")
+	}
+
+	return obj, nil
 }
 
 func (s *BCASecurity) CreateAsymmetricSignature(ctx context.Context, timeStamp string) (string, error) {
@@ -61,15 +66,11 @@ func (s *BCASecurity) CreateAsymmetricSignature(ctx context.Context, timeStamp s
 
 	// Checks if the private key is already loaded
 	if s.privateKey == nil {
-		// Load the Private Key from file
-		s.privateKey, err = loadPrivateKey(s.PrivateKeyPath)
-		if err != nil {
-			return "", eris.Wrap(err, "loading private key")
-		}
+		return "", eris.New("private key not loaded")
 	}
 
 	// Hash the String To Sign
-	hashed := sha256.Sum256([]byte(fmt.Sprintf("%s|%s", s.ClientID, timeStamp)))
+	hashed := sha256.Sum256([]byte(fmt.Sprintf("%s|%s", s.bankConfig.BankCredential.ClientID, timeStamp)))
 
 	// Sign the hashed string
 	signature, err := rsa.SignPKCS1v15(rand.Reader, s.privateKey, crypto.SHA256, hashed[:])
@@ -83,9 +84,9 @@ func (s *BCASecurity) CreateAsymmetricSignature(ctx context.Context, timeStamp s
 
 func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error) {
 
-	if s.bcaPublicKey == nil {
+	if s.bankPublicKey == nil {
 		var err error
-		s.bcaPublicKey, err = loadPublicKey(s.BCAPublicKeyPath)
+		s.bankPublicKey, err = loadPublicKey(s.bankConfig.PublicKeyPath)
 		if err != nil {
 			return false, eris.Wrap(err, "loading public key")
 		}
@@ -102,7 +103,7 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 	hashed := hash.Sum(nil)
 
 	// Verify the signature
-	if err = rsa.VerifyPKCS1v15(s.bcaPublicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
+	if err = rsa.VerifyPKCS1v15(s.bankPublicKey, crypto.SHA256, hashed, decodedSignature); err != nil {
 		return false, eris.Wrap(err, "verifying signature")
 	} else {
 		return true, nil
@@ -110,7 +111,6 @@ func (s *BCASecurity) VerifyAsymmetricSignature(ctx context.Context, timeStamp, 
 }
 
 func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *biModels.SymmetricSignatureRequirement) (string, error) {
-
 	// Encode the Relative URL
 	relativeURL, err := s.processRelativeURL(obj.RelativeURL)
 	if err != nil {
@@ -128,7 +128,7 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *biModel
 	fmt.Println("string to sign", "data", stringToSign)
 
 	// Generate Signature using SHA512-HMAC Algorithm
-	h := hmac.New(sha512.New, []byte(s.ClientSecret))
+	h := hmac.New(sha512.New, []byte(s.bankConfig.BankCredential.ClientSecret))
 	h.Write([]byte(stringToSign))
 	signature := h.Sum(nil)
 

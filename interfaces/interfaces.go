@@ -4,32 +4,17 @@ import (
 	"context"
 	"net/http"
 
-	biConfig "github.com/voxtmault/bank-integration/config"
 	biModel "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
 )
 
-// Deprecated: Use RequestEgress and RequestIngress instead.
-type Request interface {
-	// AccessTokenRequestHeader is ONLY used to set the headers for the request to get the access token.
-	AccessTokenRequestHeader(ctx context.Context, request *http.Request, config *biConfig.BankingConfig) error
-
-	// RequestHeader is used to set the headers for all other requests.
-	RequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig, body any, relativeURL, accessToken string) error
-
-	RequestHandler(ctx context.Context, request *http.Request) (string, error)
-
-	VerifyAsymmetricSignature(ctx context.Context, timeStamp, clientKey, signature string) (bool, error)
-	VerifySymmetricSignature(ctx context.Context, obj *biModel.SymmetricSignatureRequirement, clientSecret, signature string) (bool, error)
-}
-
 // RequestEgress is an interface that defines the methods that are used to send requests to banks.
 type RequestEgress interface {
 	// GenerateAccessRequestHeader is ONLY used to generate the headers for the request to get the access token.
-	GenerateAccessRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig) error
+	GenerateAccessRequestHeader(ctx context.Context, request *http.Request) error
 
 	// GenerateGeneralRequestHeader is used to generate the headers for all other requests.
-	GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig, body any, relativeURL, accessToken string) error
+	GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, relativeURL, accessToken string) error
 }
 
 // RequestIngress is an interface that defines the methods that are used to receive requests from banks.
@@ -112,6 +97,4 @@ type Management interface {
 type Internal interface {
 	GetOrderVAInformation(ctx context.Context, idOrder uint) (*biModel.InternalVAInformation, error)
 	GetTopUpVAInformation(ctx context.Context, trxId uint) (*biModel.InternalVAInformation, error)
-}
-type Timer interface {
 }

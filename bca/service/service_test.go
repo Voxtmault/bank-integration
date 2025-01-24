@@ -715,3 +715,36 @@ func TestGetWatchedTransaction(t *testing.T) {
 
 	time.Sleep(60 * time.Minute)
 }
+
+func TestTransferIntraBank(t *testing.T) {
+	cfg := biConfig.New(envPath)
+	biUtil.InitValidator()
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
+	os.Setenv("TZ", "Asia/Jakarta")
+
+	// Load Registered Banks
+
+	if strings.Contains(strings.ToLower(cfg.Mode), "debug") {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	} else {
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	security := security.NewBCASecurity(cfg)
+
+	service, _ := NewBCAService(
+		request.NewBCAEgress(security),
+		request.NewBCAIngress(security),
+		cfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	res, err := service.TransferIntraBank(context.Background(), &biModels.BCATransferIntraBankReq{})
+	if err != nil {
+		t.Errorf("Error transfer intra bank: %v", err)
+	}
+
+	slog.Debug("response", "data", res)
+}

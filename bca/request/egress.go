@@ -12,29 +12,27 @@ import (
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
 	biModels "github.com/voxtmault/bank-integration/models"
-	biUtil "github.com/voxtmault/bank-integration/utils"
 )
 
 type BCAEgress struct {
+	bankConfig     *biConfig.BankConfig
+	internalConfig *biConfig.InternalConfig
+
 	// Security is mainly used to generate signatures for request headers
 	Security biInterfaces.Security
 }
 
 var _ biInterfaces.RequestEgress = &BCAEgress{}
 
-func NewBCAEgress(security biInterfaces.Security) *BCAEgress {
+func NewBCAEgress(security biInterfaces.Security, bCfg *biConfig.BankConfig, cfg *biConfig.InternalConfig) *BCAEgress {
 	return &BCAEgress{
-		Security: security,
+		bankConfig:     bCfg,
+		internalConfig: cfg,
+		Security:       security,
 	}
 }
 
-func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig) error {
-
-	// Checks for problematic configurations
-	if err := biUtil.ValidateStruct(ctx, cfg.BCAConfig); err != nil {
-		return eris.Wrap(err, "invalid BCA configuration")
-	}
-
+func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *http.Request) error {
 	timeStamp := time.Now().Format(time.RFC3339)
 
 	slog.Debug("Creating asymetric signature")
@@ -51,19 +49,19 @@ func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *ht
 	}
 
 	slog.Debug("Request Header Debug", "Timestamp: ", timeStamp)
-	slog.Debug("Request Header Debug", "Client ID: ", cfg.BCAConfig.ClientID)
+	slog.Debug("Request Header Debug", "Client ID: ", s.bankConfig.BankCredential.ClientID)
 	slog.Debug("Request Header Debug", "Signature: ", signature)
 
 	// Add custom headers required by BCA
 	request.Header.Set("X-TIMESTAMP", timeStamp)
-	request.Header.Set("X-CLIENT-KEY", cfg.BCAConfig.ClientID)
+	request.Header.Set("X-CLIENT-KEY", s.bankConfig.BankCredential.ClientID)
 	request.Header.Set("X-SIGNATURE", signature)
-	request.Header.Set("Host", cfg.AppHost)
+	request.Header.Set("Host", s.internalConfig.AppHost)
 
 	return nil
 }
 
-func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, cfg *biConfig.BankingConfig, body any, relativeURL, accessToken string) error {
+func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *http.Request, relativeURL, accessToken string) error {
 	timeStamp := time.Now().Format(time.RFC3339)
 
 	// Read the body and convert to string
@@ -96,9 +94,9 @@ func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *h
 	// Add custom headers required by BCA
 	request.Header.Set("Authorization", "Bearer "+accessToken)
 	request.Header.Set("X-TIMESTAMP", timeStamp)
-	request.Header.Set("X-CLIENT-KEY", cfg.BCAConfig.ClientID)
+	request.Header.Set("X-CLIENT-KEY", s.bankConfig.BankCredential.ClientID)
 	request.Header.Set("X-SIGNATURE", signature)
-	request.Header.Set("ORIGIN", cfg.AppHost)
+	request.Header.Set("ORIGIN", s.internalConfig.AppHost)
 	request.Header.Set("X-EXTERNAL-ID", "")
 
 	return nil

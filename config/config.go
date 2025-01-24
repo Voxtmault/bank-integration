@@ -130,6 +130,7 @@ type InternalConfig struct {
 	MariaConfig
 	RedisConfig
 	PrivateKeyPath string
+	AppHost        string
 	Mode           string // To contorl wether the application is running in production or development or debug mode
 }
 
@@ -168,6 +169,7 @@ func New(envPath string) *InternalConfig {
 			DefaultExpireTime:    time.Duration(getEnvAsInt("WATCHER_DEFAULT_EXPIRE_TIME", 24)) * time.Hour,
 		},
 		PrivateKeyPath: getEnv("PRIVATE_KEY_PATH", ""),
+		AppHost:        getEnv("APP_HOST", ""),
 		Mode:           getEnv("MODE", "prod"),
 	}
 

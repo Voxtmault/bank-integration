@@ -72,6 +72,11 @@ func InitBankAPI(envPath, timezone string) error {
 
 func InitBCAService() (biInterfaces.SNAP, error) {
 
+	// Checks for problematic configurations
+	if err := biUtil.ValidateStruct(ctx, bCfg); err != nil {
+		return eris.Wrap(err, "invalid bank configuration")
+	}
+
 	security := bcaSecurity.NewBCASecurity(biConfig.GetConfig())
 
 	service, err := bcaService.NewBCAService(
