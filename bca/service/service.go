@@ -138,14 +138,17 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABalanceInquiry) (*biModels.BCAAccountBalance, error) {
+func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBalance, error) {
 
 	// Checks if the access token is empty, if yes then get a new one
 	if err := s.CheckAccessToken(ctx); err != nil {
 		return nil, eris.Wrap(err, "checking access token")
 	}
 
+	var payload biModels.BCABalanceInquiry
+
 	payload.PartnerReferenceNumber = uuid.New().String()
+	payload.AccountNumber = s.bankConfig.BankCredential.SourceAccount
 
 	// Validate before sending the request
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {

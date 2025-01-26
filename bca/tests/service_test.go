@@ -53,7 +53,7 @@ func TestBalanceInquiry(t *testing.T) {
 		biStorage.GetRedisInstance(),
 	)
 
-	data, err := service.BalanceInquiry(context.Background(), &biModels.BCABalanceInquiry{})
+	data, err := service.BalanceInquiry(context.Background())
 	if err != nil {
 		t.Errorf("Error getting access token: %v", err)
 	}
