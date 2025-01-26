@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rotisserie/eris"
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
@@ -97,7 +98,7 @@ func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *h
 	request.Header.Set("X-CLIENT-KEY", s.bankConfig.BankCredential.ClientID)
 	request.Header.Set("X-SIGNATURE", signature)
 	request.Header.Set("ORIGIN", s.internalConfig.AppHost)
-	request.Header.Set("X-EXTERNAL-ID", "")
+	request.Header.Set("X-EXTERNAL-ID", uuid.New().String())
 
 	return nil
 }

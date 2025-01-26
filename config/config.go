@@ -14,9 +14,14 @@ type BankCredential struct {
 	InternalBankName string `validate:"omitempty"`                    // Name of the bank
 	ClientID         string `validate:"required,uuid4"`               // Client ID received from the bank
 	ClientSecret     string `validate:"required,uuid4"`               // Client Secret received from the bank
-	ChannelID        string `validate:"required,number"`              // Channel ID received / mandated from the bank
 	PartnerID        string `validate:"required,number"`              // Partner ID received from the bank
 	PublicKeyPath    string `validate:"required,filepath"`            // Path to the public key sent by the bank
+	SourceAccount    string `validate:"required"`                     // Source account numbern for this application
+}
+
+type BankChannelConfig struct {
+	VAChannelId       string `validate:"required,number"` // Virtual Account Channel ID
+	BusinessChannelId string `validate:"required,number"` // Business Channel ID; KlikBCA Bisnis, etc
 }
 
 type BankRuntimeConfig struct {
@@ -54,6 +59,7 @@ type VirtualAccountConfig struct {
 // BankConfig is used to store / bundle configuration needed to run / create a bank instance
 type BankConfig struct {
 	BankCredential
+	BankChannelConfig
 	BankRuntimeConfig
 	BankRequestedCredentials
 	BankServiceEndpoints
@@ -72,9 +78,13 @@ func NewBankingConfig(path string) *BankConfig {
 			InternalBankName: getEnv("INTERNAL_BANK_NAME", ""),
 			ClientID:         getEnv("CLIENT_ID", ""),
 			ClientSecret:     getEnv("CLIENT_SECRET", ""),
-			ChannelID:        getEnv("CHANNEL_ID", ""),
 			PartnerID:        getEnv("PARTNER_ID", ""),
 			PublicKeyPath:    getEnv("PUBLIC_KEY_PATH", ""),
+			SourceAccount:    getEnv("SOURCE_ACCOUNT", ""),
+		},
+		BankChannelConfig: BankChannelConfig{
+			VAChannelId:       getEnv("VA_CHANNEL_ID", ""),
+			BusinessChannelId: getEnv("BUSINESS_CHANNEL_ID", ""),
 		},
 		BankRuntimeConfig: BankRuntimeConfig{
 			AccessToken:               getEnv("ACCESS_TOKEN", ""),

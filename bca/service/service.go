@@ -189,6 +189,19 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.Wrap(err, "checking access token")
 	}
 
+	payload.PartnerReferenceNumber = s.bankConfig.BankCredential.PartnerID
+	payload.SourceAccountNo = s.bankConfig.BankCredential.SourceAccount
+
+	// Checks if the value ends with .00
+	if !strings.HasSuffix(payload.Amount.Value, ".00") {
+		payload.Amount.Value += ".00"
+	}
+
+	// Validate before sending the request
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return nil, eris.Wrap(err, "validating payload")
+	}
+
 	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.TransferIntraBankURL
 	method := http.MethodPost
 	body, err := json.Marshal(payload)
@@ -204,6 +217,8 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.TransferIntraBankURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
 		return nil, eris.Wrap(err, "constructing request header")
 	}
+
+	request.Header.Set("X-PARTNER-ID ", s.bankConfig.BankCredential.PartnerID)
 
 	response, err := s.RequestHandler(ctx, request)
 	if err != nil {
@@ -528,7 +543,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	var response biModels.VAResponsePayload
 
 	// Validate Channel ID
-	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankCredential.ChannelID {
+	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankChannelConfig.VAChannelId {
 
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
@@ -796,7 +811,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	var response biModels.BCAInquiryVAResponse
 
 	// Validate Channel ID
-	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankCredential.ChannelID {
+	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankChannelConfig.VAChannelId {
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
 
@@ -1359,7 +1374,7 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 
 		return &response, nil
 	}
-	if channelID != s.bankConfig.BankCredential.ChannelID {
+	if channelID != s.bankConfig.BankChannelConfig.VAChannelId {
 		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
 		return &response, nil
