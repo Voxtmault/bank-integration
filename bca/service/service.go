@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/voxtmault/bank-integration/bca"
@@ -144,6 +145,13 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 		return nil, eris.Wrap(err, "checking access token")
 	}
 
+	payload.PartnerReferenceNumber = uuid.New().String()
+
+	// Validate before sending the request
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return nil, eris.Wrap(err, "validating payload")
+	}
+
 	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.BalanceInquiryURL
 	method := http.MethodPost
 	body, err := json.Marshal(payload)
@@ -159,6 +167,9 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.BalanceInquiryURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
 		return nil, eris.Wrap(err, "constructing request header")
 	}
+
+	request.Header.Set("X-PARTNER-ID ", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID ", s.bankConfig.BankChannelConfig.BusinessChannelId)
 
 	response, err := s.RequestHandler(ctx, request)
 	if err != nil {
@@ -219,6 +230,7 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 	}
 
 	request.Header.Set("X-PARTNER-ID ", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID ", s.bankConfig.BankChannelConfig.BusinessChannelId)
 
 	response, err := s.RequestHandler(ctx, request)
 	if err != nil {
