@@ -7,3 +7,4 @@
 *.txt
 *.json
 *.properties
+/bca-test-keys

@@ -10,40 +10,45 @@ import (
 )
 
 type BankCredential struct {
-	InternalBankID   uint   // Refers to internally registered bank
-	InternalBankname string // Name of the bank
-	ClientID         string // Client ID received from the bank
-	ClientSecret     string // Client Secret received from the bank
-	ChannelID        string // Channel ID received / mandated from the bank
-	PartnerID        string // Partner ID received from the bank
-	PublicKeyPath    string // Path to the public key sent by the bank
+	InternalBankID   uint   `validate:"omitempty,number.gte=1,min=1"` // Refers to internally registered bank
+	InternalBankName string `validate:"omitempty"`                    // Name of the bank
+	ClientID         string `validate:"required,uuid4"`               // Client ID received from the bank
+	ClientSecret     string `validate:"required,uuid4"`               // Client Secret received from the bank
+	ChannelID        string `validate:"required,number"`              // Channel ID received / mandated from the bank
+	PartnerID        string `validate:"required,number"`              // Partner ID received from the bank
+	PublicKeyPath    string `validate:"required,filepath"`            // Path to the public key sent by the bank
 }
 
 type BankRuntimeConfig struct {
 	AccessToken               string // Access token received from the bank on runtime
 	AccessTokenExpirationTime uint   // Access token expiration time, this can be used to determine when to refresh the token
+	ExpiresAt                 int64
 }
 
 type BankRequestedCredentials struct {
-	ClientID              string // Client ID given to the bank
-	ClientSecret          string // Client Secret given to the bank
-	AccessTokenExpireTime uint   // Access token expiration time, this can be used to determine when to recycle the token
+	ClientID              string `validate:"required,uuid4"`              // Client ID given to the bank
+	ClientSecret          string `validate:"required,uuid4"`              // Client Secret given to the bank
+	AccessTokenExpireTime uint   `validate:"required,number,min=1,gte=1"` // Access token expiration time, this can be used to determine when to recycle the token
 }
 
 type RequestedEndpoints struct {
-	AuthURL            string
-	BillPresentmentURL string
-	PaymentFlagURL     string
+	AuthURL            string `validate:"required,uri"`
+	BillPresentmentURL string `validate:"required,uri"`
+	PaymentFlagURL     string `validate:"required,uri"`
 }
 
 // Used to store the endpoints of the bank's API for each specific operation
 type BankServiceEndpoints struct {
-	BaseUrl              string // Base URL to the bank's API
-	AccessTokenURL       string // URL to get the access token
-	BalanceInquiryURL    string // URL to check / get the information of a billing statement
-	PaymentFlagURL       string // URL to update / play a billing statement
-	TransferIntraBankURL string // URL to transfer money / withdraw money from the application to the target account (only for intra bank)
-	TransferInterBankURL string // URL to transfer money / withdraw money from the application to the target account (only for inter bank)
+	BaseUrl              string `validate:"required,url"` // Base URL to the bank's API
+	AccessTokenURL       string `validate:"required,uri"` // URL to get the access token
+	BalanceInquiryURL    string `validate:"required,uri"` // URL to check / get the information of a billing statement
+	PaymentFlagURL       string `validate:"required,uri"` // URL to update / play a billing statement
+	TransferIntraBankURL string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for intra bank)
+	TransferInterBankURL string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for inter bank)
+}
+
+type VirtualAccountConfig struct {
+	VirtualAccountLife uint `validate:"required,number,min=1,gte=1"`
 }
 
 // BankConfig is used to store / bundle configuration needed to run / create a bank instance
@@ -53,6 +58,7 @@ type BankConfig struct {
 	BankRequestedCredentials
 	BankServiceEndpoints
 	RequestedEndpoints
+	VirtualAccountConfig
 }
 
 func NewBankingConfig(path string) *BankConfig {
@@ -63,7 +69,7 @@ func NewBankingConfig(path string) *BankConfig {
 	return &BankConfig{
 		BankCredential: BankCredential{
 			InternalBankID:   uint(getEnvAsInt("INTERNAL_BANK_ID", 0)),
-			InternalBankname: getEnv("INTERNAL_BANK_NAME", ""),
+			InternalBankName: getEnv("INTERNAL_BANK_NAME", ""),
 			ClientID:         getEnv("CLIENT_ID", ""),
 			ClientSecret:     getEnv("CLIENT_SECRET", ""),
 			ChannelID:        getEnv("CHANNEL_ID", ""),
@@ -91,6 +97,9 @@ func NewBankingConfig(path string) *BankConfig {
 			AuthURL:            getEnv("OAUTH2_URL", ""),
 			BillPresentmentURL: getEnv("BILL_PRESENTMENT_URL", ""),
 			PaymentFlagURL:     getEnv("PAYMENT_FLAG_URL", ""),
+		},
+		VirtualAccountConfig: VirtualAccountConfig{
+			VirtualAccountLife: uint(getEnvAsInt("VIRTUAL_ACCOUNT_LIFE", 24)),
 		},
 	}
 }

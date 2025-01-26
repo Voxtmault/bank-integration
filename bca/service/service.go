@@ -40,11 +40,8 @@ type BCAService struct {
 	Watcher *watcher.TransactionWatcher
 
 	// Configs
-	Config *biConfig.BankingConfig
-
-	// Runtime Access Tokens
-	AccessToken          string
-	AccessTokenExpiresAt int64
+	bankConfig     *biConfig.BankConfig
+	internalConfig *biConfig.InternalConfig
 
 	// DB Connections
 	DB  *sql.DB
@@ -53,15 +50,16 @@ type BCAService struct {
 
 var _ biInterfaces.SNAP = &BCAService{}
 
-func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, config *biConfig.BankingConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*BCAService, error) {
+func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, cfg *biConfig.InternalConfig, bCfg *biConfig.BankConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*BCAService, error) {
 
 	service := BCAService{
-		Egress:  egress,
-		Ingress: ingress,
-		Config:  config,
-		DB:      db,
-		RDB:     rdb,
-		Watcher: watcher.NewTransactionWatcher(),
+		Egress:         egress,
+		Ingress:        ingress,
+		internalConfig: cfg,
+		bankConfig:     bCfg,
+		DB:             db,
+		RDB:            rdb,
+		Watcher:        watcher.NewTransactionWatcher(),
 	}
 	// Get current loaded BCAService internal bank id and bank name
 	if err := service.getInternalBankInfo(); err != nil {
@@ -79,6 +77,8 @@ func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.Reque
 }
 
 // Egress
+
+// GetAccessToken does not returns the token itself to the caller. It saves the token into the current instance of the service.
 func (s *BCAService) GetAccessToken(ctx context.Context) error {
 
 	// Logic
@@ -86,7 +86,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	// 2. Send the request
 	// 3. Parse the response
 
-	baseUrl := s.Config.BCAConfig.BaseURL + s.Config.BCAURLEndpoints.AccessTokenURL
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.AccessTokenURL
 	method := http.MethodPost
 	body := biModels.GrantType{
 		GrantType: "client_credentials",
@@ -106,7 +106,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 
 	slog.Debug("Building Request Header")
 	// Before sending the request, customize the header
-	if err = s.Egress.GenerateAccessRequestHeader(ctx, req, s.Config); err != nil {
+	if err = s.Egress.GenerateAccessRequestHeader(ctx, req); err != nil {
 		slog.Debug("error generating access token request header", "error", err)
 		return eris.Wrap(err, "access token request header")
 	}
@@ -129,10 +129,10 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 		return eris.Wrap(err, "unmarshalling response")
 	}
 
-	s.AccessToken = atObj.AccessToken
+	s.bankConfig.BankRuntimeConfig.AccessToken = atObj.AccessToken
 
 	// Create internal counter for when the access token expires
-	s.AccessTokenExpiresAt = time.Now().Add(time.Second * 900).Unix()
+	s.bankConfig.BankRuntimeConfig.ExpiresAt = time.Now().Add(time.Second * 900).Unix()
 
 	return nil
 }
@@ -144,7 +144,7 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 		return nil, eris.Wrap(err, "checking access token")
 	}
 
-	baseUrl := s.Config.BCAConfig.BaseURL + s.Config.BCAURLEndpoints.BalanceInquiryURL
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.BalanceInquiryURL
 	method := http.MethodPost
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -156,7 +156,7 @@ func (s *BCAService) BalanceInquiry(ctx context.Context, payload *biModels.BCABa
 		return nil, eris.Wrap(err, "creating request")
 	}
 
-	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.Config, payload, s.Config.BCAURLEndpoints.BalanceInquiryURL, s.AccessToken); err != nil {
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.BalanceInquiryURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
 		return nil, eris.Wrap(err, "constructing request header")
 	}
 
@@ -189,7 +189,7 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.Wrap(err, "checking access token")
 	}
 
-	baseUrl := s.Config.BCAConfig.BaseURL + s.Config.BCAURLEndpoints.TransferIntraBankURL
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.TransferIntraBankURL
 	method := http.MethodPost
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -201,7 +201,7 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.Wrap(err, "creating request")
 	}
 
-	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.Config, payload, s.Config.BCAURLEndpoints.TransferIntraBankURL, s.AccessToken); err != nil {
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.TransferIntraBankURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
 		return nil, eris.Wrap(err, "constructing request header")
 	}
 
@@ -228,14 +228,14 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 }
 
 func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
-	partnerId := s.padPartnerServiceId(s.Config.BCAPartnerInformation.BCAPartnerId)
+	partnerId := s.padPartnerServiceId(s.bankConfig.BankCredential.PartnerID)
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
 				   			virtualAccountName,expired_date, id_bank, id_wallet)
 	VALUES(?,?,?,?,?,?,?,?)
 	`
 	var id int64
-	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
+	expiredTime := time.Now().Add(time.Hour * time.Duration(s.bankConfig.VirtualAccountConfig.VirtualAccountLife))
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Debug("error beginning transaction", "error", err)
@@ -252,7 +252,7 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 	if checkPaid {
 		// Meaning no active VA Payment Request
 		result, err := tx.ExecContext(ctx, query, partnerId, payload.CustomerNo, vaNumber, strconv.Itoa(payload.JumlahPembayaran)+".00",
-			payload.NamaUser, expiredTime.Format(time.DateTime), s.Config.BCAConfig.InternalBankID, payload.WalletID)
+			payload.NamaUser, expiredTime.Format(time.DateTime), s.bankConfig.BankCredential.InternalBankID, payload.WalletID)
 		if err != nil {
 			tx.Rollback()
 			return eris.Wrap(err, "querying va_table")
@@ -283,7 +283,7 @@ func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq
 
 func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePaymentVARequestV2) error {
 	// Override the bank code to BCA
-	payload.IDBank = s.Config.BCAConfig.InternalBankID
+	payload.IDBank = s.bankConfig.BankCredential.InternalBankID
 
 	// Validate payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
@@ -295,13 +295,13 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 		payload.TotalAmount += ".00"
 	}
 
-	partnerId := s.padPartnerServiceId(s.Config.BCAPartnerInformation.BCAPartnerId)
+	partnerId := s.padPartnerServiceId(s.bankConfig.BankCredential.PartnerID)
 	query := `
 	INSERT INTO va_request (id_bank, id_wallet, id_transaction, expired_date, partnerServiceId, customerNo,
 							virtualAccountNo, totalAmountValue, virtualAccountName, id_order)
 	VALUES(?,NULLIF(?,0),NULLIF(?,0),?,?,?,?,?,?,NULLIF(?,0))
 	`
-	expiredTime := time.Now().Add(time.Hour * time.Duration(s.Config.BCAConfig.BCAVAExpireTime))
+	expiredTime := time.Now().Add(time.Hour * time.Duration(s.bankConfig.VirtualAccountConfig.VirtualAccountLife))
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Debug("error beginning transaction", "error", err)
@@ -350,13 +350,14 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 
 // ChecksAccessToken is an exclusive function to renew the access token if it is expired or if it's empty.
 func (s *BCAService) CheckAccessToken(ctx context.Context) error {
-	if s.AccessToken == "" {
+	if s.bankConfig.BankRuntimeConfig.AccessToken == "" {
 		// Access token is empty, get a new one
-		slog.Debug("Access Token is empty, getting a new one")
+		slog.Debug("access Token is empty, getting a new one")
 		if err := s.GetAccessToken(ctx); err != nil {
 			return eris.Wrap(err, "getting access token")
 		}
-	} else if time.Now().Unix() > s.AccessTokenExpiresAt {
+	} else if time.Now().Unix() > s.bankConfig.BankRuntimeConfig.ExpiresAt {
+		slog.Debug("access Token is expired, getting a new one")
 		// Access token is expired, get a new one
 		if err := s.GetAccessToken(ctx); err != nil {
 			return eris.Wrap(err, "renewing access token")
@@ -367,6 +368,8 @@ func (s *BCAService) CheckAccessToken(ctx context.Context) error {
 }
 
 // Ingress
+
+// GenerateAccessTokens is called by the bank to generate access tokens for the client
 func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Request) (*biModels.AccessTokenResponse, error) {
 	// Logic
 	// 1. Parse the request body
@@ -489,7 +492,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 	// Save the access token to redis along with the configured client secret & expiration time
 	key := fmt.Sprintf("%s:%s", biUtil.AccessTokenRedis, token)
-	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.Config.BCARequestedClientCredentials.AccessTokenExpirationTime)).Err(); err != nil {
+	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.bankConfig.BankRequestedCredentials.AccessTokenExpireTime)).Err(); err != nil {
 		slog.Debug("error saving access token to redis", "reason", err)
 		response := biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
@@ -509,7 +512,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	reqResponse := biModels.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
-		ExpiresIn:   strconv.Itoa(int(s.Config.BCARequestedClientCredentials.AccessTokenExpirationTime)),
+		ExpiresIn:   strconv.Itoa(int(s.bankConfig.BankRequestedCredentials.AccessTokenExpireTime)),
 		BCAResponse: &bcaResponse,
 	}
 
@@ -525,7 +528,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	var response biModels.VAResponsePayload
 
 	// Validate Channel ID
-	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.Config.BCAConfig.ChannelID {
+	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankCredential.ChannelID {
 
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
@@ -538,7 +541,7 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	}
 
 	// Validate Partner ID
-	if request.Header.Get("X-PARTNER-ID") == "" || request.Header.Get("X-PARTNER-ID") != s.Config.BCAPartnerInformation.BCAPartnerId {
+	if request.Header.Get("X-PARTNER-ID") == "" || request.Header.Get("X-PARTNER-ID") != s.bankConfig.BankCredential.PartnerID {
 
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
@@ -793,7 +796,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	var response biModels.BCAInquiryVAResponse
 
 	// Validate Channel ID
-	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.Config.BCAConfig.ChannelID {
+	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankCredential.ChannelID {
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
 
@@ -806,7 +809,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	}
 
 	// Validate Partner ID
-	if request.Header.Get("X-PARTNER-ID") == "" || request.Header.Get("X-PARTNER-ID") != s.Config.BCAPartnerInformation.BCAPartnerId {
+	if request.Header.Get("X-PARTNER-ID") == "" || request.Header.Get("X-PARTNER-ID") != s.bankConfig.BankCredential.PartnerID {
 
 		response.BCAResponse = bca.BCAPaymentFlagResponseUnauthorizedUnknownClient
 
@@ -1231,9 +1234,12 @@ func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) 
 		return string(response), eris.New("non-200 status code")
 	}
 
+	// TODO Insert to egress log
+
 	return string(body), nil
 }
 
+// Deprecated: Virtual Account number will be generated from the caller / library importer
 func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, string) {
 
 	partnerId += "0" + strconv.Itoa(idJenis)
@@ -1244,11 +1250,6 @@ func (s *BCAService) BuildNumVA(idUser, idJenis int, partnerId string) (string, 
 	}
 	customerNo += nIdU
 	return partnerId + customerNo, customerNo
-}
-
-// GenerateVANumber is called to generate a new virtual account number or return existing va number (this is the case if the requester is a user)
-func (s *BCAService) GenerateVANumber() (string, error) {
-	return "", nil
 }
 
 // CheckVAPaid checks the DB for VA Payment Request under the VA Number. If no active request is found then
@@ -1358,7 +1359,7 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 
 		return &response, nil
 	}
-	if channelID != s.Config.BCAConfig.ChannelID {
+	if channelID != s.bankConfig.BankCredential.ChannelID {
 		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
 		return &response, nil
@@ -1370,7 +1371,7 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 
 		return &response, nil
 	}
-	if partnerID != s.Config.BCAPartnerInformation.BCAPartnerId {
+	if partnerID != s.bankConfig.BankCredential.PartnerID {
 		response := bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
 		return &response, nil
@@ -1385,7 +1386,7 @@ func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
 	FROM va_request 
 	WHERE id_va_status = ? AND id_bank = ?
 	`
-	rows, err := s.DB.QueryContext(ctx, query, biUtil.VAStatusPending, s.Config.BCAConfig.InternalBankID)
+	rows, err := s.DB.QueryContext(ctx, query, biUtil.VAStatusPending, s.bankConfig.BankCredential.InternalBankID)
 	if err != nil {
 		return eris.Wrap(err, "querying va_request")
 	}
@@ -1404,8 +1405,8 @@ func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
 			slog.Error("skipping transaction due to parsing time error", "error", err, "transaction id", obj.IDTransaction)
 			continue
 		}
-		obj.IDBank = s.Config.InternalBankID
-		obj.BankName = s.Config.InternalBankName
+		obj.IDBank = s.bankConfig.BankCredential.InternalBankID
+		obj.BankName = s.bankConfig.BankCredential.InternalBankName
 
 		slog.Debug("adding watcher", "id", obj.IDTransaction, "expireAt", obj.ExpireAt)
 
@@ -1423,9 +1424,9 @@ func (s *BCAService) getInternalBankInfo() error {
 	WHERE client_id = ? AND client_secret = ? AND deleted_at IS NULL
 	LIMIT 1
 	`
-	if err := s.DB.QueryRow(statement, s.Config.BCARequestedClientCredentials.ClientID,
-		s.Config.BCARequestedClientCredentials.ClientSecret).Scan(
-		&s.Config.BCAConfig.InternalBankID, &s.Config.BCAConfig.InternalBankName); err != nil {
+	if err := s.DB.QueryRow(statement, s.bankConfig.BankRequestedCredentials.ClientID,
+		s.bankConfig.BankRequestedCredentials.ClientSecret).Scan(
+		&s.bankConfig.BankCredential.InternalBankID, &s.bankConfig.BankCredential.InternalBankName); err != nil {
 		if err == sql.ErrNoRows {
 			slog.Warn("unauthorized bank credentials")
 			return eris.New("unauthorized")
@@ -1434,7 +1435,7 @@ func (s *BCAService) getInternalBankInfo() error {
 		return err
 	}
 
-	slog.Debug("internal bank info", "id", s.Config.BCAConfig.InternalBankID, "name", s.Config.BCAConfig.InternalBankName)
+	slog.Debug("internal bank info", "id", s.bankConfig.BankCredential.InternalBankID, "name", s.bankConfig.BankCredential.InternalBankName)
 
 	return nil
 }

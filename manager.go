@@ -70,19 +70,25 @@ func InitBankAPI(envPath, timezone string) error {
 	return nil
 }
 
-func InitBCAService() (biInterfaces.SNAP, error) {
+func InitBCAService(envPath string) (biInterfaces.SNAP, error) {
+	cfg := biConfig.NewBankingConfig(envPath)
 
 	// Checks for problematic configurations
-	if err := biUtil.ValidateStruct(ctx, bCfg); err != nil {
-		return eris.Wrap(err, "invalid bank configuration")
+	if err := biUtil.ValidateStruct(context.Background(), cfg); err != nil {
+		return nil, eris.Wrap(err, "invalid bank configuration")
 	}
 
-	security := bcaSecurity.NewBCASecurity(biConfig.GetConfig())
+	security, err := bcaSecurity.NewBCASecurity(biConfig.GetConfig(), cfg)
+	if err != nil {
+		slog.Error("failed to init bca security instance", "reason", err)
+		return nil, eris.Wrap(err, "init bca security")
+	}
 
 	service, err := bcaService.NewBCAService(
-		bcaRequest.NewBCAEgress(security),
+		bcaRequest.NewBCAEgress(security, cfg, biConfig.GetConfig()),
 		bcaRequest.NewBCAIngress(security),
 		biConfig.GetConfig(),
+		cfg,
 		biStorage.GetDBConnection(),
 		biStorage.GetRedisInstance(),
 	)
