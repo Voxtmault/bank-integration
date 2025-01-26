@@ -10,7 +10,7 @@ import (
 )
 
 type BankCredential struct {
-	InternalBankID   uint   `validate:"omitempty,number.gte=1,min=1"` // Refers to internally registered bank
+	InternalBankID   uint   `validate:"omitempty,number,gte=1,min=1"` // Refers to internally registered bank
 	InternalBankName string `validate:"omitempty"`                    // Name of the bank
 	ClientID         string `validate:"required,uuid4"`               // Client ID received from the bank
 	ClientSecret     string `validate:"required,uuid4"`               // Client Secret received from the bank
