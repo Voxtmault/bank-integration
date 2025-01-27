@@ -158,8 +158,9 @@ type BCABalanceInquiry struct {
 type BCATransferIntraBankReq struct {
 	PartnerReferenceNumber string `json:"partnerReferenceNo" validate:"required,max=64"`
 	Amount                 Amount `json:"amount" validate:"required"`
-	BeneficiaryAccountNo   string `json:"beneficiaryAccountNo" validate:"required,max=34"`
-	SourceAccountNo        string `json:"sourceAccountNo" validate:"required"`
+	BeneficiaryAccountNo   string `json:"beneficiaryAccountNo" validate:"required,min=10,max=34"`
+	BeneficiaryEmail       string `json:"beneficiaryEmail" validate:"omitempty,email,max=50"`
+	SourceAccountNo        string `json:"sourceAccountNo" validate:"required,min=10,max=19"`
 	TransactionDate        string `json:"transactionDate" validate:"required"`
 }
 

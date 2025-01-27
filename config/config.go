@@ -9,45 +9,112 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type Keys struct {
-	PrivateKeyPath   string
-	BCAPublicKeyPath string
+type BankCredential struct {
+	InternalBankID   uint   `validate:"omitempty,number,gte=1,min=1"` // Refers to internally registered bank
+	InternalBankName string `validate:"omitempty"`                    // Name of the bank
+	ClientID         string `validate:"required,uuid4"`               // Client ID received from the bank
+	ClientSecret     string `validate:"required,uuid4"`               // Client Secret received from the bank
+	PartnerID        string `validate:"required,number"`              // Partner ID received from the bank
+	PublicKeyPath    string `validate:"required,filepath"`            // Path to the public key sent by the bank
+	SourceAccount    string `validate:"required"`                     // Source account numbern for this application
 }
 
-// Banking Config
-type BCAConfig struct {
-	InternalBankID            uint   `validate:"omitempty"`
-	InternalBankName          string `validate:"omitempty"`
-	BaseURL                   string `validate:"required"`
-	ClientID                  string `validate:"required"`
-	ClientSecret              string `validate:"required"`
-	AccessToken               string `validate:"omitempty"`
-	AccessTokenExpirationTime uint   `validate:"omitempty"`
-	ChannelID                 string `validate:"omitempty"`
-	BCAVAExpireTime           uint   `validate:"omitempty"`
+type BankChannelConfig struct {
+	VAChannelId       string `validate:"required,number"` // Virtual Account Channel ID
+	BusinessChannelId string `validate:"required,number"` // Business Channel ID; KlikBCA Bisnis, etc
 }
 
-type BCARequestedClientCredentials struct {
-	ClientID                  string
-	ClientSecret              string
-	AccessTokenExpirationTime uint
+type BankRuntimeConfig struct {
+	AccessToken               string // Access token received from the bank on runtime
+	AccessTokenExpirationTime uint   // Access token expiration time, this can be used to determine when to refresh the token
+	ExpiresAt                 int64
 }
 
-type BCAPartnerInformation struct {
-	BCAPartnerId string `validate:"required"`
+type BankRequestedCredentials struct {
+	ClientID              string `validate:"required,uuid4"`              // Client ID given to the bank
+	ClientSecret          string `validate:"required,uuid4"`              // Client Secret given to the bank
+	AccessTokenExpireTime uint   `validate:"required,number,min=1,gte=1"` // Access token expiration time, this can be used to determine when to recycle the token
 }
 
-type BCAURLEndpoints struct {
-	AccessTokenURL       string
-	BalanceInquiryURL    string
-	PaymentFlagURL       string
-	TransferIntraBankURL string
+type RequestedEndpoints struct {
+	AuthURL            string `validate:"required,uri"`
+	BillPresentmentURL string `validate:"required,uri"`
+	PaymentFlagURL     string `validate:"required,uri"`
 }
-type BCARequestedEndpoints struct {
-	AuthURL            string
-	BillPresentmentURL string
-	PaymentFlagURL     string
+
+// Used to store the endpoints of the bank's API for each specific operation
+type BankServiceEndpoints struct {
+	BaseUrl              string `validate:"required,url"` // Base URL to the bank's API
+	AccessTokenURL       string `validate:"required,uri"` // URL to get the access token
+	BalanceInquiryURL    string `validate:"required,uri"` // URL to check / get the information of a billing statement
+	PaymentFlagURL       string `validate:"required,uri"` // URL to update / play a billing statement
+	TransferIntraBankURL string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for intra bank)
+	TransferInterBankURL string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for inter bank)
 }
+
+type VirtualAccountConfig struct {
+	VirtualAccountLife uint `validate:"required,number,min=1,gte=1"`
+}
+
+// BankConfig is used to store / bundle configuration needed to run / create a bank instance
+type BankConfig struct {
+	BankCredential
+	BankChannelConfig
+	BankRuntimeConfig
+	BankRequestedCredentials
+	BankServiceEndpoints
+	RequestedEndpoints
+	VirtualAccountConfig
+}
+
+func NewBankingConfig(path string) *BankConfig {
+	if err := godotenv.Load(path); err != nil {
+		log.Println("Failed to locate .env file, program will proceed with provided env if any is provided")
+	}
+
+	return &BankConfig{
+		BankCredential: BankCredential{
+			InternalBankID:   uint(getEnvAsInt("INTERNAL_BANK_ID", 0)),
+			InternalBankName: getEnv("INTERNAL_BANK_NAME", ""),
+			ClientID:         getEnv("CLIENT_ID", ""),
+			ClientSecret:     getEnv("CLIENT_SECRET", ""),
+			PartnerID:        getEnv("PARTNER_ID", ""),
+			PublicKeyPath:    getEnv("PUBLIC_KEY_PATH", ""),
+			SourceAccount:    getEnv("SOURCE_ACCOUNT", ""),
+		},
+		BankChannelConfig: BankChannelConfig{
+			VAChannelId:       getEnv("VA_CHANNEL_ID", ""),
+			BusinessChannelId: getEnv("BUSINESS_CHANNEL_ID", ""),
+		},
+		BankRuntimeConfig: BankRuntimeConfig{
+			AccessToken:               getEnv("ACCESS_TOKEN", ""),
+			AccessTokenExpirationTime: uint(getEnvAsInt("ACCESS_TOKEN_EXPIRATION_TIME", 0)),
+		},
+		BankRequestedCredentials: BankRequestedCredentials{
+			ClientID:              getEnv("REQ_CLIENT_ID", ""),
+			ClientSecret:          getEnv("REQ_CLIENT_SECRET", ""),
+			AccessTokenExpireTime: uint(getEnvAsInt("REQ_ACCESS_TOKEN_EXPIRATION", 0)),
+		},
+		BankServiceEndpoints: BankServiceEndpoints{
+			BaseUrl:              getEnv("BASE_URL", ""),
+			AccessTokenURL:       getEnv("ACCESS_TOKEN_URL", ""),
+			BalanceInquiryURL:    getEnv("BALANCE_INQUIRY_URL", ""),
+			PaymentFlagURL:       getEnv("PAYMENT_FLAG_URL", ""),
+			TransferIntraBankURL: getEnv("TRANSFER_INTRABANK_URL", ""),
+			TransferInterBankURL: getEnv("TRANSFER_INTERBANK_URL", ""),
+		},
+		RequestedEndpoints: RequestedEndpoints{
+			AuthURL:            getEnv("OAUTH2_URL", ""),
+			BillPresentmentURL: getEnv("BILL_PRESENTMENT_URL", ""),
+			PaymentFlagURL:     getEnv("PAYMENT_FLAG_URL", ""),
+		},
+		VirtualAccountConfig: VirtualAccountConfig{
+			VirtualAccountLife: uint(getEnvAsInt("VIRTUAL_ACCOUNT_LIFE", 24)),
+		},
+	}
+}
+
+// For internal use
 
 type TransactionWatcherConfig struct {
 	MaxRetry             uint
@@ -55,7 +122,6 @@ type TransactionWatcherConfig struct {
 	DefaultExpireTime    time.Duration
 }
 
-// Credential DB Config
 type MariaConfig struct {
 	DBDriver             string
 	DBHost               string
@@ -70,6 +136,7 @@ type MariaConfig struct {
 	MaxIdleConns         uint
 	ConnMaxLifetime      uint
 }
+
 type RedisConfig struct {
 	RedisHost     string
 	RedisPort     string
@@ -77,59 +144,24 @@ type RedisConfig struct {
 	RedisDBNum    uint8
 }
 
-type BankingConfig struct {
-	Keys
-	BCAConfig
-	BCARequestedClientCredentials
-	BCAURLEndpoints
-	BCARequestedEndpoints
+type InternalConfig struct {
+	TransactionWatcherConfig
 	MariaConfig
 	RedisConfig
-	BCAPartnerInformation
-	TransactionWatcherConfig
-	AppHost string
-	Mode    string
+	PrivateKeyPath string
+	AppHost        string
+	Mode           string // To contorl wether the application is running in production or development or debug mode
 }
 
-var config *BankingConfig
+var config *InternalConfig
 
-func New(envPath string) *BankingConfig {
+func New(envPath string) *InternalConfig {
 
 	if err := godotenv.Load(envPath); err != nil {
 		log.Println("Failed to locate .env file, program will proceed with provided env if any is provided")
 	}
 
-	config = &BankingConfig{
-		Keys: Keys{
-			PrivateKeyPath:   getEnv("PRIVATE_KEY_PATH", ""),
-			BCAPublicKeyPath: getEnv("BCA_PUBLIC_KEY_PATH", ""),
-		},
-		BCAConfig: BCAConfig{
-			BaseURL:                   getEnv("BCA_BASE_URL", ""),
-			ClientID:                  getEnv("BCA_CLIENT_ID", ""),
-			ClientSecret:              getEnv("BCA_CLIENT_SECRET", ""),
-			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_ACCESS_TOKEN_EXPIRATION_TIME", 0)),
-			ChannelID:                 getEnv("BCA_CHANNEL_ID", ""),
-			BCAVAExpireTime:           uint(getEnvAsInt("BCA_VA_EXPIRE_TIME", 0)),
-		},
-		BCARequestedClientCredentials: BCARequestedClientCredentials{
-			ClientID:                  getEnv("BCA_REQ_CLIENT_ID", ""),
-			ClientSecret:              getEnv("BCA_REQ_CLIENT_SECRET", ""),
-			AccessTokenExpirationTime: uint(getEnvAsInt("BCA_REQ_ACCESS_TOKEN_EXPIRATION", 0)),
-		},
-		BCAURLEndpoints: BCAURLEndpoints{
-			AccessTokenURL:       getEnv("BCA_ACCESS_TOKEN_URL", ""),
-			BalanceInquiryURL:    getEnv("BCA_BALANCE_INQUIRY_URL", ""),
-			TransferIntraBankURL: getEnv("BCA_TRANSFER_INTRABANK_URL", ""),
-		},
-		BCARequestedEndpoints: BCARequestedEndpoints{
-			AuthURL:            getEnv("BCA_REQ_OAUTH2_URL", "/payment-api/v1.0/access-token/b2b"),
-			BillPresentmentURL: getEnv("BCA_REQ_BILL_PRESENTMENT_URL", "/payment-api/v1.0/transfer-va/inquiry"),
-			PaymentFlagURL:     getEnv("BCA_REQ_PAYMENT_FLAG_URL", "/payment-api/v1.0/transfer-va/payment"),
-		},
-		BCAPartnerInformation: BCAPartnerInformation{
-			BCAPartnerId: getEnv("BCA_PARTNER_ID", ""),
-		},
+	config = &InternalConfig{
 		MariaConfig: MariaConfig{
 			DBDriver:             getEnv("DB_DRIVER", "mysql"),
 			DBHost:               getEnv("DB_HOST", ""),
@@ -155,14 +187,15 @@ func New(envPath string) *BankingConfig {
 			DefaultRetryInterval: time.Duration(getEnvAsInt("WATCHER_DEFAULT_RETRY_INTERVAL", 10)) * time.Minute,
 			DefaultExpireTime:    time.Duration(getEnvAsInt("WATCHER_DEFAULT_EXPIRE_TIME", 24)) * time.Hour,
 		},
-		AppHost: getEnv("APP_HOST", ""),
-		Mode:    getEnv("MODE", "prod"),
+		PrivateKeyPath: getEnv("PRIVATE_KEY_PATH", ""),
+		AppHost:        getEnv("APP_HOST", ""),
+		Mode:           getEnv("MODE", "prod"),
 	}
 
 	return config
 }
 
-func GetConfig() *BankingConfig {
+func GetConfig() *InternalConfig {
 	return config
 }
 

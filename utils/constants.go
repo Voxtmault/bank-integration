@@ -31,3 +31,5 @@ const (
 	WatcherFailed    TransactionWatcherStatus = 2
 	WatcherCancelled TransactionWatcherStatus = 3
 )
+
+const ()

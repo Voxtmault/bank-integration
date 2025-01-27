@@ -15,7 +15,7 @@ import (
 
 type InternalService struct {
 	// Configs
-	Config *biConfig.BankingConfig
+	Config *biConfig.InternalConfig
 
 	// DB Connections
 	DB  *sql.DB
@@ -24,7 +24,7 @@ type InternalService struct {
 
 var _ biInterfaces.Internal = &InternalService{}
 
-func NewInternalService(config *biConfig.BankingConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*InternalService, error) {
+func NewInternalService(config *biConfig.InternalConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*InternalService, error) {
 	service := InternalService{
 		Config: config,
 		DB:     db,

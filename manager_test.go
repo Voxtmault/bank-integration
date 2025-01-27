@@ -1,7 +1,6 @@
 package bank_integration
 
 import (
-	"context"
 	"testing"
 
 	biConfig "github.com/voxtmault/bank-integration/config"
@@ -9,32 +8,18 @@ import (
 )
 
 var envPath = "./.env"
+var bankPath = "./bca.env"
 
-func TestClearList(t *testing.T) {
+func TestInitBCAService(t *testing.T) {
+
+	InitBankAPI(envPath, "Asia/Jakarta")
+
 	cfg := biConfig.New(envPath)
-	rdb, err := biStorage.InitRedis(&cfg.RedisConfig)
+	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitRedis(&cfg.RedisConfig)
+
+	_, err := InitBCAService(bankPath)
 	if err != nil {
-		t.Error(err)
-	}
-
-	pattern := "unique-external-id:*"
-
-	var cursor uint64
-	for {
-		keys, nextCursor, err := rdb.RDB.Scan(context.Background(), cursor, pattern, 100).Result()
-		if err != nil {
-			t.Error(err)
-		}
-
-		if len(keys) > 0 {
-			if err := rdb.RDB.Del(context.Background(), keys...).Err(); err != nil {
-				t.Error(err)
-			}
-		}
-
-		cursor = nextCursor
-		if cursor == 0 {
-			break
-		}
+		t.Fatalf("error initializing bca service: %v", err)
 	}
 }
