@@ -51,6 +51,8 @@ type BCAService struct {
 
 var _ biInterfaces.SNAP = &BCAService{}
 
+var service *BCAService
+
 func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, cfg *biConfig.InternalConfig, bCfg *biConfig.BankConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*BCAService, error) {
 
 	service := BCAService{
@@ -75,6 +77,14 @@ func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.Reque
 	}
 
 	return &service, nil
+}
+
+func GetBCAService() *BCAService {
+	if service != nil {
+		return service
+	}
+
+	return nil
 }
 
 // Egress

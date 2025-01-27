@@ -96,6 +96,15 @@ func InitBCAService(envPath string) (biInterfaces.SNAP, error) {
 	return service, err
 }
 
+func GetBCAService() (biInterfaces.SNAP, error) {
+	service := bcaService.GetBCAService()
+	if service == nil {
+		return nil, eris.New("bca service not initialized")
+	}
+
+	return service, nil
+}
+
 func InitManagementService() biInterfaces.Management {
 
 	service := management.NewBankIntegrationManagement(
