@@ -55,7 +55,7 @@ var service *BCAService
 
 func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.RequestIngress, cfg *biConfig.InternalConfig, bCfg *biConfig.BankConfig, db *sql.DB, rdb *biStorage.RedisInstance) (*BCAService, error) {
 
-	service := BCAService{
+	service = &BCAService{
 		Egress:         egress,
 		Ingress:        ingress,
 		internalConfig: cfg,
@@ -76,7 +76,7 @@ func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.Reque
 		return nil, err
 	}
 
-	return &service, nil
+	return service, nil
 }
 
 func GetBCAService() *BCAService {
