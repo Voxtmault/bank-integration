@@ -129,6 +129,7 @@ func (s *TransactionWatcher) TransactionPaid(idTransaction uint) {
 	s.Lock()
 	defer s.Unlock()
 	if watcher, exists := s.WatchedList[idTransaction]; exists {
+		slog.Info("transaction has been paid", "transaction id", idTransaction)
 		watcher.PaymentStatus <- biConst.VAStatusPaid
 	}
 }

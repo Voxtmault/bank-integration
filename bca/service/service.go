@@ -1228,6 +1228,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	// Update the watcher
+	slog.Info("Updating Transaction Watcher", "idTransaction", idTransaction)
 	s.Watcher.TransactionPaid(idTransaction)
 
 	return nil
