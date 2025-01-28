@@ -11,7 +11,7 @@ import (
 )
 
 var envPath = "../../.env"
-var bankEnvPath = "../../bca.env"
+var bankEnvPath = "../../bca-testing.env"
 
 var cfg *biConfig.InternalConfig
 var bCfg *biConfig.BankConfig

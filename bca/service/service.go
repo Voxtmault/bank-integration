@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -189,8 +190,8 @@ func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBa
 		return nil, eris.Wrap(err, "constructing request header")
 	}
 
-	request.Header.Set("X-PARTNER-ID ", s.bankConfig.BankCredential.PartnerID)
-	request.Header.Set("CHANNEL-ID ", s.bankConfig.BankChannelConfig.BusinessChannelId)
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.BusinessChannelId)
 
 	response, err := s.RequestHandler(ctx, request)
 	if err != nil {
@@ -200,6 +201,8 @@ func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBa
 			return nil, eris.Wrap(err, "sending request")
 		}
 	}
+
+	slog.Info("Response from BCA", "Response: ", response)
 
 	var obj biModels.BCAAccountBalance
 	if err = json.Unmarshal([]byte(response), &obj); err != nil {
@@ -229,6 +232,10 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		payload.Amount.Value += ".00"
 	}
 
+	if payload.TransactionDate == "" {
+		payload.TransactionDate = time.Now().Format(time.RFC3339)
+	}
+
 	// Validate before sending the request
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
 		return nil, eris.Wrap(err, "validating payload")
@@ -241,6 +248,8 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.Wrap(err, "marshalling payload")
 	}
 
+	log.Println("Payload: ", string(body))
+
 	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, eris.Wrap(err, "creating request")
@@ -250,8 +259,8 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.Wrap(err, "constructing request header")
 	}
 
-	request.Header.Set("X-PARTNER-ID ", s.bankConfig.BankCredential.PartnerID)
-	request.Header.Set("CHANNEL-ID ", s.bankConfig.BankChannelConfig.BusinessChannelId)
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.BusinessChannelId)
 
 	response, err := s.RequestHandler(ctx, request)
 	if err != nil {
@@ -261,6 +270,8 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 			return nil, eris.Wrap(err, "sending request")
 		}
 	}
+
+	log.Println("Response from BCA", "Response: ", response)
 
 	var obj biModels.BCAResponseTransferIntraBank
 	if err = json.Unmarshal([]byte(response), &obj); err != nil {
@@ -393,6 +404,91 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	s.Watcher.AddWatcher(watchedTransaction)
 
 	return nil
+}
+
+func (s *BCAService) GetVAPaymentStatus(ctx context.Context, vaNum string) (*biModels.VAPaymentStatusResponse, error) {
+	if vaNum == "" {
+		return nil, eris.New("empty va number")
+	}
+	if len(vaNum) > 26 {
+		return nil, eris.New("va number too long")
+	}
+
+	var payload biModels.VAPaymentStatusRequest
+	statement := `
+	SELECT customerNo, inquiryRequestId
+	FROM va_request
+	WHERE virtualAccountNo = ?
+	`
+	if err := s.DB.QueryRowContext(ctx, statement, vaNum).Scan(&payload.CustomerNo, &payload.InquiryRequestId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, eris.New("va number not found")
+		}
+
+		return nil, eris.Wrap(err, "querying va_request")
+	}
+
+	payload.PartnerServiceId = "   " + s.bankConfig.BankCredential.PartnerID
+	payload.VirtualAccountNo = vaNum
+	payload.PaymentRequestId = payload.InquiryRequestId
+	payload.AdditionalInfo = make(map[string]interface{})
+
+	// Check if the customer code has a 3 whitespace filler at the front
+	if !strings.HasPrefix(payload.CustomerNo, "   ") {
+		payload.CustomerNo = "   " + payload.CustomerNo
+	}
+
+	// Validate the payload before sending
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return nil, eris.Wrap(err, "validating object")
+	}
+
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.PaymentFlagURL
+	method := http.MethodPost
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.PaymentFlagURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.VAChannelId)
+
+	response, err := s.RequestHandler(ctx, request)
+	if err != nil {
+		if response != "" {
+			return nil, eris.Wrap(eris.New(response), "sending request")
+		} else {
+			return nil, eris.Wrap(err, "sending request")
+		}
+	}
+
+	slog.Info("Response from BCA", "Response: ", response)
+
+	var obj biModels.VAPaymentStatusResponse
+	if err = json.Unmarshal([]byte(response), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if obj.ResponseCode != "2001100" {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	return &obj, nil
 }
 
 // ChecksAccessToken is an exclusive function to renew the access token if it is expired or if it's empty.
@@ -1264,6 +1360,10 @@ func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) 
 	}
 	defer response.Body.Close()
 
+	log.Println("response body", string(body))
+
+	respHeader, _ := json.Marshal(response.Header)
+	slog.Debug("response header", "header", string(respHeader))
 	if response.StatusCode != 200 {
 		slog.Debug("Non-200 status code", "status", response.StatusCode)
 		var obj biModels.BCAResponse

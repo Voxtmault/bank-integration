@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	request "github.com/voxtmault/bank-integration/bca/request"
 	bca_service "github.com/voxtmault/bank-integration/bca/service"
 	biLogger "github.com/voxtmault/bank-integration/logger"
@@ -58,7 +59,34 @@ func TestBalanceInquiry(t *testing.T) {
 		t.Errorf("Error getting access token: %v", err)
 	}
 
-	log.Println(data)
+	jsonStr, _ := json.Marshal(data)
+
+	log.Println(string(jsonStr))
+}
+
+func TestGetVAPaymentStatus(t *testing.T) {
+	security, err := setup()
+	if err != nil {
+		t.Fatalf("error setting up bca security instance: %v", err)
+	}
+
+	service, _ := bca_service.NewBCAService(
+		request.NewBCAEgress(security, bCfg, cfg),
+		request.NewBCAIngress(security),
+		cfg,
+		bCfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	data, err := service.GetVAPaymentStatus(context.Background(), "   7510020221007001")
+	if err != nil {
+		t.Errorf("Error getting va payment status: %v", err)
+	}
+
+	jsonStr, _ := json.Marshal(data)
+
+	log.Println(string(jsonStr))
 }
 
 func TestBalanceInquiryUnmarshal(t *testing.T) {
@@ -513,7 +541,15 @@ func TestTransferIntraBank(t *testing.T) {
 		t.Errorf("Error creating BCA Service: %v", err)
 	}
 
-	res, err := s.TransferIntraBank(context.Background(), &biModels.BCATransferIntraBankReq{})
+	res, err := s.TransferIntraBank(context.Background(), &biModels.BCATransferIntraBankReq{
+		PartnerReferenceNumber: uuid.New().String(),
+		Amount: biModels.Amount{
+			Value:    "10000.00",
+			Currency: "IDR",
+		},
+		BeneficiaryAccountNo: "0611115813",
+		SourceAccountNo:      "0611102380",
+	})
 	if err != nil {
 		t.Errorf("Error transfer intra bank: %v", err)
 	}

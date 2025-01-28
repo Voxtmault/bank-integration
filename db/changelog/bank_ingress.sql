@@ -26,3 +26,9 @@ ALTER TABLE `bank_ingress`
 ADD COLUMN `request_parameter` JSON NOT NULL DEFAULT '{}',
 ADD COLUMN `request_body` JSON NOT NULL DEFAULT '{}';
 --rollback ALTER TABLE `bank_ingress` DROP COLUMN `request_parameter`, DROP COLUMN `body`;
+
+--changeset Voxtmault:4
+ALTER TABLE `bank_ingress`
+MODIFY COLUMN `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER `request_body`,
+ADD COLUMN `response_header` JSON NOT NULL DEFAULT '{}' AFTER `uri`,
+ADD COLUMN `request_header` JSON NOT NULL DEFAULT '{}' AFTER `response_content`;
