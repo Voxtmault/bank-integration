@@ -282,27 +282,27 @@ func TestInquiryVACore(t *testing.T) {
 
 	bodyReq := `{
 		"partnerServiceId": "   15335",
-		"customerNo": "112233445566778899",
-		"virtualAccountNo": "   15335112233445566778899",
-		"virtualAccountName": "Budi Sujipto",
+		"customerNo": "001000020050000016",
+		"virtualAccountNo": "   15335001000020050000016",
+		"virtualAccountName": "Atiko Dono Dono",
 		"virtualAccountEmail": "",
 		"virtualAccountPhone": "",
 		"trxId": "",
-		"paymentRequestId": "202411141539271533500047652186",
+		"paymentRequestId": "202411141539271533500047652187",
 		"channelCode": 6014,
 		"hashedSourceAccountNo": "",
 		"sourceBankCode": "014",
 		"paidAmount": {
-			"value": "15000.00",
+			"value": "10000.00",
 			"currency": "IDR"
 		},
 		"cumulativePaymentAmount": null,
 		"paidBills": "",
 		"totalAmount": {
-			"value": "15000.00",
+			"value": "10000.00",
 			"currency": "IDR"
 		},
-		"trxDateTime": "2024-11-30T10:27:00+07:00",
+		"trxDateTime": "2025-01-28T12:36:00+07:00",
 		"referenceNo": "24657125601",
 		"journalNum": "",
 		"paymentType": "",

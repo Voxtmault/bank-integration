@@ -70,6 +70,7 @@ type SNAP interface {
 	// InquiryVA updates the VA Payment Request status based on the bank's request.
 	// Generally called by Bank API
 	InquiryVA(ctx context.Context, request *http.Request) (*biModel.BCAInquiryVAResponse, error)
+	InquiryVACore(ctx context.Context, response *biModel.BCAInquiryVAResponse, payload *biModel.BCAInquiryRequest) error
 
 	// CreateVA creates a new VA Payment Request for the user to pay. It will not, however, create a new VA Number.
 	// VA number is created upon user registration
