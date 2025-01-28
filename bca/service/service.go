@@ -1168,10 +1168,10 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		return eris.Wrap(err, "updating va_request")
 	}
 
-	var vaRequestId uint
+	var vaRequestId, idTransaction uint
 	statement = `
 	SELECT  partnerServiceId, customerNo, virtualAccountNo, virtualAccountName, totalAmountValue,
-			totalAmountCurrency, id
+			totalAmountCurrency, id, id_transaction
 	FROM va_request 
 	WHERE inquiryRequestId = ?
 	LIMIT 1
@@ -1183,7 +1183,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 		&response.VirtualAccountData.VirtualAccountName,
 		&response.VirtualAccountData.TotalAmount.Value,
 		&response.VirtualAccountData.TotalAmount.Currency,
-		&vaRequestId,
+		&vaRequestId, &idTransaction,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			// fmt.Println("masuk sini")
@@ -1228,7 +1228,7 @@ func (s *BCAService) InquiryVACore(ctx context.Context, response *biModels.BCAIn
 	}
 
 	// Update the watcher
-	s.Watcher.TransactionPaid(vaRequestId)
+	s.Watcher.TransactionPaid(idTransaction)
 
 	return nil
 }
