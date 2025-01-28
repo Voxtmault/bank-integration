@@ -116,6 +116,14 @@ func (s *TransactionWatcher) GetWatcher(id uint) *biModel.TransactionWatcherPubl
 	return s.WatchedList[id].ToPublic()
 }
 
+func (s *TransactionWatcher) AddExternalChannelToWatched(trxId uint, externalChan chan uint) {
+	s.Lock()
+	defer s.Unlock()
+	if watcher, exists := s.WatchedList[trxId]; exists {
+		watcher.ExternalChannel = externalChan
+	}
+}
+
 func (s *TransactionWatcher) GetWatchers() []*biModel.TransactionWatcherPublic {
 	s.RLock()
 	defer s.RUnlock()

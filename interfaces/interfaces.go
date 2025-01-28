@@ -6,6 +6,7 @@ import (
 
 	biModel "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
+	"github.com/voxtmault/bank-integration/watcher"
 )
 
 // RequestEgress is an interface that defines the methods that are used to send requests to banks.
@@ -83,6 +84,8 @@ type SNAP interface {
 
 	// GetWatchedTransaction returns list of transaction that is currently being watched by the bank service implementation
 	GetWatchedTransaction(ctx context.Context) []*biModel.TransactionWatcherPublic
+
+	GetWatcher() *watcher.TransactionWatcher
 }
 
 type Management interface {

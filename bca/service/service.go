@@ -87,6 +87,14 @@ func GetBCAService() *BCAService {
 	return nil
 }
 
+func (s *BCAService) GetWatcher() *watcher.TransactionWatcher {
+	if service != nil {
+		return service.Watcher
+	}
+
+	return nil
+}
+
 // Egress
 
 // GetAccessToken does not returns the token itself to the caller. It saves the token into the current instance of the service.
