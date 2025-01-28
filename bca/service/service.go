@@ -363,13 +363,11 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	}
 
 	// No active billing for the said VA Number
-	result, err := tx.ExecContext(ctx, query, payload.IDBank, payload.IDWallet, payload.IDTransaction, expiredTime,
-		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName, payload.IDOrder)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, query, payload.IDBank, payload.IDWallet, payload.IDTransaction, expiredTime,
+		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName, payload.IDOrder); err != nil {
 		tx.Rollback()
 		return eris.Wrap(err, "inserting into va_request")
 	}
-	id, _ := result.LastInsertId()
 
 	if err = tx.Commit(); err != nil {
 		slog.Debug("error committing transaction", "error", err)
@@ -379,9 +377,10 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 
 	// Create Transaction Watcher after successfull transaction commit
 	watchedTransaction := watcher.NewWatcher()
-	watchedTransaction.IDTransaction = uint(id)
+	watchedTransaction.IDTransaction = payload.IDTransaction
 	watchedTransaction.ExpireAt = expiredTime.Local()
 	watchedTransaction.ExternalChannel = payload.ExternalChannel
+	watchedTransaction.IDBank = payload.IDBank
 
 	s.Watcher.AddWatcher(watchedTransaction)
 
