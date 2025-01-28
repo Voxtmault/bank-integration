@@ -82,6 +82,7 @@ func (s *TransactionWatcher) AddWatcher(watcher *biModel.TransactionWatcher) {
 				return
 			}
 		case paymentStatus := <-w.PaymentStatus:
+			slog.Info("payment status received", "status", paymentStatus)
 			// Stop the timer
 			if !w.Timer.Stop() {
 				<-w.Timer.C // If an error occurs, drain the channel
