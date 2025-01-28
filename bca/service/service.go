@@ -1421,7 +1421,7 @@ func (s *BCAService) VerifyAdditionalBillPresentmentRequiredHeader(ctx context.C
 
 func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
 	query := `
-	SELECT id, expired_date 
+	SELECT id_transaction, expired_date 
 	FROM va_request 
 	WHERE id_va_status = ? AND id_bank = ?
 	`
