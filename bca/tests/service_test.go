@@ -583,7 +583,7 @@ func TestTransferIntraBank(t *testing.T) {
 			Currency: "IDR",
 		},
 		BeneficiaryAccountNo: "0611115813",
-		SourceAccountNo:      "0611102380",
+		SourceAccountNo:      "1234567890",
 	})
 	if err != nil {
 		t.Errorf("Error transfer intra bank: %v", err)
