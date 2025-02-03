@@ -358,9 +358,9 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	query := `
 	INSERT INTO va_request (id_bank, id_wallet, id_transaction, expired_date, partnerServiceId, customerNo,
 							virtualAccountNo, totalAmountValue, virtualAccountName, id_order)
-	VALUES(?,NULLIF(?,0),NULLIF(?,0),?,?,?,?,?,?,NULLIF(?,0))
+	VALUES(?,NULLIF(?,0),NULLIF(?,0),?, INTERVAL 1 DAY),?,?,?,?,?,NULLIF(?,0))
 	`
-	expiredTime := time.Now().Add(time.Hour * time.Duration(s.bankConfig.VirtualAccountConfig.VirtualAccountLife))
+	expiredTime := time.Now().Local().Add(time.Hour * time.Duration(s.bankConfig.VirtualAccountConfig.VirtualAccountLife))
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Debug("error beginning transaction", "error", err)
@@ -903,9 +903,9 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 	}
 	statement = `
 	UPDATE va_request SET inquiryRequestId = ? 
-	WHERE virtualAccountNo = ? AND paidAmountValue = '0.00'
+	WHERE virtualAccountNo = ? AND paidAmountValue = '0.00' AND id_va_status = ?
 	`
-	_, err = tx.QueryContext(ctx, statement, payload.InquiryRequestID, payload.VirtualAccountNo)
+	_, err = tx.QueryContext(ctx, statement, payload.InquiryRequestID, payload.VirtualAccountNo, biUtil.VAStatusPending)
 	if err != nil {
 		slog.Debug("error updating va_request", "error", err)
 		tx.Rollback()
