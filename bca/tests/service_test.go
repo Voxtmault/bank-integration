@@ -497,6 +497,41 @@ func TestCreateVA(t *testing.T) {
 	}
 }
 
+func TestCreateVAV2(t *testing.T) {
+	security, err := setup()
+	if err != nil {
+		t.Fatalf("error setting up bca security instance: %v", err)
+	}
+
+	s, err := bca_service.NewBCAService(
+		request.NewBCAEgress(security, bCfg, cfg),
+		request.NewBCAIngress(security),
+		cfg,
+		bCfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+	if err != nil {
+		t.Errorf("Error creating BCA Service: %v", err)
+	}
+
+	// Generate CreateVA object
+	data := biModels.CreatePaymentVARequestV2{
+		IDWallet:      6,
+		IDTransaction: 100,
+		IDBank:        3,
+		AccountName:   "Joko Dono",
+		TotalAmount:   "10000",
+		IDService:     1,
+		CustomerNo:    "1234567890",
+	}
+
+	err = s.CreateVAV2(context.Background(), &data)
+	if err != nil {
+		t.Errorf("Error bill presentment: %v", err)
+	}
+}
+
 func TestGetWatchedTransaction(t *testing.T) {
 	security, err := setup()
 	if err != nil {
