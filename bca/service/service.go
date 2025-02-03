@@ -390,7 +390,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	}
 
 	// No active billing for the said VA Number
-	if _, err = tx.ExecContext(ctx, query, payload.IDBank, payload.IDWallet, payload.IDTransaction, expiredTime,
+	if _, err = tx.ExecContext(ctx, query, payload.IDBank, payload.IDWallet, payload.IDTransaction, expiredTime.Format(time.DateTime),
 		partnerId, payload.CustomerNo, vaNumber, payload.TotalAmount, payload.AccountName, payload.IDOrder); err != nil {
 		tx.Rollback()
 		return eris.Wrap(err, "inserting into va_request")
