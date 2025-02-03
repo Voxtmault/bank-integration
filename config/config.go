@@ -150,6 +150,7 @@ type InternalConfig struct {
 	RedisConfig
 	PrivateKeyPath string
 	AppHost        string
+	TZ             string
 	Mode           string // To contorl wether the application is running in production or development or debug mode
 }
 
@@ -190,6 +191,7 @@ func New(envPath string) *InternalConfig {
 		PrivateKeyPath: getEnv("PRIVATE_KEY_PATH", ""),
 		AppHost:        getEnv("APP_HOST", ""),
 		Mode:           getEnv("MODE", "prod"),
+		TZ:             getEnv("TZ", "Asia/Jakarta"),
 	}
 
 	return config

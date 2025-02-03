@@ -344,6 +344,13 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 	// Override the bank code to BCA
 	payload.IDBank = s.bankConfig.BankCredential.InternalBankID
 
+	// Load the timezone
+	_, err := time.LoadLocation(s.internalConfig.TZ)
+	if err != nil {
+		slog.Error("failed to load timezone", "error", err)
+		return eris.Wrap(err, "loading timezone")
+	}
+
 	// Validate payload
 	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
 		return eris.Wrap(err, "validating payload")
@@ -360,7 +367,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 							virtualAccountNo, totalAmountValue, virtualAccountName, id_order)
 	VALUES(?,NULLIF(?,0),NULLIF(?,0),?,?,?,?,?,?,NULLIF(?,0))
 	`
-	expiredTime := time.Now().Local().Add(time.Hour * time.Duration(s.bankConfig.VirtualAccountConfig.VirtualAccountLife))
+	expiredTime := time.Now().Add(time.Hour * time.Duration(s.bankConfig.VirtualAccountConfig.VirtualAccountLife))
 	slog.Info("expired time", "expiredTime", expiredTime.Format(time.DateTime))
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
