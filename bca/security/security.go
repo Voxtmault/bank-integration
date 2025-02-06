@@ -128,6 +128,7 @@ func (s *BCASecurity) CreateSymmetricSignature(ctx context.Context, obj *biModel
 	fmt.Println("string to sign", "data", stringToSign)
 
 	// Generate Signature using SHA512-HMAC Algorithm
+	slog.Debug("loaded client key", "data", s.bankConfig.BankCredential.ClientSecret)
 	h := hmac.New(sha512.New, []byte(s.bankConfig.BankCredential.ClientSecret))
 	h.Write([]byte(stringToSign))
 	signature := h.Sum(nil)
