@@ -14,7 +14,7 @@ type BankCredential struct {
 	InternalBankName string `validate:"omitempty"`                    // Name of the bank
 	ClientID         string `validate:"required,uuid4"`               // Client ID received from the bank
 	ClientSecret     string `validate:"required,uuid4"`               // Client Secret received from the bank
-	PartnerID        string `validate:"required,number"`              // Partner ID received from the bank
+	PartnerID        string `validate:"required,max=32"`              // Partner ID received from the bank
 	PublicKeyPath    string `validate:"required,filepath"`            // Path to the public key sent by the bank
 	SourceAccount    string `validate:"required"`                     // Source account numbern for this application
 }
