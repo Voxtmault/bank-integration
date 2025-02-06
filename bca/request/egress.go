@@ -95,7 +95,7 @@ func (s *BCAEgress) GenerateGeneralRequestHeader(ctx context.Context, request *h
 	// Add custom headers required by BCA
 	request.Header.Set("Authorization", "Bearer "+accessToken)
 	request.Header.Set("X-TIMESTAMP", timeStamp)
-	request.Header.Set("X-CLIENT-KEY", s.bankConfig.BankCredential.ClientID)
+	// request.Header.Set("X-CLIENT-KEY", s.bankConfig.BankCredential.ClientID)
 	request.Header.Set("X-SIGNATURE", signature)
 	request.Header.Set("ORIGIN", s.internalConfig.AppHost)
 	request.Header.Set("X-EXTERNAL-ID", strconv.Itoa(int(time.Now().Unix())))
