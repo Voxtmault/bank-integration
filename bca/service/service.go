@@ -1357,6 +1357,9 @@ func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) 
 
 	client := &http.Client{}
 
+	reqHeader, _ := json.Marshal(request.Header)
+	slog.Debug("request header", "header", string(reqHeader))
+
 	response, err := client.Do(request)
 	if err != nil {
 		return "", eris.Wrap(err, "sending request")
