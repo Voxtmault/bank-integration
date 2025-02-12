@@ -49,9 +49,9 @@ func (s *BCAEgress) GenerateAccessRequestHeader(ctx context.Context, request *ht
 		request.Header.Set("Content-Type", "application/json")
 	}
 
-	slog.Debug("Request Header Debug", "Timestamp: ", timeStamp)
-	slog.Debug("Request Header Debug", "Client ID: ", s.bankConfig.BankCredential.ClientID)
-	slog.Debug("Request Header Debug", "Signature: ", signature)
+	// slog.Debug("Request Header Debug", "Timestamp: ", timeStamp)
+	// slog.Debug("Request Header Debug", "Client ID: ", s.bankConfig.BankCredential.ClientID)
+	// slog.Debug("Request Header Debug", "Signature: ", signature)
 
 	// Add custom headers required by BCA
 	request.Header.Set("X-TIMESTAMP", timeStamp)

@@ -141,7 +141,6 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 			return eris.Wrap(err, "sending request")
 		}
 	}
-	slog.Debug("Response from BCA", "Response: ", response)
 
 	var atObj biModels.AccessTokenResponse
 	if err = json.Unmarshal([]byte(response), &atObj); err != nil {
@@ -287,7 +286,7 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 }
 
 func (s *BCAService) CreateVA(ctx context.Context, payload *biModels.CreateVAReq) error {
-	partnerId := s.padPartnerServiceId(s.bankConfig.BankCredential.PartnerID)
+	partnerId := s.padPartnerServiceId(s.bankConfig.BankCredential.VAPrefix)
 	query := `
 	INSERT INTO va_request (partnerServiceId, customerNo, virtualAccountNo, totalAmountValue, 
 				   			virtualAccountName,expired_date, id_bank, id_wallet)
@@ -361,7 +360,7 @@ func (s *BCAService) CreateVAV2(ctx context.Context, payload *biModels.CreatePay
 		payload.TotalAmount += ".00"
 	}
 
-	partnerId := s.padPartnerServiceId(s.bankConfig.BankCredential.PartnerID)
+	partnerId := s.padPartnerServiceId(s.bankConfig.BankCredential.VAPrefix)
 	query := `
 	INSERT INTO va_request (id_bank, id_wallet, id_transaction, expired_date, partnerServiceId, customerNo,
 							virtualAccountNo, totalAmountValue, virtualAccountName, id_order)
@@ -1371,7 +1370,7 @@ func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) 
 	}
 	defer response.Body.Close()
 
-	log.Println("response body", string(body))
+	slog.Debug("bca response", "response", string(body))
 
 	respHeader, _ := json.Marshal(response.Header)
 	slog.Debug("response header", "header", string(respHeader))
