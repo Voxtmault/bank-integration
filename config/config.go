@@ -146,10 +146,15 @@ type RedisConfig struct {
 	RedisDBNum    uint8
 }
 
+type ForwardProxyConfig struct {
+	ProxyAddress string
+}
+
 type InternalConfig struct {
 	TransactionWatcherConfig
 	MariaConfig
 	RedisConfig
+	ForwardProxyConfig
 	PrivateKeyPath string
 	AppHost        string
 	TZ             string
@@ -184,6 +189,9 @@ func New(envPath string) *InternalConfig {
 			RedisPort:     getEnv("REDIS_PORT", "6378"),
 			RedisPassword: getEnv("REDIS_PASSWORD", ""),
 			RedisDBNum:    uint8(getEnvAsInt("REDIS_DB_NUM", 0)),
+		},
+		ForwardProxyConfig: ForwardProxyConfig{
+			ProxyAddress: getEnv("PROXY_ADDRESS", ""),
 		},
 		TransactionWatcherConfig: TransactionWatcherConfig{
 			MaxRetry:             uint(getEnvAsInt("WATCHER_MAX_RETRY", 10)),

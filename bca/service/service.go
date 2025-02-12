@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -45,6 +46,8 @@ type BCAService struct {
 	bankConfig     *biConfig.BankConfig
 	internalConfig *biConfig.InternalConfig
 
+	httpProxy *http.Transport
+
 	// DB Connections
 	DB  *sql.DB
 	RDB *biStorage.RedisInstance
@@ -75,6 +78,15 @@ func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.Reque
 	if err := service.GetAllVAWaitingPayment(context.Background()); err != nil {
 		slog.Error("error getting all va waiting payment", "error", err)
 		return nil, err
+	}
+
+	proxyUrl, err := url.Parse(cfg.ForwardProxyConfig.ProxyAddress)
+	if err != nil {
+		return nil, eris.Wrap(err, "parsing proxy address")
+	}
+
+	service.httpProxy = &http.Transport{
+		Proxy: http.ProxyURL(proxyUrl),
 	}
 
 	return service, nil
@@ -1354,7 +1366,9 @@ func (s *BCAService) GetWatchedTransaction(ctx context.Context) []*biModels.Tran
 
 func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) (string, error) {
 
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: s.httpProxy,
+	}
 
 	reqHeader, _ := json.Marshal(request.Header)
 	slog.Debug("request header", "header", string(reqHeader))
