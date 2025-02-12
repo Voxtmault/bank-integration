@@ -45,12 +45,15 @@ type RequestedEndpoints struct {
 
 // Used to store the endpoints of the bank's API for each specific operation
 type BankServiceEndpoints struct {
-	BaseUrl              string `validate:"required,url"` // Base URL to the bank's API
-	AccessTokenURL       string `validate:"required,uri"` // URL to get the access token
-	BalanceInquiryURL    string `validate:"required,uri"` // URL to check / get the information of a billing statement
-	PaymentFlagURL       string `validate:"required,uri"` // URL to update / play a billing statement
-	TransferIntraBankURL string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for intra bank)
-	TransferInterBankURL string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for inter bank)
+	BaseUrl                   string `validate:"required,url"` // Base URL to the bank's API
+	AccessTokenURL            string `validate:"required,uri"` // URL to get the access token
+	BalanceInquiryURL         string `validate:"required,uri"` // URL to check / get the balance information of an account
+	PaymentFlagURL            string `validate:"required,uri"` // URL to update / play a billing statement
+	TransferIntraBankURL      string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for intra bank)
+	TransferInterBankURL      string `validate:"required,uri"` // URL to transfer money / withdraw money from the application to the target account (only for inter bank)
+	ExternalAccountInquiryURL string `validate:"required,uri"` // URL to check / get the information of an external (non-bca) account
+	InternalAccountInquiryURL string `validate:"required,uri"` // URL to check / get the information of an internal (bca) account
+	BankStatementURL          string `validate:"required,uri"` // URL to check / get the information of a billing statement
 }
 
 type VirtualAccountConfig struct {
@@ -98,12 +101,15 @@ func NewBankingConfig(path string) *BankConfig {
 			AccessTokenExpireTime: uint(getEnvAsInt("REQ_ACCESS_TOKEN_EXPIRATION", 0)),
 		},
 		BankServiceEndpoints: BankServiceEndpoints{
-			BaseUrl:              getEnv("BASE_URL", ""),
-			AccessTokenURL:       getEnv("ACCESS_TOKEN_URL", ""),
-			BalanceInquiryURL:    getEnv("BALANCE_INQUIRY_URL", ""),
-			PaymentFlagURL:       getEnv("PAYMENT_FLAG_URL", ""),
-			TransferIntraBankURL: getEnv("TRANSFER_INTRABANK_URL", ""),
-			TransferInterBankURL: getEnv("TRANSFER_INTERBANK_URL", ""),
+			BaseUrl:                   getEnv("BASE_URL", ""),
+			AccessTokenURL:            getEnv("ACCESS_TOKEN_URL", ""),
+			BalanceInquiryURL:         getEnv("BALANCE_INQUIRY_URL", ""),
+			PaymentFlagURL:            getEnv("PAYMENT_FLAG_URL", ""),
+			TransferIntraBankURL:      getEnv("TRANSFER_INTRABANK_URL", ""),
+			TransferInterBankURL:      getEnv("TRANSFER_INTERBANK_URL", ""),
+			ExternalAccountInquiryURL: getEnv("EXTERNAL_ACCOUNT_INQUIRY_URL", ""),
+			InternalAccountInquiryURL: getEnv("INTERNAL_ACCOUNT_INQUIRY_URL", ""),
+			BankStatementURL:          getEnv("BANK_STATEMENT_URL", ""),
 		},
 		RequestedEndpoints: RequestedEndpoints{
 			AuthURL:            getEnv("OAUTH2_URL", ""),

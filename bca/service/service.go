@@ -80,13 +80,15 @@ func NewBCAService(egress biInterfaces.RequestEgress, ingress biInterfaces.Reque
 		return nil, err
 	}
 
-	proxyUrl, err := url.Parse(cfg.ForwardProxyConfig.ProxyAddress)
-	if err != nil {
-		return nil, eris.Wrap(err, "parsing proxy address")
-	}
+	if cfg.ForwardProxyConfig.ProxyAddress != "" {
+		proxyUrl, err := url.Parse(cfg.ForwardProxyConfig.ProxyAddress)
+		if err != nil {
+			return nil, eris.Wrap(err, "parsing proxy address")
+		}
 
-	service.httpProxy = &http.Transport{
-		Proxy: http.ProxyURL(proxyUrl),
+		service.httpProxy = &http.Transport{
+			Proxy: http.ProxyURL(proxyUrl),
+		}
 	}
 
 	return service, nil
@@ -222,6 +224,67 @@ func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBa
 
 	// Checks for erronous response
 	if obj.ResponseCode != "2001100" {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	return &obj, nil
+}
+
+func (s *BCAService) BankStatement(ctx context.Context) (*biModels.BCABankStatementResponse, error) {
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	var payload biModels.BCABankStatementRequest
+
+	payload.PartnerReferenceNo = uuid.New().String()
+	payload.AccountNo = s.bankConfig.BankCredential.SourceAccount
+	payload.FromDateTime = time.Now().AddDate(0, 0, -30).Format(time.RFC3339)
+	payload.ToDateTime = time.Now().Format(time.RFC3339)
+
+	// Validate before sending the request
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return nil, eris.Wrap(err, "validating payload")
+	}
+
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.BankStatementURL
+	method := http.MethodPost
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.BankStatementURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.BusinessChannelId)
+
+	response, err := s.RequestHandler(ctx, request)
+	if err != nil {
+		if response != "" {
+			return nil, eris.Wrap(eris.New(response), "sending request")
+		} else {
+			return nil, eris.Wrap(err, "sending request")
+		}
+	}
+
+	slog.Info("Response from BCA", "Response: ", response)
+
+	var obj biModels.BCABankStatementResponse
+	if err = json.Unmarshal([]byte(response), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if obj.ResponseCode != "2001400" {
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
@@ -1366,8 +1429,11 @@ func (s *BCAService) GetWatchedTransaction(ctx context.Context) []*biModels.Tran
 
 func (s *BCAService) RequestHandler(ctx context.Context, request *http.Request) (string, error) {
 
-	client := &http.Client{
-		Transport: s.httpProxy,
+	client := &http.Client{}
+
+	if s.httpProxy != nil {
+		slog.Debug("using forward proxy")
+		client.Transport = s.httpProxy
 	}
 
 	reqHeader, _ := json.Marshal(request.Header)

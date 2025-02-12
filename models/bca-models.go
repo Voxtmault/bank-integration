@@ -417,3 +417,48 @@ type VAPaymentStatusResponse struct {
 	BCAResponse
 	VirtualAccountData
 }
+
+// Bank Statement / Mutation
+
+type BCABankStatementRequest struct {
+	PartnerReferenceNo string `json:"partnerReferenceNo" validate:"required,max=64"`
+	AccountNo          string `json:"accountNo" validate:"required,number,max=10"`
+	FromDateTime       string `json:"fromDateTime" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+	ToDateTime         string `json:"toDateTime" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+}
+
+type BCABankStatementResponse struct {
+	ResponseCode       string                        `json:"responseCode"`
+	ResponseMessage    string                        `json:"responseMessage"`
+	ReferenceNo        string                        `json:"referenceNo"`
+	PartnerReferenceNo string                        `json:"partnerReferenceNo"`
+	Balance            []*BCABankStatementBalance    `json:"balance"`
+	TotalCreditEntries *BCABankStatementActionDetail `json:"totalCreditEntries"`
+	TotalDebitEntries  *BCABankStatementActionDetail `json:"totalDebitEntries"`
+	DetailData         []*BCABankStatementDetailData `json:"detailData"`
+}
+
+type BCABankStatementBalanceDetails struct {
+	Value    string `json:"value"`
+	Currency string `json:"currency"`
+	DateTime string `json:"dateTime"`
+}
+
+type BCABankStatementBalance struct {
+	Amount          BCABankStatementBalanceDetails `json:"amount"`
+	StartingBalance BCABankStatementBalanceDetails `json:"startingBalance"`
+	EndingBalance   BCABankStatementBalanceDetails `json:"endingBalance"`
+}
+
+type BCABankStatementActionDetail struct {
+	NumberOfEntries string `json:"numberOfEntries"`
+	Amount          Amount `json:"amount"`
+}
+
+type BCABankStatementDetailData struct {
+	EndAmount       Amount `json:"endAmount"`
+	TransactionDate string `json:"transactionDate"`
+	Remark          string `json:"remark"`
+	Type            string `json:"type"`
+	Amount          Amount `json:"amount"`
+}

@@ -64,6 +64,31 @@ func TestBalanceInquiry(t *testing.T) {
 	log.Println(string(jsonStr))
 }
 
+func TestBankStatement(t *testing.T) {
+	security, err := setup()
+	if err != nil {
+		t.Fatalf("error setting up bca security instance: %v", err)
+	}
+
+	service, _ := bca_service.NewBCAService(
+		request.NewBCAEgress(security, bCfg, cfg),
+		request.NewBCAIngress(security),
+		cfg,
+		bCfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+
+	data, err := service.BankStatement(context.Background())
+	if err != nil {
+		t.Errorf("Error getting bank statement: %v", err)
+	}
+
+	jsonStr, _ := json.Marshal(data)
+
+	log.Println(string(jsonStr))
+}
+
 func TestGetVAPaymentStatus(t *testing.T) {
 	security, err := setup()
 	if err != nil {
