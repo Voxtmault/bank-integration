@@ -92,7 +92,6 @@ func NewBankingConfig(path string) *BankConfig {
 			BusinessChannelId: getEnv("BUSINESS_CHANNEL_ID", ""),
 		},
 		BankRuntimeConfig: BankRuntimeConfig{
-			AccessToken:               getEnv("ACCESS_TOKEN", ""),
 			AccessTokenExpirationTime: uint(getEnvAsInt("ACCESS_TOKEN_EXPIRATION_TIME", 0)),
 		},
 		BankRequestedCredentials: BankRequestedCredentials{
@@ -104,7 +103,7 @@ func NewBankingConfig(path string) *BankConfig {
 			BaseUrl:                   getEnv("BASE_URL", ""),
 			AccessTokenURL:            getEnv("ACCESS_TOKEN_URL", ""),
 			BalanceInquiryURL:         getEnv("BALANCE_INQUIRY_URL", ""),
-			PaymentFlagURL:            getEnv("PAYMENT_FLAG_URL", ""),
+			PaymentFlagURL:            getEnv("BANK_PAYMENT_FLAG_URL", ""),
 			TransferIntraBankURL:      getEnv("TRANSFER_INTRABANK_URL", ""),
 			TransferInterBankURL:      getEnv("TRANSFER_INTERBANK_URL", ""),
 			ExternalAccountInquiryURL: getEnv("EXTERNAL_ACCOUNT_INQUIRY_URL", ""),

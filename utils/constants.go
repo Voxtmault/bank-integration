@@ -9,6 +9,11 @@ var VendorsLogoRedis = "vendors_logo"
 // Structure is a regular key-value pair
 var AccessTokenRedis = "access-tokens"
 
+// Bank API Access Tokens
+const (
+	BCAAccessToken = "bca-access-token"
+)
+
 var UniqueExternalIDRedis = "unique-external-id"
 
 const (

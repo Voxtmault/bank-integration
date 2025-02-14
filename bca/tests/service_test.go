@@ -79,7 +79,9 @@ func TestBankStatement(t *testing.T) {
 		biStorage.GetRedisInstance(),
 	)
 
-	data, err := service.BankStatement(context.Background())
+	fromDateTime := time.Now().AddDate(0, 0, -60).Format(time.RFC3339)
+	toDateTime := time.Now().Format(time.RFC3339)
+	data, err := service.BankStatement(context.Background(), fromDateTime, toDateTime)
 	if err != nil {
 		t.Errorf("Error getting bank statement: %v", err)
 	}
@@ -609,6 +611,41 @@ func TestTransferIntraBank(t *testing.T) {
 		},
 		BeneficiaryAccountNo: "0611115813",
 		SourceAccountNo:      "1234567890",
+	})
+	if err != nil {
+		t.Errorf("Error transfer intra bank: %v", err)
+	}
+
+	slog.Debug("response", "data", res)
+}
+
+func TestTransferInterBank(t *testing.T) {
+	security, err := setup()
+	if err != nil {
+		t.Fatalf("error setting up bca security instance: %v", err)
+	}
+
+	s, err := bca_service.NewBCAService(
+		request.NewBCAEgress(security, bCfg, cfg),
+		request.NewBCAIngress(security),
+		cfg,
+		bCfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+	if err != nil {
+		t.Errorf("Error creating BCA Service: %v", err)
+	}
+
+	res, err := s.TransferInterBank(context.Background(), &biModels.BCATransferInterBankRequest{
+		PartnerReferenceNo: uuid.New().String(),
+		Amount: biModels.Amount{
+			Value:    "10000",
+			Currency: "IDR",
+		},
+		BeneficiaryAccountNo:   "888801000157508",
+		BeneficiaryAccountName: "Yories Yolanda",
+		BeneficiaryBankCode:    "789",
 	})
 	if err != nil {
 		t.Errorf("Error transfer intra bank: %v", err)
