@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	request "github.com/voxtmault/bank-integration/bca/request"
 	bca_service "github.com/voxtmault/bank-integration/bca/service"
-	biLogger "github.com/voxtmault/bank-integration/logger"
 	biModels "github.com/voxtmault/bank-integration/models"
 	biStorage "github.com/voxtmault/bank-integration/storage"
 )
@@ -79,7 +78,7 @@ func TestBankStatement(t *testing.T) {
 		biStorage.GetRedisInstance(),
 	)
 
-	fromDateTime := time.Now().AddDate(0, 0, -60).Format(time.RFC3339)
+	fromDateTime := time.Now().AddDate(0, 0, -13).Format(time.RFC3339)
 	toDateTime := time.Now().Format(time.RFC3339)
 	data, err := service.BankStatement(context.Background(), fromDateTime, toDateTime)
 	if err != nil {
@@ -462,9 +461,6 @@ func TestGenerateAccessToken(t *testing.T) {
 	slog.Debug("signature", "data", mockSignature)
 	marshalled, _ := json.Marshal(data)
 	slog.Debug("response", "data", marshalled)
-
-	logMessage := ctx.Value(biLogger.BankLogCtxKey)
-	slog.Debug("logMessage", "data", logMessage)
 }
 
 func TestValidateAccessToken(t *testing.T) {

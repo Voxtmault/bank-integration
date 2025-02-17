@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
@@ -67,54 +66,4 @@ func (r *RedisInstance) CloseRedis() error {
 		slog.Info("Redis connection is already closed or is not opened in the first place")
 		return nil
 	}
-}
-
-func (r *RedisInstance) SaveToRedis(ctx context.Context, key string, value interface{}, exp time.Duration) error {
-	if err := r.RDB.Set(ctx, key, value, exp).Err(); err != nil {
-		return eris.Wrap(err, "saving data to redis cache")
-	}
-
-	return nil
-}
-
-func (r *RedisInstance) SaveRedisHash(ctx context.Context, key string, value map[string]interface{}) error {
-
-	if err := r.RDB.HSet(ctx, key, value).Err(); err != nil {
-		slog.Debug("error saving hash data to redis cache", "error", err)
-		return eris.Wrap(err, "saving hash data to redis cache")
-	}
-
-	return nil
-}
-
-func (r *RedisInstance) GetIndividualValueRedisHash(ctx context.Context, key, subKey string) (string, error) {
-
-	data, err := r.RDB.HGet(ctx, key, subKey).Result()
-	if err != nil {
-		if err == redis.Nil {
-			slog.Debug("key does not exist in redis cache", "key", key)
-			return "", nil
-		} else {
-			slog.Debug("error getting individual value hash data from redis cache", "error", err)
-			return "", eris.Wrap(err, "getting individual value hash data from redis cache")
-		}
-	}
-
-	return data, nil
-}
-
-func (r *RedisInstance) GetRedisHash(ctx context.Context, key string) (map[string]string, error) {
-
-	data, err := r.RDB.HGetAll(ctx, key).Result()
-	if err != nil {
-		if err == redis.Nil {
-			slog.Debug("key does not exist in redis cache", "key", key)
-			return nil, nil
-		} else {
-			slog.Debug("error getting hash data from redis cache", "error", err)
-			return nil, eris.Wrap(err, "getting hash data from redis cache")
-		}
-	}
-
-	return data, nil
 }

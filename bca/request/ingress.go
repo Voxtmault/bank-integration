@@ -31,7 +31,7 @@ func NewBCAIngress(security biInterfaces.Security) *BCAIngress {
 	}
 }
 
-func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *http.Request, redis *biStorage.RedisInstance) (bool, *biModels.BCAResponse, string) {
+func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *http.Request, rds *biStorage.RedisInstance) (bool, *biModels.BCAResponse, string) {
 
 	// Parse the request header
 	timeStamp := request.Header.Get("X-TIMESTAMP")
@@ -69,8 +69,8 @@ func (s *BCAIngress) VerifyAsymmetricSignature(ctx context.Context, request *htt
 	}
 
 	// Retrieve the client secret from redis
-	clientSecret, err := redis.GetIndividualValueRedisHash(ctx, biUtil.ClientCredentialsRedis, clientKey)
-	if err != nil {
+	clientSecret, err := rds.RDB.HGet(ctx, biUtil.ClientCredentialsRedis, clientKey).Result()
+	if err != nil && err != redis.Nil {
 		slog.Debug("error getting client secret", "error", err)
 		return false, &bca.BCAAuthGeneralError, ""
 	}

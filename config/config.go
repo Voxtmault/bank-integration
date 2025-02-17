@@ -158,6 +158,7 @@ type ForwardProxyConfig struct {
 type InternalConfig struct {
 	TransactionWatcherConfig
 	MariaConfig
+	LoggerConfig MariaConfig
 	RedisConfig
 	ForwardProxyConfig
 	PrivateKeyPath string
@@ -188,6 +189,20 @@ func New(envPath string) *InternalConfig {
 			MaxOpenConns:         uint(getEnvAsInt("DB_MAX_OPEN_CONNS", 20)),
 			MaxIdleConns:         uint(getEnvAsInt("DB_MAX_IDLE_CONNS", 5)),
 			ConnMaxLifetime:      uint(getEnvAsInt("DB_CONN_MAX_LIFETIME", 5)),
+		},
+		LoggerConfig: MariaConfig{
+			DBDriver:             getEnv("LOGGER_DB_DRIVER", "mysql"),
+			DBHost:               getEnv("LOGGER_DB_HOST", ""),
+			DBPort:               getEnv("LOGGER_DB_PORT", "3306"),
+			DBUser:               getEnv("LOGGER_DB_USER", ""),
+			DBPassword:           getEnv("LOGGER_DB_PASSWORD", ""),
+			DBName:               getEnv("LOGGER_DB_NAME", ""),
+			TSLConfig:            getEnv("LOGGER_DB_TLS_CONFIG", "true"),
+			AllowNativePasswords: getEnvAsBool("LOGGER_DB_ALLOW_NATIVE_PASSWORDS", true),
+			MultiStatements:      getEnvAsBool("LOGGER_DB_MULTI_STATEMENTS", false),
+			MaxOpenConns:         uint(getEnvAsInt("LOGGER_DB_MAX_OPEN_CONNS", 20)),
+			MaxIdleConns:         uint(getEnvAsInt("LOGGER_DB_MAX_IDLE_CONNS", 5)),
+			ConnMaxLifetime:      uint(getEnvAsInt("LOGGER_DB_CONN_MAX_LIFETIME", 5)),
 		},
 		RedisConfig: RedisConfig{
 			RedisHost:     getEnv("REDIS_HOST", ""),

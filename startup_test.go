@@ -10,7 +10,7 @@ import (
 
 func TestLoadAuthenticatedBanks(t *testing.T) {
 	cfg := biConfig.New("/home/andy/go-projects/github.com/voxtmault/bank-integration/.env")
-	if err := biStorage.InitMariaDB(&cfg.MariaConfig); err != nil {
+	if err := biStorage.InitMariaDB(&cfg.MariaConfig, &cfg.LoggerConfig); err != nil {
 		t.Errorf("init mariadb: %v", err)
 	}
 	redis, err := biStorage.InitRedis(&cfg.RedisConfig)

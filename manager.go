@@ -36,7 +36,7 @@ func InitBankAPI(envPath, timezone string) error {
 	validate.RegisterValidation("bcaVA", biUtil.ValidateBCAVirtualAccountNumber)
 
 	// Init storage connections
-	if err := biStorage.InitMariaDB(&cfg.MariaConfig); err != nil {
+	if err := biStorage.InitMariaDB(&cfg.MariaConfig, &cfg.LoggerConfig); err != nil {
 		return eris.Wrap(err, "init mariadb connection")
 	}
 	obj, err := biStorage.InitRedis(&cfg.RedisConfig)

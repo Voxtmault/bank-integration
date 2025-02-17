@@ -37,4 +37,23 @@ const (
 	WatcherCancelled TransactionWatcherStatus = 3
 )
 
-const ()
+// Message Broker Constants
+const (
+	HelperUpdate = "helper-update"
+)
+
+// Bank Feature Constants
+const (
+	IngressAuth = iota + 1
+	IngressBillPresentment
+	IngressPaymentFlag
+	EgressAuth
+	EgressPaymentStatus
+	EgressBalanceInquiry
+	EgressExternalAccountInquiry
+	EgressInternalAccountInquiry
+	EgressIntrabankTransfer
+	EgressInterbankTransfer
+	EgressBankStatement
+	EgressTransactionStatusInquiry
+)

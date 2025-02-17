@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	mariaCon *sql.DB
+	mariaCon       *sql.DB
+	loggerMariaCon *sql.DB
 )
 
 type MariaDatabaseStats struct {
@@ -41,14 +42,19 @@ func validateMariaDBConfig(config *biConfig.MariaConfig) error {
 }
 
 // InitMaria Establish a connection using the provided credentials with the mariadb service
-func InitMariaDB(config *biConfig.MariaConfig) error {
+func InitMariaDB(config *biConfig.MariaConfig, loggerConfig *biConfig.MariaConfig) error {
 	slog.Debug("Opening MariaDB Connection")
 	var err error
 
 	// Validation
-	slog.Debug("Validating MariaDB Config")
+	slog.Debug("validating MariaDB Config")
 	if err := validateMariaDBConfig(config); err != nil {
 		return eris.Wrap(err, "invalid MariaDB configuration")
+	}
+
+	slog.Debug("validating logger MariaDB config")
+	if err := validateMariaDBConfig(loggerConfig); err != nil {
+		return eris.Wrap(err, "invalid logger MariaDB configuration")
 	}
 
 	dsn := mysql.Config{
@@ -79,12 +85,44 @@ func InitMariaDB(config *biConfig.MariaConfig) error {
 		return eris.Wrap(err, "Error verifying database connection")
 	}
 
+	loggerDsn := mysql.Config{
+		User:                 loggerConfig.DBUser,
+		Passwd:               loggerConfig.DBPassword,
+		AllowNativePasswords: loggerConfig.AllowNativePasswords,
+		Net:                  "tcp",
+		Addr:                 fmt.Sprintf("%s:%s", loggerConfig.DBHost, loggerConfig.DBPort),
+		DBName:               loggerConfig.DBName,
+		TLSConfig:            loggerConfig.TSLConfig,
+		MultiStatements:      loggerConfig.MultiStatements,
+		Params: map[string]string{
+			"charset": "utf8",
+		},
+	}
+
+	loggerMariaCon, err = sql.Open(loggerConfig.DBDriver, loggerDsn.FormatDSN())
+	if err != nil {
+		return eris.Wrap(err, "Opening MySQL/MariaDB Connection")
+	}
+
+	loggerMariaCon.SetMaxOpenConns(int(loggerConfig.MaxOpenConns))
+	loggerMariaCon.SetMaxIdleConns(int(loggerConfig.MaxIdleConns))
+	loggerMariaCon.SetConnMaxLifetime(time.Second * time.Duration(loggerConfig.ConnMaxLifetime))
+
+	err = loggerMariaCon.Ping()
+	if err != nil {
+		return eris.Wrap(err, "Error verifying database connection")
+	}
+
 	slog.Debug("Successfully opened database connection !")
 	return nil
 }
 
 func GetDBConnection() *sql.DB {
 	return mariaCon
+}
+
+func GetLoggerDBConnection() *sql.DB {
+	return loggerMariaCon
 }
 
 // GetMariaStats
@@ -105,11 +143,18 @@ func Close() error {
 	if mariaCon != nil {
 		if err := mariaCon.Close(); err != nil {
 			return eris.Wrap(err, "Closing DB")
-		} else {
-			return nil
 		}
 	} else {
 		slog.Info("MariaDB Connection is already closed or is not opened in the first place")
-		return nil
 	}
+
+	if loggerMariaCon != nil {
+		if err := loggerMariaCon.Close(); err != nil {
+			return eris.Wrap(err, "Closing Logger DB")
+		}
+	} else {
+		slog.Info("Logger MariaDB Connection is already closed or is not opened in the first place")
+	}
+
+	return nil
 }

@@ -15,7 +15,7 @@ func TestInitBCAService(t *testing.T) {
 	InitBankAPI(envPath, "Asia/Jakarta")
 
 	cfg := biConfig.New(envPath)
-	biStorage.InitMariaDB(&cfg.MariaConfig)
+	biStorage.InitMariaDB(&cfg.MariaConfig, &cfg.LoggerConfig)
 	biStorage.InitRedis(&cfg.RedisConfig)
 
 	_, err := InitBCAService(bankPath)
