@@ -120,7 +120,7 @@ func GetBCAService() (biInterfaces.SNAP, error) {
 func InitManagementService() (biInterfaces.Management, error) {
 
 	service, err := management.NewBankIntegrationManagement(
-		biStorage.GetDBConnection(),
+		biStorage.GetLoggerDBConnection(),
 		biStorage.GetRedisInstance(),
 	)
 	if err != nil {
