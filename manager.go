@@ -14,6 +14,7 @@ import (
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
 	bank_integration_internal "github.com/voxtmault/bank-integration/internal"
+	biLogger "github.com/voxtmault/bank-integration/logger"
 	management "github.com/voxtmault/bank-integration/management"
 	biStorage "github.com/voxtmault/bank-integration/storage"
 	biUtil "github.com/voxtmault/bank-integration/utils"
@@ -44,11 +45,10 @@ func InitBankAPI(envPath, timezone string) error {
 	if err != nil {
 		return eris.Wrap(err, "init redis connection")
 	}
-
-	// Load Authenticated Banks to Redis
-	// if err := LoadAuthenticatedBanks(biStorage.GetDBConnection(), obj); err != nil {
-	// 	return eris.Wrap(err, "load authenticated banks")
-	// }
+	biLogger.InitLogger()
+	if err := biCache.InitCache(context.Background()); err != nil {
+		return eris.Wrap(err, "init cache")
+	}
 
 	// Create a new cron scheduler
 	c := cron.New(cron.WithLocation(location))
@@ -129,6 +129,10 @@ func InitManagementService() (biInterfaces.Management, error) {
 	}
 
 	return service, nil
+}
+
+func GetManagementService() biInterfaces.Management {
+	return management.GetManagementService()
 }
 
 func InitInternalService() biInterfaces.Internal {

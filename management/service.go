@@ -23,18 +23,24 @@ type BankIntegrationManagement struct {
 
 var _ biInterfaces.Management = &BankIntegrationManagement{}
 
+var service *BankIntegrationManagement
+
 func NewBankIntegrationManagement(db *sql.DB, rdb *biStorage.RedisInstance) (*BankIntegrationManagement, error) {
-	management := BankIntegrationManagement{
+	service = &BankIntegrationManagement{
 		DB:  db,
 		RDB: rdb,
 	}
 
-	if err := management.StartUp(context.Background()); err != nil {
+	if err := service.StartUp(context.Background()); err != nil {
 		slog.Error("startup", "reason", err)
 		return nil, eris.Wrap(err, "startup")
 	}
 
-	return &management, nil
+	return service, nil
+}
+
+func GetManagementService() biInterfaces.Management {
+	return service
 }
 
 func (s *BankIntegrationManagement) GetPartneredBanks(ctx context.Context) ([]*biModel.PartneredBank, error) {
