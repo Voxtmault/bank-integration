@@ -2,13 +2,17 @@ databaseChangeLog:
 - include:
     file: db/changelog/bank_feature_types.sql
 - include:
-    file: db/changelog/partnered_banks.sql
-- include:
     file: db/changelog/bank_features.sql
+- include:
+    file: db/changelog/payment_methods.sql
+- include:
+    file: db/changelog/partnered_banks.sql
 - include:
     file: db/changelog/bank_client_credentials.sql
 - include:
-    file: db/changelog/payment_methods.sql
+    file: db/changelog/bank_integrated_features.sql
+- include:
+    file: db/changelog/bank_payment_methods.sql
 - include:
     file: db/changelog/bank_ingress.sql
 - include:

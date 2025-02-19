@@ -118,7 +118,7 @@ func (s *BCAService) GetWatcher() *watcher.TransactionWatcher {
 func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
-		IDFeature: biUtil.EgressAuth,
+		IDFeature: biUtil.FeatureOAuth,
 		URI:       s.bankConfig.BankServiceEndpoints.AccessTokenURL,
 	}
 	defer func() {
@@ -210,7 +210,7 @@ func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBa
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
-		IDFeature: biUtil.EgressBalanceInquiry,
+		IDFeature: biUtil.FeatureBalanceInquiry,
 		URI:       s.bankConfig.BankServiceEndpoints.BalanceInquiryURL,
 	}
 	defer func() {
@@ -276,7 +276,7 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
-		IDFeature: biUtil.EgressBankStatement,
+		IDFeature: biUtil.FeatureBankStatement,
 		URI:       s.bankConfig.BankServiceEndpoints.BankStatementURL,
 	}
 	defer func() {
@@ -377,7 +377,7 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
-		IDFeature: biUtil.EgressIntrabankTransfer,
+		IDFeature: biUtil.FeatureIntrabankTransfer,
 		URI:       s.bankConfig.BankServiceEndpoints.TransferIntraBankURL,
 	}
 	defer func() {
@@ -448,7 +448,7 @@ func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BC
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
-		IDFeature: biUtil.EgressInterbankTransfer,
+		IDFeature: biUtil.FeatureInterbankTransfer,
 		URI:       s.bankConfig.BankServiceEndpoints.TransferInterBankURL,
 	}
 	defer func() {
@@ -532,7 +532,7 @@ func (s *BCAService) GetVAPaymentStatus(ctx context.Context, vaNum string) (*biM
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
-		IDFeature: biUtil.EgressPaymentStatus,
+		IDFeature: biUtil.FeaturePaymentStatus,
 		URI:       s.bankConfig.BankServiceEndpoints.PaymentFlagURL,
 	}
 	defer func() {
@@ -771,15 +771,19 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// 7. Save the Access Token along with client secret to redis
 	// 8. Return to caller
 
-	logMessage := biModels.BankLog{
+	logMessage := biModels.BankLogV2{
 		ClientIP:   request.RemoteAddr,
 		HTTPMethod: request.Method,
 		Protocol:   request.Proto,
 		URI:        request.RequestURI,
+		IDBank:     s.bankConfig.InternalBankID,
+		IDFeature:  biUtil.FeatureOAuth,
+		BeginAt:    time.Now(),
 	}
-
-	reqParam, _ := json.Marshal(request.URL.Query())
-	logMessage.RequestParameter = string(reqParam)
+	defer func() {
+		logMessage.EndAt = time.Now()
+		biLogger.LogRequest(&logMessage)
+	}()
 
 	bodyBytes, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -788,8 +792,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		}
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "reading request body")
 	}
@@ -810,8 +813,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "decoding request body")
 	}
@@ -825,8 +827,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, nil
 	}
@@ -840,8 +841,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, nil
 	}
@@ -853,8 +853,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, nil
 	}
@@ -871,8 +870,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "generating access token")
 	}
@@ -888,8 +886,7 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 		responseStr, _ := json.Marshal(response)
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseMessage = response.BCAResponse.ResponseMessage
-		logMessage.ResponseContent = string(responseStr)
+		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "saving access token to redis")
 	}
@@ -906,13 +903,27 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 
 	responseStr, _ := json.Marshal(reqResponse)
 	logMessage.ResponseCode = uint(reqResponse.BCAResponse.HTTPStatusCode)
-	logMessage.ResponseMessage = reqResponse.BCAResponse.ResponseMessage
-	logMessage.ResponseContent = string(responseStr)
+	logMessage.ResponseBody = string(responseStr)
 
 	return &reqResponse, nil
 }
 
 func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request) (*biModels.VAResponsePayload, error) {
+
+	logMessage := biModels.BankLogV2{
+		ClientIP:   request.RemoteAddr,
+		HTTPMethod: request.Method,
+		Protocol:   request.Proto,
+		URI:        request.RequestURI,
+		IDBank:     s.bankConfig.InternalBankID,
+		IDFeature:  biUtil.FeatureBillPresentment,
+		BeginAt:    time.Now(),
+	}
+	defer func() {
+		logMessage.EndAt = time.Now()
+		biLogger.LogRequest(&logMessage)
+	}()
+
 	var response biModels.VAResponsePayload
 
 	// Validate Channel ID
@@ -924,6 +935,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 			response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 			response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
 		}
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -938,6 +953,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 			response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
 		}
 
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
 		return &response, nil
 	}
 
@@ -947,6 +966,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 
 		response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 		response.ResponseMessage = response.ResponseMessage + " [X-EXTERNAL-ID]"
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -958,6 +981,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 
 		response.BCAResponse = bca.BCABillInquiryResponseRequestParseError
 
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
 		return &response, nil
 	}
 	defer request.Body.Close()
@@ -967,6 +994,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		slog.Debug("error un-marshaling request body", "error", err)
 
 		response.BCAResponse = bca.BCABillInquiryResponseRequestParseError
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -990,12 +1021,20 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 				response.VirtualAccountData.InquiryReason.English = "Invalid Mandatory Field {" + item.Field() + "}"
 				response.VirtualAccountData.InquiryReason.Indonesia = "Field Wajib Tidak Valid {" + item.Field() + "}"
 
+				logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+				respBody, _ := json.Marshal(response)
+				logMessage.ResponseBody = string(respBody)
+
 				return &response, nil
 			} else {
 				response.BCAResponse = bca.BCABillInquiryResponseInvalidFieldFormat
 				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
 				response.VirtualAccountData.InquiryReason.English = "Invalid Field Format {" + item.Field() + "}"
 				response.VirtualAccountData.InquiryReason.Indonesia = "Format Field Tidak Valid {" + item.Field() + "}"
+
+				logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+				respBody, _ := json.Marshal(response)
+				logMessage.ResponseBody = string(respBody)
 
 				return &response, nil
 			}
@@ -1015,12 +1054,20 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 			response.VirtualAccountData = nil
 		}
 
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
 		return &response, nil
 	}
 
 	if !result {
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedSignature
 		response.VirtualAccountData = nil
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -1036,6 +1083,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		} else {
 			response.BCAResponse = bca.BCABillInquiryResponseGeneralError
 		}
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -1060,6 +1111,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	if err = s.BillPresentmentCore(ctx, &response, &payload); err != nil {
 		slog.Error("error in BillPresentmentCore", "error", err)
 
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
 		return &response, nil
 	}
 
@@ -1073,6 +1128,10 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		// For conflicting external id, set the inquiry status to failure
 		response.VirtualAccountData.InquiryStatus = "01"
 	}
+
+	logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+	respBody, _ := json.Marshal(response)
+	logMessage.ResponseBody = string(respBody)
 
 	return &response, nil
 }
@@ -1182,6 +1241,25 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biModels.BCAInquiryVAResponse, error) {
 
 	var response biModels.BCAInquiryVAResponse
+
+	logMessage := biModels.BankLogV2{
+		ClientIP:   request.RemoteAddr,
+		HTTPMethod: request.Method,
+		Protocol:   request.Proto,
+		URI:        request.RequestURI,
+		IDBank:     s.bankConfig.InternalBankID,
+		IDFeature:  biUtil.FeatureBillPresentment,
+		BeginAt:    time.Now(),
+	}
+	defer func() {
+		logMessage.EndAt = time.Now()
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
+		biLogger.LogRequest(&logMessage)
+	}()
 
 	// Validate Channel ID
 	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankChannelConfig.VAChannelId {
@@ -1821,16 +1899,30 @@ func (s *BCAService) GetAllVAWaitingPayment(ctx context.Context) error {
 }
 
 func (s *BCAService) getInternalBankInfo() error {
+	// Get the bank id from redis
+	// If not found, that means the configuration is not set yet or the credentials are invalid
+	data, err := s.RDB.RDB.HGet(context.Background(), biUtil.PartneredBanksCredentialsMapping, s.bankConfig.BankRequestedCredentials.ClientSecret).Result()
+	if err != nil {
+		if err == redis.Nil {
+			slog.Warn("bank credentials not found in redis")
+			return eris.New("bank credentials not found in redis")
+		} else {
+			slog.Error("error getting internal bank id from redis", "error", err)
+			return eris.Wrap(err, "getting internal bank id from redis")
+		}
+	}
+
+	temp, _ := strconv.Atoi(data)
+	s.bankConfig.BankCredential.InternalBankID = uint(temp)
 
 	statement := `
-	SELECT id, bank_name 
-	FROM authenticated_banks
-	WHERE client_id = ? AND client_secret = ? AND deleted_at IS NULL
+	SELECT bank_name 
+	FROM partnered_banks
+	WHERE id = ? AND deleted_at IS NULL
 	LIMIT 1
 	`
-	if err := s.DB.QueryRow(statement, s.bankConfig.BankRequestedCredentials.ClientID,
-		s.bankConfig.BankRequestedCredentials.ClientSecret).Scan(
-		&s.bankConfig.BankCredential.InternalBankID, &s.bankConfig.BankCredential.InternalBankName); err != nil {
+	if err := s.DB.QueryRow(statement, s.bankConfig.BankCredential.InternalBankID).Scan(
+		&s.bankConfig.BankCredential.InternalBankName); err != nil {
 		if err == sql.ErrNoRows {
 			slog.Warn("unauthorized bank credentials")
 			return eris.New("unauthorized")

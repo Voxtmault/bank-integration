@@ -14,12 +14,13 @@ var (
 	PartneredBanksMap   = make(map[string]string)
 	BankFeatureTypesMap = make(map[string]string)
 	BankFeaturesMap     = make(map[string]string)
+	PaymentMethodsMap   = make(map[string]string)
 )
 
 func InitCache(ctx context.Context) error {
 	rCon := biStorage.GetRedisInstance().RDB
 
-	result, err := rCon.HGetAll(ctx, "partnered_banks").Result()
+	result, err := rCon.HGetAll(ctx, "partnered-banks").Result()
 	if err != nil {
 		return eris.Wrap(err, "failed to get partnered_banks from redis")
 	}
@@ -41,6 +42,14 @@ func InitCache(ctx context.Context) error {
 	}
 	for key, value := range result {
 		BankFeaturesMap[key] = value
+	}
+
+	result, err = rCon.HGetAll(ctx, "payment_methods").Result()
+	if err != nil {
+		return eris.Wrap(err, "failed to get payment_methods from redis")
+	}
+	for key, value := range result {
+		PaymentMethodsMap[key] = value
 	}
 
 	return nil

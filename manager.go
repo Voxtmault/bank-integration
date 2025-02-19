@@ -10,6 +10,7 @@ import (
 	bcaRequest "github.com/voxtmault/bank-integration/bca/request"
 	bcaSecurity "github.com/voxtmault/bank-integration/bca/security"
 	bcaService "github.com/voxtmault/bank-integration/bca/service"
+	biCache "github.com/voxtmault/bank-integration/cache"
 	biConfig "github.com/voxtmault/bank-integration/config"
 	biInterfaces "github.com/voxtmault/bank-integration/interfaces"
 	bank_integration_internal "github.com/voxtmault/bank-integration/internal"
@@ -45,9 +46,9 @@ func InitBankAPI(envPath, timezone string) error {
 	}
 
 	// Load Authenticated Banks to Redis
-	if err := LoadAuthenticatedBanks(biStorage.GetDBConnection(), obj); err != nil {
-		return eris.Wrap(err, "load authenticated banks")
-	}
+	// if err := LoadAuthenticatedBanks(biStorage.GetDBConnection(), obj); err != nil {
+	// 	return eris.Wrap(err, "load authenticated banks")
+	// }
 
 	// Create a new cron scheduler
 	c := cron.New(cron.WithLocation(location))
@@ -58,6 +59,17 @@ func InitBankAPI(envPath, timezone string) error {
 			slog.Info("failed to clear unique external id", "reason", err)
 		} else {
 			slog.Info("unique external id cleared")
+		}
+	})
+	if err != nil {
+		return eris.Wrap(err, "failed to schedule task")
+	}
+
+	_, err = c.AddFunc("* * * * *", func() {
+		if err := biCache.InitCache(context.Background()); err != nil {
+			slog.Info("failed to fetch helper data from redis", "reason", err)
+		} else {
+			slog.Debug("renewed cache data")
 		}
 	})
 	if err != nil {
@@ -105,14 +117,18 @@ func GetBCAService() (biInterfaces.SNAP, error) {
 	return service, nil
 }
 
-func InitManagementService() biInterfaces.Management {
+func InitManagementService() (biInterfaces.Management, error) {
 
-	service := management.NewBankIntegrationManagement(
+	service, err := management.NewBankIntegrationManagement(
 		biStorage.GetDBConnection(),
 		biStorage.GetRedisInstance(),
 	)
+	if err != nil {
+		slog.Error("failed to init management service", "reason", err)
+		return nil, eris.Wrap(err, "init management service")
+	}
 
-	return service
+	return service, nil
 }
 
 func InitInternalService() biInterfaces.Internal {

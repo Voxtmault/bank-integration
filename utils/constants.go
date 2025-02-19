@@ -5,6 +5,10 @@ var ClientCredentialsRedis = "client-credentials"
 var AuthenticatedBankNameRedis = "authenticated-bank-name"
 var VendorsLogoRedis = "vendors_logo"
 
+// Reworked from the original code
+var PartneredBanks = "partnered-banks"
+var PartneredBanksCredentialsMapping = "partnered-banks-credentials-mapping"
+
 // Format stored in redis is access-tokens:{token} as the key and the value is the client secret
 // Structure is a regular key-value pair
 var AccessTokenRedis = "access-tokens"
@@ -44,16 +48,20 @@ const (
 
 // Bank Feature Constants
 const (
-	IngressAuth = iota + 1
-	IngressBillPresentment
-	IngressPaymentFlag
-	EgressAuth
-	EgressPaymentStatus
-	EgressBalanceInquiry
-	EgressExternalAccountInquiry
-	EgressInternalAccountInquiry
-	EgressIntrabankTransfer
-	EgressInterbankTransfer
-	EgressBankStatement
-	EgressTransactionStatusInquiry
+	FeatureOAuth = iota + 1
+	FeatureBillPresentment
+	FeaturePaymentFlag
+	FeaturePaymentStatus
+	FeatureBalanceInquiry
+	FeatureExternalAccountInquiry
+	FeatureInternalAccountInquiry
+	FeatureIntrabankTransfer
+	FeatureInterbankTransfer
+	FeatureBankStatement
+	FeatureTransactionStatusInquiry
 )
+
+// Bank Integration Management Constants
+var StartupHelper = []string{
+	"bank_features", "bank_feature_types", "payment_methods",
+}

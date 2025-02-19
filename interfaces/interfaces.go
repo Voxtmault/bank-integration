@@ -91,13 +91,31 @@ type SNAP interface {
 }
 
 type Management interface {
-	GetAuthenticatedBanks(ctx context.Context) ([]*biModel.AuthenticatedBank, error)
+	// Partnered Banks
 
-	RegisterBank(ctx context.Context, bankName string) (*biModel.BankClientCredential, error)
+	GetPartneredBanks(ctx context.Context) ([]*biModel.PartneredBank, error)
+	RegisterPartneredBank(ctx context.Context, obj *biModel.PartneredBankAdd) (*biModel.PartneredBank, error)
+	UpdatePartneredBanks(ctx context.Context, obj *biModel.PartneredBank) error
+	DeletePartneredBank(ctx context.Context, idBank uint) error
 
-	UpdateRegisteredBank(ctx context.Context) error
+	// Partnered Banks Integrated Features
 
-	RevokeRegisteredBank(ctx context.Context) error
+	GetBankIntegratedFeatures(ctx context.Context, idBank uint) ([]*biModel.IntegratedFeature, error)
+	EditBankIntegratedFeatures(ctx context.Context, arr []*biModel.IntegratedFeatureAdd) error
+	DeleteBankIntegratedFeature(ctx context.Context, idBank, idBIF uint) error
+
+	// Partnered Banks Payment Method
+
+	GetBankPaymentMethods(ctx context.Context, idBank uint) ([]*biModel.PaymentMethod, error)
+	EditBankPamentMethods(ctx context.Context, arr []*biModel.PaymentMethodAdd) error
+	DeleteBankPaymentMethod(ctx context.Context, idBank, idPM uint) error
+
+	// Partnered Banks Client Credentials
+
+	GetBankClientCredentials(ctx context.Context, idBank uint) ([]*biModel.BankClientCredential, error)
+	AddBankClientCredential(ctx context.Context, idBank uint, note string) (*biModel.BankClientCredential, error)
+	EditBankClientCredential(ctx context.Context, obj *biModel.BankClientCredential) error
+	DeleteBankClientCredential(ctx context.Context, idBank, idCC uint) error
 }
 
 type Internal interface {
