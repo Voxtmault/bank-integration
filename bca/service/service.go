@@ -1921,7 +1921,7 @@ func (s *BCAService) getInternalBankInfo() error {
 	WHERE id = ? AND deleted_at IS NULL
 	LIMIT 1
 	`
-	if err := s.DB.QueryRow(statement, s.bankConfig.BankCredential.InternalBankID).Scan(
+	if err := biStorage.GetLoggerDBConnection().QueryRow(statement, s.bankConfig.BankCredential.InternalBankID).Scan(
 		&s.bankConfig.BankCredential.InternalBankName); err != nil {
 		if err == sql.ErrNoRows {
 			slog.Warn("unauthorized bank credentials")
