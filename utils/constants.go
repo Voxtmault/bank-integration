@@ -18,6 +18,12 @@ const (
 	BCAAccessToken = "bca-access-token"
 )
 
+// RedisConsts
+const (
+	BCABalanceInquiry = "bca-balance-inquiry"
+	BCABankStatement  = "bca-bank-statement"
+)
+
 var UniqueExternalIDRedis = "unique-external-id"
 
 const (
@@ -65,3 +71,19 @@ const (
 var StartupHelper = []string{
 	"bank_features", "bank_feature_types", "payment_methods",
 }
+
+// BCA Account Balance Infos Hint Text English
+const (
+	EN_BCABalanceTypeAmountHintText = "Net amount of the transaction"
+	EN_BCABalanceTypeFloatHintText  = "Amount of deposit that is not effective yet (due to holiday, etc)"
+	EN_BCABalanceTypeHoldHintText   = "Hold amount that cannot be used"
+	EN_BCABalanceTypeAvailableHint  = "Account balance that can be used for financial transaction"
+)
+
+// BCA Account Balance Infos Hint Text Bahasa Indonesia
+const (
+	ID_BCABalanceTypeAmountHintText = "Jumlah bersih dari transaksi"
+	ID_BCABalanceTypeFloatHintText  = "Jumlah deposit yang belum efektif (karena hari libur, dll)"
+	ID_BCABalanceTypeHoldHintText   = "Jumlah yang tidak dapat digunakan"
+	ID_BCABalanceTypeAvailableHint  = "Saldo akun yang dapat digunakan untuk transaksi keuangan"
+)

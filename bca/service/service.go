@@ -206,7 +206,7 @@ func (s *BCAService) GetAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBalance, error) {
+func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BankAccountBalance, error) {
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
@@ -267,12 +267,15 @@ func (s *BCAService) BalanceInquiry(ctx context.Context) (*biModels.BCAAccountBa
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
-	return &obj, nil
+	internalObj := biModels.BankAccountBalance{}.Default()
+	internalObj.FromBCAResponse(&obj)
+
+	return &internalObj, nil
 }
 
 // BankStatement is used to get the bank statement of an account from the bank.
 // fromDateTime and toDateTime is optional. If supplied it is required to be in RFC3339 format.
-func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime string) (*biModels.BCABankStatementResponse, error) {
+func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime string) (*biModels.BankStatement, error) {
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
@@ -370,7 +373,10 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
-	return &obj, nil
+	internalObj := biModels.BankStatement{}.Default()
+	internalObj.FromBCAResponse(&obj)
+
+	return &internalObj, nil
 }
 
 func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BCATransferIntraBankReq) (*biModels.BCAResponseTransferIntraBank, error) {

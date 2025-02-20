@@ -51,7 +51,6 @@ func LogWorker(ctx context.Context) {
 			slog.Debug("logger worker is stopped")
 			return
 		case log := <-logChan:
-			slog.Info("received log", "log", log)
 			if log == nil {
 				slog.Warn("nil log received, skipping")
 				return
@@ -67,7 +66,6 @@ func LogWorker(ctx context.Context) {
 			if err := logVal.Struct(log); err != nil {
 				slog.Error("failed to validate log", "reason", err)
 			}
-			slog.Debug("here")
 
 			if log.ClientIP != "" {
 				if err := logBankIngress(context.Background(), log); err != nil {
@@ -321,7 +319,6 @@ func GetEgressLogs(ctx context.Context, filter *biModel.BankLogSearchFilter) ([]
 // Internal Functions
 
 func logBankIngress(ctx context.Context, log *biModel.BankLogV2) error {
-	slog.Debug("ingress log")
 	tx, err := dbCon.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Error("failed to begin transaction", "reason", err)
@@ -351,12 +348,10 @@ func logBankIngress(ctx context.Context, log *biModel.BankLogV2) error {
 		return eris.Wrap(err, "failed to commit transaction")
 	}
 
-	slog.Debug("done ingress")
 	return nil
 }
 
 func logBankEgress(ctx context.Context, log *biModel.BankLogV2) error {
-	slog.Debug("egress log")
 	tx, err := dbCon.BeginTx(ctx, nil)
 	if err != nil {
 		slog.Error("failed to begin transaction", "reason", err)

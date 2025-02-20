@@ -67,8 +67,8 @@ type SNAP interface {
 	// Egress
 
 	GetAccessToken(ctx context.Context) error
-	BalanceInquiry(ctx context.Context) (*biModel.BCAAccountBalance, error)
-	BankStatement(ctx context.Context, fromDateTime, toDateTime string) (*biModel.BCABankStatementResponse, error)
+	BalanceInquiry(ctx context.Context) (*biModel.BankAccountBalance, error)
+	BankStatement(ctx context.Context, fromDateTime, toDateTime string) (*biModel.BankStatement, error)
 	TransferIntraBank(ctx context.Context, payload *biModel.BCATransferIntraBankReq) (*biModel.BCAResponseTransferIntraBank, error)
 	TransferInterBank(ctx context.Context, payload *biModel.BCATransferInterBankRequest) (*biModel.BCATransferInterBankResponse, error)
 
