@@ -464,6 +464,7 @@ func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BC
 		payload.BeneficiaryBankCode = fmt.Sprintf("%08s", payload.BeneficiaryBankCode)
 	}
 
+	payload.PartnerReferenceNo = uuid.New().String()
 	payload.SourceAccountNo = s.bankConfig.BankCredential.SourceAccount
 	payload.AdditionalInfo = &biModels.BCATransferInterBankAdditionalInfo{
 		TransferType: bca.BCAInterbankBiFAST,
