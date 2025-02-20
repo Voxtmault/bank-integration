@@ -68,8 +68,6 @@ func InitBankAPI(envPath, timezone string) error {
 	_, err = c.AddFunc("* * * * *", func() {
 		if err := biCache.InitCache(context.Background()); err != nil {
 			slog.Info("failed to fetch helper data from redis", "reason", err)
-		} else {
-			slog.Debug("renewed cache data")
 		}
 	})
 	if err != nil {

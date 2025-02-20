@@ -772,6 +772,10 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// 7. Save the Access Token along with client secret to redis
 	// 8. Return to caller
 
+	var response biModels.AccessTokenResponse
+	var bodyBytes []byte
+	var err error
+
 	logMessage := biModels.BankLogV2{
 		ClientIP:       request.RemoteAddr,
 		HTTPMethod:     request.Method,
@@ -788,6 +792,18 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	defer func() {
 		logMessage.EndAt = time.Now()
 
+		reqHeader, _ := json.Marshal(request.Header)
+		logMessage.RequestHeader = string(reqHeader)
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
+		if len(bodyBytes) == 0 {
+			bodyBytes, _ = io.ReadAll(request.Body)
+		}
+		logMessage.RequestBody = string(bodyBytes)
+
 		if strings.HasPrefix(logMessage.ClientIP, "[::1]") {
 			logMessage.ClientIP = "127.0.0.1"
 		}
@@ -795,14 +811,11 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 		biLogger.LogRequest(&logMessage)
 	}()
 
-	bodyBytes, err := io.ReadAll(request.Body)
+	bodyBytes, err = io.ReadAll(request.Body)
 	if err != nil {
-		response := biModels.AccessTokenResponse{
+		response = biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}
-		responseStr, _ := json.Marshal(response)
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "reading request body")
 	}
@@ -811,19 +824,13 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// returns the request body value to be used down the function flow
 	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-	logMessage.RequestBody = string(bodyBytes)
-
 	// Parse the request body
 	var body biModels.GrantType
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 		slog.Debug("failed to decode request body", "reason", err)
-		response := biModels.AccessTokenResponse{
+		response = biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}
-
-		responseStr, _ := json.Marshal(response)
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "decoding request body")
 	}
@@ -843,27 +850,19 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	}
 
 	// Verify Asymmetric Signature
-	result, response, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
-	if response != nil {
-		response := biModels.AccessTokenResponse{
-			BCAResponse: response,
+	result, secResp, clientSecret := s.Ingress.VerifyAsymmetricSignature(ctx, request, s.RDB)
+	if secResp != nil {
+		response = biModels.AccessTokenResponse{
+			BCAResponse: secResp,
 		}
-
-		responseStr, _ := json.Marshal(response)
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseBody = string(responseStr)
 
 		return &response, nil
 	}
 
 	if !result {
-		response := biModels.AccessTokenResponse{
+		response = biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthUnauthorizedSignature,
 		}
-
-		responseStr, _ := json.Marshal(response)
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseBody = string(responseStr)
 
 		return &response, nil
 	}
@@ -874,13 +873,9 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	token, err := s.GeneralSecurity.GenerateAccessToken(ctx)
 	if err != nil {
 		slog.Debug("error generating access token", "reason", err)
-		response := biModels.AccessTokenResponse{
+		response = biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}
-
-		responseStr, _ := json.Marshal(response)
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "generating access token")
 	}
@@ -890,13 +885,9 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	key := fmt.Sprintf("%s:%s", biUtil.AccessTokenRedis, token)
 	if err := s.RDB.RDB.Set(ctx, key, clientSecret, time.Second*time.Duration(s.bankConfig.BankRequestedCredentials.AccessTokenExpireTime)).Err(); err != nil {
 		slog.Debug("error saving access token to redis", "reason", err)
-		response := biModels.AccessTokenResponse{
+		response = biModels.AccessTokenResponse{
 			BCAResponse: &bca.BCAAuthGeneralError,
 		}
-
-		responseStr, _ := json.Marshal(response)
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		logMessage.ResponseBody = string(responseStr)
 
 		return &response, eris.Wrap(err, "saving access token to redis")
 	}
@@ -904,21 +895,21 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	bcaResponse := bca.BCAAuthResponseSuccess
 	bcaResponse.ResponseMessage = "Successful"
 
-	reqResponse := biModels.AccessTokenResponse{
+	response = biModels.AccessTokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
 		ExpiresIn:   strconv.Itoa(int(s.bankConfig.BankRequestedCredentials.AccessTokenExpireTime)),
 		BCAResponse: &bcaResponse,
 	}
 
-	responseStr, _ := json.Marshal(reqResponse)
-	logMessage.ResponseCode = uint(reqResponse.BCAResponse.HTTPStatusCode)
-	logMessage.ResponseBody = string(responseStr)
-
-	return &reqResponse, nil
+	return &response, nil
 }
 
 func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request) (*biModels.VAResponsePayload, error) {
+
+	var response biModels.VAResponsePayload
+	var bodyBytes []byte
+	var err error
 
 	logMessage := biModels.BankLogV2{
 		ClientIP:       request.RemoteAddr,
@@ -936,6 +927,18 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	defer func() {
 		logMessage.EndAt = time.Now()
 
+		reqHeader, _ := json.Marshal(request.Header)
+		logMessage.RequestHeader = string(reqHeader)
+
+		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
+		respBody, _ := json.Marshal(response)
+		logMessage.ResponseBody = string(respBody)
+
+		if len(bodyBytes) == 0 {
+			bodyBytes, _ = io.ReadAll(request.Body)
+		}
+		logMessage.RequestBody = string(bodyBytes)
+
 		if strings.HasPrefix(logMessage.ClientIP, "[::1]") {
 			logMessage.ClientIP = "127.0.0.1"
 		}
@@ -943,38 +946,25 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		biLogger.LogRequest(&logMessage)
 	}()
 
-	var response biModels.VAResponsePayload
-
 	// Validate Channel ID
 	if request.Header.Get("CHANNEL-ID") == "" || request.Header.Get("CHANNEL-ID") != s.bankConfig.BankChannelConfig.VAChannelId {
-
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
 		if request.Header.Get("CHANNEL-ID") == "" {
 			response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 			response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {CHANNEL-ID}"
 		}
-
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
-
 		return &response, nil
 	}
 
 	// Validate Partner ID
 	if request.Header.Get("X-PARTNER-ID") == "" || request.Header.Get("X-PARTNER-ID") != s.bankConfig.BankCredential.PartnerID {
-
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedUnknownClient
 
 		if request.Header.Get("X-PARTNER-ID") == "" {
 			response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 			response.BCAResponse.ResponseMessage = "Invalid Mandatory Field {X-PARTNER-ID}"
 		}
-
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -986,23 +976,15 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		response.BCAResponse = bca.BCABillInquiryResponseMissingMandatoryField
 		response.ResponseMessage = response.ResponseMessage + " [X-EXTERNAL-ID]"
 
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
-
 		return &response, nil
 	}
 
 	// Parse the Request Body
-	bodyBytes, err := io.ReadAll(request.Body)
+	bodyBytes, err = io.ReadAll(request.Body)
 	if err != nil {
 		slog.Debug("error reading request body", "error", err)
 
 		response.BCAResponse = bca.BCABillInquiryResponseRequestParseError
-
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -1013,10 +995,6 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		slog.Debug("error un-marshaling request body", "error", err)
 
 		response.BCAResponse = bca.BCABillInquiryResponseRequestParseError
-
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -1040,20 +1018,12 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 				response.VirtualAccountData.InquiryReason.English = "Invalid Mandatory Field {" + item.Field() + "}"
 				response.VirtualAccountData.InquiryReason.Indonesia = "Field Wajib Tidak Valid {" + item.Field() + "}"
 
-				logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-				respBody, _ := json.Marshal(response)
-				logMessage.ResponseBody = string(respBody)
-
 				return &response, nil
 			} else {
 				response.BCAResponse = bca.BCABillInquiryResponseInvalidFieldFormat
 				response.BCAResponse.ResponseMessage = "Invalid Field Format {" + item.Field() + "}"
 				response.VirtualAccountData.InquiryReason.English = "Invalid Field Format {" + item.Field() + "}"
 				response.VirtualAccountData.InquiryReason.Indonesia = "Format Field Tidak Valid {" + item.Field() + "}"
-
-				logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-				respBody, _ := json.Marshal(response)
-				logMessage.ResponseBody = string(respBody)
 
 				return &response, nil
 			}
@@ -1073,20 +1043,12 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 			response.VirtualAccountData = nil
 		}
 
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
-
 		return &response, nil
 	}
 
 	if !result {
 		response.BCAResponse = bca.BCABillInquiryResponseUnauthorizedSignature
 		response.VirtualAccountData = nil
-
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -1102,10 +1064,6 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		} else {
 			response.BCAResponse = bca.BCABillInquiryResponseGeneralError
 		}
-
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
 
 		return &response, nil
 	}
@@ -1130,10 +1088,6 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	if err = s.BillPresentmentCore(ctx, &response, &payload); err != nil {
 		slog.Error("error in BillPresentmentCore", "error", err)
 
-		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-		respBody, _ := json.Marshal(response)
-		logMessage.ResponseBody = string(respBody)
-
 		return &response, nil
 	}
 
@@ -1147,10 +1101,6 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 		// For conflicting external id, set the inquiry status to failure
 		response.VirtualAccountData.InquiryStatus = "01"
 	}
-
-	logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
-	respBody, _ := json.Marshal(response)
-	logMessage.ResponseBody = string(respBody)
 
 	return &response, nil
 }
