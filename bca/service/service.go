@@ -773,13 +773,17 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	// 8. Return to caller
 
 	logMessage := biModels.BankLogV2{
-		ClientIP:   request.RemoteAddr,
-		HTTPMethod: request.Method,
-		Protocol:   request.Proto,
-		URI:        request.RequestURI,
-		IDBank:     s.bankConfig.InternalBankID,
-		IDFeature:  biUtil.FeatureOAuth,
-		BeginAt:    time.Now(),
+		ClientIP:       request.RemoteAddr,
+		HTTPMethod:     request.Method,
+		Protocol:       request.Proto,
+		URI:            request.RequestURI,
+		IDBank:         s.bankConfig.InternalBankID,
+		IDFeature:      biUtil.FeatureOAuth,
+		BeginAt:        time.Now(),
+		RequestHeader:  "{}",
+		RequestBody:    "{}",
+		ResponseHeader: "{}",
+		ResponseBody:   "{}",
 	}
 	defer func() {
 		logMessage.EndAt = time.Now()
@@ -917,13 +921,17 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request) (*biModels.VAResponsePayload, error) {
 
 	logMessage := biModels.BankLogV2{
-		ClientIP:   request.RemoteAddr,
-		HTTPMethod: request.Method,
-		Protocol:   request.Proto,
-		URI:        request.RequestURI,
-		IDBank:     s.bankConfig.InternalBankID,
-		IDFeature:  biUtil.FeatureBillPresentment,
-		BeginAt:    time.Now(),
+		ClientIP:       request.RemoteAddr,
+		HTTPMethod:     request.Method,
+		Protocol:       request.Proto,
+		URI:            request.RequestURI,
+		IDBank:         s.bankConfig.InternalBankID,
+		IDFeature:      biUtil.FeatureBillPresentment,
+		BeginAt:        time.Now(),
+		RequestHeader:  "{}",
+		RequestBody:    "{}",
+		ResponseHeader: "{}",
+		ResponseBody:   "{}",
 	}
 	defer func() {
 		logMessage.EndAt = time.Now()
@@ -1256,13 +1264,17 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	var err error
 
 	logMessage := biModels.BankLogV2{
-		ClientIP:   request.RemoteAddr,
-		HTTPMethod: request.Method,
-		Protocol:   request.Proto,
-		URI:        request.RequestURI,
-		IDBank:     s.bankConfig.InternalBankID,
-		IDFeature:  biUtil.FeatureBillPresentment,
-		BeginAt:    time.Now(),
+		ClientIP:       request.RemoteAddr,
+		HTTPMethod:     request.Method,
+		Protocol:       request.Proto,
+		URI:            request.RequestURI,
+		IDBank:         s.bankConfig.InternalBankID,
+		IDFeature:      biUtil.FeatureBillPresentment,
+		BeginAt:        time.Now(),
+		RequestHeader:  "{}",
+		RequestBody:    "{}",
+		ResponseHeader: "{}",
+		ResponseBody:   "{}",
 	}
 	defer func() {
 		logMessage.EndAt = time.Now()
@@ -1274,6 +1286,9 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 		respBody, _ := json.Marshal(response)
 		logMessage.ResponseBody = string(respBody)
 
+		if len(bodyBytes) == 0 {
+			bodyBytes, _ = io.ReadAll(request.Body)
+		}
 		logMessage.RequestBody = string(bodyBytes)
 
 		if strings.HasPrefix(logMessage.ClientIP, "[::1]") {
