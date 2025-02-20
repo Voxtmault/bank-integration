@@ -52,42 +52,30 @@ type Security interface {
 }
 
 type SNAP interface {
-	// Generally used to get access token from banks, but can also be used to renew existing tokens.
-	GetAccessToken(ctx context.Context) error
-
-	// GenerateAccessToken is used to generate the access token as a response form banks trying to authenticate
-	// with our wallet API
-	GenerateAccessToken(ctx context.Context, request *http.Request) (*biModel.AccessTokenResponse, error)
-
-	// Used to get the information regarding the account balance and other informations.
-	BalanceInquiry(ctx context.Context) (*biModel.BCAAccountBalance, error)
-
 	GetVAPaymentStatus(ctx context.Context, vaNum string) (*biModel.VAPaymentStatusResponse, error)
-
-	TransferIntraBank(ctx context.Context, payload *biModel.BCATransferIntraBankReq) (*biModel.BCAResponseTransferIntraBank, error)
-
-	// BillPresentment returns the bill information and the payment code.
-	// Generally called by Bank API
-	BillPresentment(ctx context.Context, request *http.Request) (*biModel.VAResponsePayload, error)
-
-	// InquiryVA updates the VA Payment Request status based on the bank's request.
-	// Generally called by Bank API
-	InquiryVA(ctx context.Context, request *http.Request) (*biModel.BCAInquiryVAResponse, error)
-	InquiryVACore(ctx context.Context, response *biModel.BCAInquiryVAResponse, payload *biModel.BCAInquiryRequest) error
-
-	// CreateVA creates a new VA Payment Request for the user to pay. It will not, however, create a new VA Number.
-	// VA number is created upon user registration
-	CreateVA(ctx context.Context, payload *biModel.CreateVAReq) error
-
 	CreateVAV2(ctx context.Context, payload *biModel.CreatePaymentVARequestV2) error
 
-	// GetAllVAWaitingPayment is called upon program startup to populate transaction watcher
-	GetAllVAWaitingPayment(ctx context.Context) error
+	// Ingress
+
+	// Called by each partnered bank to generate / get access-token to be used for the next requests
+	GenerateAccessToken(ctx context.Context, request *http.Request) (*biModel.AccessTokenResponse, error)
+	// Called by each partnered bank to get the virtual account billing information from our system
+	BillPresentment(ctx context.Context, request *http.Request) (*biModel.VAResponsePayload, error)
+	// Called by each partnered bank to update the billing status of a virtual account in our system
+	InquiryVA(ctx context.Context, request *http.Request) (*biModel.BCAInquiryVAResponse, error)
+
+	// Egress
+
+	GetAccessToken(ctx context.Context) error
+	BalanceInquiry(ctx context.Context) (*biModel.BCAAccountBalance, error)
+	BankStatement(ctx context.Context, fromDateTime, toDateTime string) (*biModel.BCABankStatementResponse, error)
+	TransferIntraBank(ctx context.Context, payload *biModel.BCATransferIntraBankReq) (*biModel.BCAResponseTransferIntraBank, error)
+	TransferInterBank(ctx context.Context, payload *biModel.BCATransferInterBankRequest) (*biModel.BCATransferInterBankResponse, error)
 
 	// GetWatchedTransaction returns list of transaction that is currently being watched by the bank service implementation
 	GetWatchedTransaction(ctx context.Context) []*biModel.TransactionWatcherPublic
-
 	GetWatcher() *watcher.TransactionWatcher
+	GetAllVAWaitingPayment(ctx context.Context) error
 }
 
 type Management interface {

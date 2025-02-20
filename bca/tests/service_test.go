@@ -36,6 +36,8 @@ func TestGetAccessToken(t *testing.T) {
 	if err := service.GetAccessToken(context.Background()); err != nil {
 		t.Errorf("Error getting access token: %v", err)
 	}
+
+	time.Sleep(time.Second * 3)
 }
 
 func TestBalanceInquiry(t *testing.T) {
