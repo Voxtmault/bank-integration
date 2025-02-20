@@ -783,6 +783,11 @@ func (s *BCAService) GenerateAccessToken(ctx context.Context, request *http.Requ
 	}
 	defer func() {
 		logMessage.EndAt = time.Now()
+
+		if strings.HasPrefix(logMessage.ClientIP, "[::1]") {
+			logMessage.ClientIP = "127.0.0.1"
+		}
+
 		biLogger.LogRequest(&logMessage)
 	}()
 
@@ -922,6 +927,11 @@ func (s *BCAService) BillPresentment(ctx context.Context, request *http.Request)
 	}
 	defer func() {
 		logMessage.EndAt = time.Now()
+
+		if strings.HasPrefix(logMessage.ClientIP, "[::1]") {
+			logMessage.ClientIP = "127.0.0.1"
+		}
+
 		biLogger.LogRequest(&logMessage)
 	}()
 
@@ -1242,6 +1252,8 @@ func (s *BCAService) BillPresentmentCore(ctx context.Context, response *biModels
 func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biModels.BCAInquiryVAResponse, error) {
 
 	var response biModels.BCAInquiryVAResponse
+	var bodyBytes []byte
+	var err error
 
 	logMessage := biModels.BankLogV2{
 		ClientIP:   request.RemoteAddr,
@@ -1255,9 +1267,18 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	defer func() {
 		logMessage.EndAt = time.Now()
 
+		reqHeader, _ := json.Marshal(request.Header)
+		logMessage.RequestHeader = string(reqHeader)
+
 		logMessage.ResponseCode = uint(response.BCAResponse.HTTPStatusCode)
 		respBody, _ := json.Marshal(response)
 		logMessage.ResponseBody = string(respBody)
+
+		logMessage.RequestBody = string(bodyBytes)
+
+		if strings.HasPrefix(logMessage.ClientIP, "[::1]") {
+			logMessage.ClientIP = "127.0.0.1"
+		}
 
 		biLogger.LogRequest(&logMessage)
 	}()
@@ -1299,7 +1320,7 @@ func (s *BCAService) InquiryVA(ctx context.Context, request *http.Request) (*biM
 	}
 
 	// Parse the Request Body
-	bodyBytes, err := io.ReadAll(request.Body)
+	bodyBytes, err = io.ReadAll(request.Body)
 	if err != nil {
 		slog.Debug("error reading request body", "error", err)
 
