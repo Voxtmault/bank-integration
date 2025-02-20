@@ -437,7 +437,7 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 	}
 
 	// Checks for erronous response
-	if res.StatusCode != http.StatusAccepted || res.StatusCode != http.StatusCreated {
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
@@ -515,7 +515,7 @@ func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BC
 	}
 
 	// Checks for erronous response
-	if res.StatusCode != http.StatusOK || res.StatusCode != http.StatusCreated {
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
