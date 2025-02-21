@@ -227,3 +227,56 @@ func (b *BankStatement) FromBCAResponse(bca *BCABankStatementResponse) {
 		b.Statements = append(b.Statements, &obj)
 	}
 }
+
+type BankTransferResponse struct {
+	TransactionReferenceStr string `json:"transaction_reference_str"`
+	ExternalID              string `json:"external_id"`
+	ServiceCode             string `json:"service_code"`
+	TransactionDate         string `json:"transaction_date"`
+}
+
+type TransferStatusResponse struct {
+	BankTransactionReferenceStr string         `json:"bank_transaction_reference_str"`
+	TransactionReferenceStr     string         `json:"transaction_reference_str"`
+	ExternalID                  string         `json:"external_id"`
+	ServiceCode                 string         `json:"service_code"`
+	TransactionDate             string         `json:"transaction_date"`
+	Amount                      *BalanceAmount `json:"amount"`
+	BeneficiaryAccountNo        string         `json:"beneficiary_account_no"`
+	BeneficiaryBankCode         string         `json:"beneficiary_bank_code"`
+	LatestTransactionStatusCode string         `json:"latest_transaction_status_code"`
+	LatestTransactionStatusDesc string         `json:"latest_transaction_status_desc"`
+}
+
+func (t TransferStatusResponse) Default() TransferStatusResponse {
+	return TransferStatusResponse{
+		BankTransactionReferenceStr: "",
+		TransactionReferenceStr:     "",
+		ExternalID:                  "",
+		ServiceCode:                 "",
+		TransactionDate:             "",
+		Amount:                      &BalanceAmount{},
+		BeneficiaryAccountNo:        "",
+		BeneficiaryBankCode:         "",
+		LatestTransactionStatusCode: "",
+		LatestTransactionStatusDesc: "",
+	}
+}
+
+func (t *TransferStatusResponse) FromBCAResponse(bca *BCATransactionStatusInquiryResponse) error {
+	t.BankTransactionReferenceStr = bca.OriginalReferenceNo
+	t.TransactionReferenceStr = bca.OriginalPartnerReferenceNo
+	t.ExternalID = bca.OriginalExternalId
+	t.ServiceCode = bca.ServiceCode
+	t.TransactionDate = bca.TransactionDate
+	t.BeneficiaryAccountNo = bca.BeneficiaryAccountNo
+	t.BeneficiaryBankCode = bca.BeneficiaryBankCode
+	t.LatestTransactionStatusCode = bca.LatestTransactionStatus
+	t.LatestTransactionStatusDesc = bca.TransactionStatusDesc
+	t.Amount = &BalanceAmount{
+		Value:    strings.TrimSpace(bca.Amount.Value),
+		Currency: bca.Amount.Currency,
+	}
+
+	return nil
+}

@@ -54,6 +54,7 @@ type BankServiceEndpoints struct {
 	ExternalAccountInquiryURL string `validate:"required,uri"` // URL to check / get the information of an external (non-bca) account
 	InternalAccountInquiryURL string `validate:"required,uri"` // URL to check / get the information of an internal (bca) account
 	BankStatementURL          string `validate:"required,uri"` // URL to check / get the information of a billing statement
+	TransferStatusURL         string `validate:"required,uri"` // URL to check the status of a bank transfer
 }
 
 type VirtualAccountConfig struct {
@@ -109,6 +110,7 @@ func NewBankingConfig(path string) *BankConfig {
 			ExternalAccountInquiryURL: getEnv("EXTERNAL_ACCOUNT_INQUIRY_URL", ""),
 			InternalAccountInquiryURL: getEnv("INTERNAL_ACCOUNT_INQUIRY_URL", ""),
 			BankStatementURL:          getEnv("BANK_STATEMENT_URL", ""),
+			TransferStatusURL:         getEnv("TRANSFER_STATUS_URL", ""),
 		},
 		RequestedEndpoints: RequestedEndpoints{
 			AuthURL:            getEnv("OAUTH2_URL", ""),

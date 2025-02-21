@@ -117,6 +117,49 @@ func TestGetVAPaymentStatus(t *testing.T) {
 	log.Println(string(jsonStr))
 }
 
+func TestTransactionStatusInquiry(t *testing.T) {
+	security, err := setup()
+	if err != nil {
+		t.Fatalf("error setting up bca security instance: %v", err)
+	}
+
+	s, err := bca_service.NewBCAService(
+		request.NewBCAEgress(security, bCfg, cfg),
+		request.NewBCAIngress(security),
+		cfg,
+		bCfg,
+		biStorage.GetDBConnection(),
+		biStorage.GetRedisInstance(),
+	)
+	if err != nil {
+		t.Errorf("Error creating BCA Service: %v", err)
+	}
+
+	res, err := s.TransferIntraBank(context.Background(), &biModels.BCATransferIntraBankReq{
+		PartnerReferenceNumber: uuid.New().String(),
+		Amount: biModels.Amount{
+			Value:    "10000.00",
+			Currency: "IDR",
+		},
+		BeneficiaryAccountNo: "0611115813",
+	})
+	if err != nil {
+		t.Errorf("Error transfer intra bank: %v", err)
+	}
+
+	slog.Debug("response", "data", res)
+
+	time.Sleep(time.Second)
+
+	// Check the transaction status
+	status, err := s.GetTransactionStatus(context.Background(), res)
+	if err != nil {
+		t.Errorf("Error getting transaction status: %v", err)
+	}
+
+	slog.Debug("response", "data", status)
+}
+
 func TestBalanceInquiryUnmarshal(t *testing.T) {
 
 	// sample := `

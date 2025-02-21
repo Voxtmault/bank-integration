@@ -10,3 +10,16 @@ CREATE TABLE IF NOT EXISTS `bank_features` (
     UNIQUE(`name`)
 ) ENGINE = InnoDB;
 --rollback DROP TABLE `bank_features`;
+
+--changeset Voxtmault:2
+INSERT INTO `bank_features` (`name`) VALUES ('Open Auth');
+INSERT INTO `bank_features` (`name`) VALUES ('Bill Presentmnt');
+INSERT INTO `bank_features` (`name`) VALUES ('Payment Flag');
+INSERT INTO `bank_features` (`name`) VALUES ('Payment Status');
+INSERT INTO `bank_features` (`name`) VALUES ('Account Balance');
+INSERT INTO `bank_features` (`name`) VALUES ('External Account Inquiry');
+INSERT INTO `bank_features` (`name`) VALUES ('Internal Account Inquiry');
+INSERT INTO `bank_features` (`name`) VALUES ('Intrabank Transfer');
+INSERT INTO `bank_features` (`name`) VALUES ('Interbank Transfer');
+INSERT INTO `bank_features` (`name`) VALUES ('Bank Statement');
+INSERT INTO `bank_features` (`name`) VALUES ('Transaction Status Inquiry');

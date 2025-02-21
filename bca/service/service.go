@@ -379,7 +379,7 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 	return &internalObj, nil
 }
 
-func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BCATransferIntraBankReq) (*biModels.BCAResponseTransferIntraBank, error) {
+func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BCATransferIntraBankReq) (*biModels.BankTransferResponse, error) {
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
@@ -395,7 +395,6 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.Wrap(err, "checking access token")
 	}
 
-	payload.PartnerReferenceNumber = s.bankConfig.BankCredential.PartnerID
 	payload.SourceAccountNo = s.bankConfig.BankCredential.SourceAccount
 
 	// Checks if the value ends with .00
@@ -447,10 +446,17 @@ func (s *BCAService) TransferIntraBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
-	return &obj, nil
+	result := biModels.BankTransferResponse{
+		TransactionReferenceStr: payload.PartnerReferenceNumber,
+		TransactionDate:         payload.TransactionDate,
+		ExternalID:              request.Header.Get("X-EXTERNAL-ID"),
+		ServiceCode:             bca.BCAServiceIntrabankTransfer,
+	}
+
+	return &result, nil
 }
 
-func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BCATransferInterBankRequest) (*biModels.BCATransferInterBankResponse, error) {
+func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BCATransferInterBankRequest) (*biModels.BankTransferResponse, error) {
 
 	log := biModels.BankLogV2{
 		IDBank:    s.bankConfig.InternalBankID,
@@ -470,7 +476,6 @@ func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BC
 		payload.BeneficiaryBankCode = fmt.Sprintf("%08s", payload.BeneficiaryBankCode)
 	}
 
-	payload.PartnerReferenceNo = uuid.New().String()
 	payload.SourceAccountNo = s.bankConfig.BankCredential.SourceAccount
 	payload.AdditionalInfo = &biModels.BCATransferInterBankAdditionalInfo{
 		TransferType: bca.BCAInterbankBiFAST,
@@ -526,7 +531,14 @@ func (s *BCAService) TransferInterBank(ctx context.Context, payload *biModels.BC
 		return nil, eris.New(obj.ResponseMessage)
 	}
 
-	return &obj, nil
+	result := biModels.BankTransferResponse{
+		TransactionReferenceStr: payload.PartnerReferenceNo,
+		TransactionDate:         payload.TransactionDate,
+		ExternalID:              request.Header.Get("X-EXTERNAL-ID"),
+		ServiceCode:             bca.BCAServiceInterbankTransfer,
+	}
+
+	return &result, nil
 }
 
 func (s *BCAService) GetVAPaymentStatus(ctx context.Context, vaNum string) (*biModels.VAPaymentStatusResponse, error) {
@@ -613,8 +625,72 @@ func (s *BCAService) GetVAPaymentStatus(ctx context.Context, vaNum string) (*biM
 	return &obj, nil
 }
 
-func (s *BCAService) GetTransactionStatus(ctx context.Context, payload *biModels.BCATransactionStatusInquiryRequest) (*biModels.BCATransactionStatusInquiryResponse, error) {
-	return nil, nil
+func (s *BCAService) GetTransactionStatus(ctx context.Context, payload *biModels.BankTransferResponse) (*biModels.TransferStatusResponse, error) {
+	log := biModels.BankLogV2{
+		IDBank:    s.bankConfig.InternalBankID,
+		IDFeature: biUtil.FeatureTransactionStatusInquiry,
+		URI:       s.bankConfig.BankServiceEndpoints.TransferStatusURL,
+	}
+	defer func() {
+		biLogger.LogRequest(&log)
+	}()
+
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	// Validate before sending the request
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return nil, eris.Wrap(err, "validating payload")
+	}
+
+	bcaPayload := biModels.BCATransactionStatusInquiryRequest{
+		OriginalPartnerReferenceNo: payload.TransactionReferenceStr,
+		OriginalExternalId:         payload.ExternalID,
+		ServiceCode:                payload.ServiceCode,
+		TransactionDate:            payload.TransactionDate,
+	}
+
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.TransferStatusURL
+	method := http.MethodPost
+	body, err := json.Marshal(bcaPayload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+	log.RequestBody = string(body)
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.TransferStatusURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.BusinessChannelId)
+
+	res, err := s.RequestHandler(ctx, request, &log)
+	if err != nil {
+		return nil, eris.Wrap(err, "sending request")
+	}
+
+	var obj biModels.BCATransactionStatusInquiryResponse
+	if err = json.Unmarshal([]byte(res.ResponseBody), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if res.StatusCode != http.StatusOK {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	internalObj := biModels.TransferStatusResponse{}.Default()
+	internalObj.FromBCAResponse(&obj)
+
+	return &internalObj, nil
 }
 
 // ChecksAccessToken is an exclusive function to renew the access token if it is expired or if it's empty.

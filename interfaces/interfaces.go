@@ -69,8 +69,8 @@ type SNAP interface {
 	GetAccessToken(ctx context.Context) error
 	BalanceInquiry(ctx context.Context) (*biModel.BankAccountBalance, error)
 	BankStatement(ctx context.Context, fromDateTime, toDateTime string) (*biModel.BankStatement, error)
-	TransferIntraBank(ctx context.Context, payload *biModel.BCATransferIntraBankReq) (*biModel.BCAResponseTransferIntraBank, error)
-	TransferInterBank(ctx context.Context, payload *biModel.BCATransferInterBankRequest) (*biModel.BCATransferInterBankResponse, error)
+	TransferIntraBank(ctx context.Context, payload *biModel.BCATransferIntraBankReq) (*biModel.BankTransferResponse, error)
+	TransferInterBank(ctx context.Context, payload *biModel.BCATransferInterBankRequest) (*biModel.BankTransferResponse, error)
 
 	// GetWatchedTransaction returns list of transaction that is currently being watched by the bank service implementation
 	GetWatchedTransaction(ctx context.Context) []*biModel.TransactionWatcherPublic

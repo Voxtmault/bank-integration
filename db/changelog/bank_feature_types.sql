@@ -10,3 +10,7 @@ CREATE TABLE IF NOT EXISTS `bank_feature_types` (
     UNIQUE (`name`)
 ) ENGINE = InnoDB;
 --rollback DROP TABLE `bank_feature_types`;
+
+--changeset Voxtmault:2
+INSERT INTO `bank_feature_types` (`name`) VALUES ('Ingress');
+INSERT INTO `bank_feature_types` (`name`) VALUES ('Egress');
