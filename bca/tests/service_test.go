@@ -80,8 +80,8 @@ func TestBankStatement(t *testing.T) {
 		biStorage.GetRedisInstance(),
 	)
 
-	fromDateTime := time.Now().AddDate(0, 0, -1).Format(time.RFC3339)
-	toDateTime := time.Now().Format(time.RFC3339)
+	fromDateTime := time.Now().AddDate(0, 0, -1).Format(time.DateTime)
+	toDateTime := time.Now().Format(time.DateTime)
 	data, err := service.BankStatement(context.Background(), fromDateTime, toDateTime)
 	if err != nil {
 		t.Errorf("Error getting bank statement: %v", err)

@@ -458,8 +458,8 @@ type VAPaymentStatusResponse struct {
 type BCABankStatementRequest struct {
 	PartnerReferenceNo string `json:"partnerReferenceNo" validate:"required,max=64"`
 	AccountNo          string `json:"accountNo" validate:"required,number,max=10"`
-	FromDateTime       string `json:"fromDateTime" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
-	ToDateTime         string `json:"toDateTime" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
+	FromDateTime       string `json:"fromDateTime" validate:"omitempty"`
+	ToDateTime         string `json:"toDateTime" validate:"omitempty"`
 }
 
 type BCABankStatementResponse struct {

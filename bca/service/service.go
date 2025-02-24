@@ -304,7 +304,7 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 		}
 
 		fromTime = time.Date(fromTime.Year(), fromTime.Month(), fromTime.Day(), 0, 0, 0, 0, fromTime.Location())
-		payload.FromDateTime = fromTime.Format(time.RFC3339)
+		payload.FromDateTime = strings.ReplaceAll(fromTime.Format(time.RFC3339), "Z", "+")
 
 		toTime, err := time.Parse(time.DateTime, toDateTime)
 		if err != nil {
@@ -312,7 +312,7 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 		}
 
 		toTime = time.Date(toTime.Year(), toTime.Month(), toTime.Day(), 0, 0, 0, 0, toTime.Location())
-		payload.ToDateTime = toTime.Format(time.RFC3339)
+		payload.ToDateTime = strings.ReplaceAll(toTime.Format(time.RFC3339), "Z", "+")
 
 		// Checks if fromDateTime is after toDateTime
 		if fromTime.After(toTime) {
