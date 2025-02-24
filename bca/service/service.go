@@ -298,7 +298,7 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 
 	// Validate time format
 	if fromDateTime != "" && toDateTime != "" {
-		fromTime, err := time.Parse(time.RFC3339, fromDateTime)
+		fromTime, err := time.Parse(time.DateTime, fromDateTime)
 		if err != nil {
 			return nil, eris.Wrap(err, "parsing fromDateTime")
 		}
@@ -306,7 +306,7 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 		fromTime = time.Date(fromTime.Year(), fromTime.Month(), fromTime.Day(), 0, 0, 0, 0, fromTime.Location())
 		payload.FromDateTime = fromTime.Format(time.RFC3339)
 
-		toTime, err := time.Parse(time.RFC3339, toDateTime)
+		toTime, err := time.Parse(time.DateTime, toDateTime)
 		if err != nil {
 			return nil, eris.Wrap(err, "parsing toDateTime")
 		}
@@ -691,6 +691,135 @@ func (s *BCAService) GetTransactionStatus(ctx context.Context, payload *biModels
 	internalObj.FromBCAResponse(&obj)
 
 	return &internalObj, nil
+}
+
+func (s *BCAService) InternalAccountInquiry(ctx context.Context, targetAccountNo string) (*biModels.AccountInformation, error) {
+	log := biModels.BankLogV2{
+		IDBank:    s.bankConfig.InternalBankID,
+		IDFeature: biUtil.FeatureInternalAccountInquiry,
+		URI:       s.bankConfig.BankServiceEndpoints.InternalAccountInquiryURL,
+	}
+	defer func() {
+		biLogger.LogRequest(&log)
+	}()
+
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	bcaPayload := biModels.BCAInternalAccountInquiryRequest{
+		PartnerReferenceNo:   strconv.Itoa(int(time.Now().Unix())),
+		BeneficiaryAccountNo: targetAccountNo,
+	}
+
+	// Validate before sending the request
+	if err := biUtil.ValidateStruct(ctx, bcaPayload); err != nil {
+		return nil, eris.Wrap(err, "validating payload")
+	}
+
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.InternalAccountInquiryURL
+	method := http.MethodPost
+	body, err := json.Marshal(bcaPayload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+	log.RequestBody = string(body)
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.InternalAccountInquiryURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.BusinessChannelId)
+
+	res, err := s.RequestHandler(ctx, request, &log)
+	if err != nil {
+		return nil, eris.Wrap(err, "sending request")
+	}
+
+	var obj biModels.BCAInternalAccountInquiryResponse
+	if err = json.Unmarshal([]byte(res.ResponseBody), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if res.StatusCode != http.StatusOK {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	internal := obj.ToInternal()
+
+	return internal, nil
+}
+
+func (s *BCAService) ExternalAccountInquiry(ctx context.Context, payload *biModels.BCAExternalAccountInquiryRequest) (*biModels.AccountInformation, error) {
+	log := biModels.BankLogV2{
+		IDBank:    s.bankConfig.InternalBankID,
+		IDFeature: biUtil.FeatureExternalAccountInquiry,
+		URI:       s.bankConfig.BankServiceEndpoints.ExternalAccountInquiryURL,
+	}
+	defer func() {
+		biLogger.LogRequest(&log)
+	}()
+
+	// Checks if the access token is empty, if yes then get a new one
+	if err := s.CheckAccessToken(ctx); err != nil {
+		return nil, eris.Wrap(err, "checking access token")
+	}
+
+	payload.AdditionalInfo = &biModels.BCAExternalAccountInquryAdditionalInfo{
+		InquiryService: "1",
+	}
+
+	// Validate before sending the request
+	if err := biUtil.ValidateStruct(ctx, payload); err != nil {
+		return nil, eris.Wrap(err, "validating payload")
+	}
+
+	baseUrl := s.bankConfig.BankServiceEndpoints.BaseUrl + s.bankConfig.BankServiceEndpoints.ExternalAccountInquiryURL
+	method := http.MethodPost
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "marshalling payload")
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, baseUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, eris.Wrap(err, "creating request")
+	}
+	log.RequestBody = string(body)
+
+	if err = s.Egress.GenerateGeneralRequestHeader(ctx, request, s.bankConfig.BankServiceEndpoints.ExternalAccountInquiryURL, s.bankConfig.BankRuntimeConfig.AccessToken); err != nil {
+		return nil, eris.Wrap(err, "constructing request header")
+	}
+
+	request.Header.Set("X-PARTNER-ID", s.bankConfig.BankCredential.PartnerID)
+	request.Header.Set("CHANNEL-ID", s.bankConfig.BankChannelConfig.BusinessChannelId)
+
+	res, err := s.RequestHandler(ctx, request, &log)
+	if err != nil {
+		return nil, eris.Wrap(err, "sending request")
+	}
+
+	var obj biModels.BCAExternalAccountInquiryResponse
+	if err = json.Unmarshal([]byte(res.ResponseBody), &obj); err != nil {
+		return nil, eris.Wrap(err, "unmarshalling balance inquiry response")
+	}
+
+	// Checks for erronous response
+	if res.StatusCode != http.StatusOK {
+		return nil, eris.New(obj.ResponseMessage)
+	}
+
+	internal := obj.ToInternal()
+
+	return internal, nil
 }
 
 // ChecksAccessToken is an exclusive function to renew the access token if it is expired or if it's empty.

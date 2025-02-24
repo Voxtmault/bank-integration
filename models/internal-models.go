@@ -280,3 +280,9 @@ func (t *TransferStatusResponse) FromBCAResponse(bca *BCATransactionStatusInquir
 
 	return nil
 }
+
+type AccountInformation struct {
+	BeneficiaryAccountNo   string `json:"beneficiary_account_no"`
+	BeneficiaryAccountName string `json:"beneficiary_account_name"`
+	BeneficiaryBankCode    string `json:"beneficiary_bank_code,omitempty"`
+}

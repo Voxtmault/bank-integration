@@ -522,3 +522,54 @@ type BCATransactionStatusInquiryResponse struct {
 	LatestTransactionStatus    string `json:"latestTransactionStatus"`
 	TransactionStatusDesc      string `json:"transactionStatusDesc"`
 }
+
+type BCAInternalAccountInquiryRequest struct {
+	PartnerReferenceNo   string `json:"partnerReferenceNo" validate:"required,max=64,numeric"`
+	BeneficiaryAccountNo string `json:"beneficiaryAccountNo" validate:"required,len=10,numeric"`
+}
+
+type BCAInternalAccountInquiryResponse struct {
+	BCAResponse
+	ReferenceNo            string `json:"referenceNo"`
+	PartnerReferenceNo     string `json:"partnerReferenceNo"`
+	BeneficiaryAccountName string `json:"beneficiaryAccountName"`
+	BeneficiaryAccountNo   string `json:"beneficiaryAccountNo"`
+}
+
+func (b *BCAInternalAccountInquiryResponse) ToInternal() *AccountInformation {
+	return &AccountInformation{
+		BeneficiaryAccountNo:   b.BeneficiaryAccountNo,
+		BeneficiaryAccountName: b.BeneficiaryAccountName,
+	}
+}
+
+type BCAExternalAccountInquiryRequest struct {
+	PartnerReferenceNo   string                                  `json:"partnerReferenceNo" validate:"required,max=64"`
+	BeneficiaryBankCode  string                                  `json:"beneficiaryBankCode" validate:"required,max=8,alphanum"`
+	BeneficiaryAccountNo string                                  `json:"beneficiaryAccountNo" validate:"required,max=34,alphanum"`
+	AdditionalInfo       *BCAExternalAccountInquryAdditionalInfo `json:"additionalInfo" validate:"required"`
+}
+
+type BCAExternalAccountInquryAdditionalInfo struct {
+	SourceAccountNo string `json:"sourceAccountNo,omitempty" validate:"omitempty,len=10,numeric"`
+	InquiryService  string `json:"inquiryService" validate:"required,len=1,number"`
+	PurposeCode     string `json:"purposeCode,omitempty"`
+	Amount          Amount `json:"amount,omitempty" validate:"omitemty,max=5,numeric"`
+}
+
+type BCAExternalAccountInquiryResponse struct {
+	BCAResponse
+	PartnerReferenceNo     string `json:"partnerReferenceNo"`
+	ReferenceNo            string `json:"referenceNo"`
+	BeneficiaryAccountName string `json:"beneficiaryAccountName"`
+	BeneficiaryAccountNo   string `json:"beneficiaryAccountNo"`
+	BeneficiaryBankCode    string `json:"beneficiaryBankCode"`
+}
+
+func (b *BCAExternalAccountInquiryResponse) ToInternal() *AccountInformation {
+	return &AccountInformation{
+		BeneficiaryAccountNo:   b.BeneficiaryAccountNo,
+		BeneficiaryAccountName: b.BeneficiaryAccountName,
+		BeneficiaryBankCode:    b.BeneficiaryBankCode,
+	}
+}
