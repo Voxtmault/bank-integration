@@ -328,6 +328,15 @@ func (s *BCAService) BankStatement(ctx context.Context, fromDateTime, toDateTime
 		if fromTime.After(time.Now()) {
 			return nil, eris.New("fromDateTime is after today")
 		}
+
+		if !strings.HasSuffix(payload.FromDateTime, "07:00") {
+			payload.FromDateTime += "07:00"
+		}
+
+		if !strings.HasSuffix(payload.ToDateTime, "07:00") {
+			payload.ToDateTime += "07:00"
+		}
+
 	} else {
 		payload.FromDateTime = ""
 		payload.ToDateTime = ""
